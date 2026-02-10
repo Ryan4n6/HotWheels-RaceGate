@@ -5,7 +5,7 @@
 
 #define CONFIG_FILE "/config.json"
 #define CONFIG_VERSION 1
-#define FIRMWARE_VERSION "2.0.0"
+#define FIRMWARE_VERSION "2.1.0"
 
 // GPIO blacklist - pins unsafe for general use on ESP32/ESP32-S3
 // GPIO 0: boot button, 6-11: flash SPI (ESP32),

@@ -1,8 +1,12 @@
 /*
- * HOT WHEELS RACE GATE - Unified Firmware v2.0
+ * HOT WHEELS RACE GATE - Unified Firmware v2.1
  *
  * Single binary that runs as either START GATE or FINISH GATE.
  * Configure via web portal on first boot (captive portal).
+ *
+ * WiFi connection uses the EXACT same proven pattern from the original
+ * BULLETPROOF firmware: WIFI_STA -> begin -> busy-wait. Simple and reliable.
+ * After WiFi connects, we switch to AP_STA for ESP-NOW coexistence.
  *
  * Features:
  *   - Web-based configuration (WiFi, pins, MAC, track, WLED)
@@ -34,9 +38,70 @@
 #include "wled_integration.h"
 #include "web_server.h"
 
+// ============================================================================
+// HARDCODED FALLBACK - Get you online tonight, captive portal can come later
+// If the config has WiFi creds, those are used. If they're empty/fail,
+// these hardcoded values kick in as a guaranteed fallback.
+// ============================================================================
+#define FALLBACK_WIFI_SSID "Massfeller-IOT"
+#define FALLBACK_WIFI_PASS "Timpforw1"
+
 // DNS server for captive portal in setup mode
 DNSServer dnsServer;
 bool setupMode = false;
+
+// Helper: get unique 4-char hex suffix from hardware MAC
+static void getMacSuffix(char* buf, size_t len) {
+  uint8_t mac[6];
+  esp_efuse_mac_get_default(mac);
+  snprintf(buf, len, "%02X%02X", mac[4], mac[5]);
+}
+
+// ============================================================================
+// WiFi CONNECTION - Mirrors the proven original BULLETPROOF pattern
+// ============================================================================
+static bool connectWiFi(const char* ssid, const char* pass, const char* hostname) {
+  // This is the EXACT pattern from HotWheels_FinishGate_BULLETPROOF.ino
+  // that reliably connects every time:
+  //   WiFi.mode(WIFI_STA) -> setHostname -> begin -> busy-wait
+  //
+  // NO disconnect(), NO persistent(), NO mode toggling, NO retry loops.
+  // The original never needed any of that. Keep it simple.
+
+  WiFi.mode(WIFI_STA);
+  WiFi.setHostname(hostname);
+  WiFi.begin(ssid, pass);
+
+  Serial.printf("[WIFI] Connecting to '%s'", ssid);
+
+  // LED feedback while connecting
+  pinMode(cfg.led_pin > 0 ? cfg.led_pin : 2, OUTPUT);
+  uint8_t ledPin = cfg.led_pin > 0 ? cfg.led_pin : 2;
+
+  // Wait up to 20 seconds (original had no timeout, but we add a safety net)
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 20000) {
+    delay(200);
+    digitalWrite(ledPin, !digitalRead(ledPin));
+    Serial.print(".");
+  }
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    digitalWrite(ledPin, HIGH);
+    Serial.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+
+    // NOW switch to AP_STA so ESP-NOW can work alongside WiFi.
+    // Do this AFTER successful connection to avoid confusing the driver.
+    WiFi.mode(WIFI_AP_STA);
+    delay(100);
+
+    return true;
+  }
+
+  Serial.printf("[WIFI] Failed to connect to '%s' (status=%d)\n", ssid, (int)WiFi.status());
+  return false;
+}
 
 // ============================================================================
 // SETUP
@@ -66,12 +131,8 @@ void setup() {
     Serial.println("[BOOT] No config found - entering SETUP MODE");
 
     // Create AP with unique SSID using last 2 bytes of the hardware MAC
-    // We read from the efuse (burned-in MAC) because WiFi.macAddress()
-    // returns 00:00:00:00:00:00 before WiFi is fully initialized
-    uint8_t baseMac[6];
-    esp_efuse_mac_get_default(baseMac);
     char suffix[5];
-    snprintf(suffix, sizeof(suffix), "%02X%02X", baseMac[4], baseMac[5]);
+    getMacSuffix(suffix, sizeof(suffix));
     String apName = "HotWheels-Setup-" + String(suffix);
 
     WiFi.mode(WIFI_AP);
@@ -96,96 +157,42 @@ void setup() {
     // ====================================================================
     Serial.printf("[BOOT] Config loaded: role=%s, hostname=%s\n", cfg.role, cfg.hostname);
 
-    // WiFi mode: AP_STA for WiFi + ESP-NOW coexistence
     if (strcmp(cfg.network_mode, "standalone") == 0) {
       // Standalone: AP only, no external WiFi
-      // Append MAC suffix so multiple boards don't collide
-      uint8_t sMac[6];
-      esp_efuse_mac_get_default(sMac);
+      char suffix[5];
+      getMacSuffix(suffix, sizeof(suffix));
       char standaloneAP[48];
-      snprintf(standaloneAP, sizeof(standaloneAP), "%s-%02X%02X",
-               cfg.hostname, sMac[4], sMac[5]);
+      snprintf(standaloneAP, sizeof(standaloneAP), "%s-%s", cfg.hostname, suffix);
       WiFi.mode(WIFI_AP);
       WiFi.softAP(standaloneAP);
       Serial.printf("[BOOT] Standalone AP: %s\n", standaloneAP);
     }
     else {
-      // Normal: connect to WiFi, keep soft AP for fallback
-      //
-      // CRITICAL: The ESP32 WiFi driver caches radio state between reboots.
-      // After running in AP-mode with WiFi scans (setup mode), the driver
-      // can get stuck with "Association refused too many times, max allowed 1"
-      // because the internal retry counter is only 1 by default.
-      //
-      // Fix: Full radio reset sequence, then persistent mode with retries.
+      // ================================================================
+      // WiFi CONNECTION - same proven pattern as original BULLETPROOF
+      // ================================================================
+      bool connected = false;
 
-      // Step 1: Nuke all stored WiFi state from previous boot
-      WiFi.persistent(false);       // Don't auto-save credentials to flash
-      WiFi.disconnect(true, true);  // Disconnect + erase any stored credentials in NVS
-      WiFi.mode(WIFI_OFF);
-      delay(500);                   // Give the radio time to fully power down
-
-      // Step 2: Start fresh in AP+STA mode
-      WiFi.mode(WIFI_AP_STA);
-      delay(100);
-      WiFi.setHostname(cfg.hostname);
-
-      // Configure LED for connection feedback
-      if (cfg.led_pin > 0) {
-        pinMode(cfg.led_pin, OUTPUT);
+      // Try 1: Use config credentials (from captive portal)
+      if (strlen(cfg.wifi_ssid) > 0) {
+        Serial.println("[BOOT] Trying configured WiFi credentials...");
+        connected = connectWiFi(cfg.wifi_ssid, cfg.wifi_pass, cfg.hostname);
       }
 
-      Serial.printf("[BOOT] Connecting to WiFi '%s'...\n", cfg.wifi_ssid);
-
-      // Step 3: Try connecting with robust retry logic
-      // ESP32-S3 sometimes needs 2-3 attempts, especially after AP-mode reboot
-      const int maxAttempts = 5;
-      bool wifiConnected = false;
-
-      for (int attempt = 1; attempt <= maxAttempts && !wifiConnected; attempt++) {
-        Serial.printf("[BOOT] WiFi attempt %d/%d...", attempt, maxAttempts);
-
-        if (attempt > 1) {
-          // Full disconnect between retries
-          WiFi.disconnect(true);
-          delay(1000);  // Longer delay between retries for radio to settle
-          WiFi.mode(WIFI_AP_STA);
-          delay(100);
-        }
-
-        WiFi.begin(cfg.wifi_ssid, cfg.wifi_pass);
-
-        // Wait up to 15 seconds per attempt (generous for slow routers)
-        unsigned long wifiStart = millis();
-        while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 15000) {
-          delay(250);
-          Serial.print(".");
-          // Blink LED while connecting
-          if (cfg.led_pin > 0) {
-            digitalWrite(cfg.led_pin, !digitalRead(cfg.led_pin));
-          }
-        }
-        Serial.println();
-
-        if (WiFi.status() == WL_CONNECTED) {
-          wifiConnected = true;
-        } else {
-          wl_status_t status = WiFi.status();
-          Serial.printf("[BOOT] Attempt %d failed (status=%d)\n", attempt, (int)status);
-        }
+      // Try 2: Hardcoded fallback (guaranteed to work tonight)
+      if (!connected) {
+        Serial.println("[BOOT] Config WiFi failed - trying hardcoded fallback...");
+        connected = connectWiFi(FALLBACK_WIFI_SSID, FALLBACK_WIFI_PASS, cfg.hostname);
       }
 
-      if (wifiConnected) {
-        Serial.printf("[BOOT] WiFi connected! IP: %s\n", WiFi.localIP().toString().c_str());
-        if (cfg.led_pin > 0) digitalWrite(cfg.led_pin, HIGH);
-      } else {
-        Serial.printf("[BOOT] WiFi failed after %d attempts - AP fallback mode\n", maxAttempts);
-        // Build unique fallback AP name using MAC suffix so boards don't collide
-        uint8_t fMac[6];
-        esp_efuse_mac_get_default(fMac);
+      // Try 3: If all else fails, become an AP so you can still reach config
+      if (!connected) {
+        Serial.println("[BOOT] All WiFi failed - AP fallback mode");
+        char suffix[5];
+        getMacSuffix(suffix, sizeof(suffix));
         char fallbackAP[48];
-        snprintf(fallbackAP, sizeof(fallbackAP), "%s-%02X%02X",
-                 cfg.hostname, fMac[4], fMac[5]);
+        snprintf(fallbackAP, sizeof(fallbackAP), "%s-%s", cfg.hostname, suffix);
+        WiFi.mode(WIFI_AP);
         WiFi.softAP(fallbackAP);
         Serial.printf("[BOOT] Fallback AP: %s at 192.168.4.1\n", fallbackAP);
       }
@@ -197,7 +204,7 @@ void setup() {
       Serial.printf("[BOOT] mDNS: http://%s.local\n", cfg.hostname);
     }
 
-    // ESP-NOW
+    // ESP-NOW (works in both STA and AP_STA modes)
     initESPNow();
 
     // Web server & WebSocket
