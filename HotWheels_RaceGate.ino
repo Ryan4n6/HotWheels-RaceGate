@@ -25,6 +25,7 @@
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
 #include <DNSServer.h>
+#include <esp_mac.h>
 
 #include "config.h"
 #include "espnow_comm.h"
@@ -64,11 +65,14 @@ void setup() {
     setupMode = true;
     Serial.println("[BOOT] No config found - entering SETUP MODE");
 
-    // Create AP with unique SSID using last 4 chars of MAC
-    String mac = WiFi.macAddress();
-    String suffix = mac.substring(mac.length() - 5);
-    suffix.replace(":", "");
-    String apName = "HotWheels-Setup-" + suffix;
+    // Create AP with unique SSID using last 2 bytes of the hardware MAC
+    // We read from the efuse (burned-in MAC) because WiFi.macAddress()
+    // returns 00:00:00:00:00:00 before WiFi is fully initialized
+    uint8_t baseMac[6];
+    esp_efuse_mac_get_default(baseMac);
+    char suffix[5];
+    snprintf(suffix, sizeof(suffix), "%02X%02X", baseMac[4], baseMac[5]);
+    String apName = "HotWheels-Setup-" + String(suffix);
 
     WiFi.mode(WIFI_AP);
     WiFi.softAP(apName.c_str());
@@ -101,30 +105,55 @@ void setup() {
     }
     else {
       // Normal: connect to WiFi, keep soft AP for fallback
+      // Clean disconnect first to avoid "association refused" errors
+      // This is critical after reboot from AP-mode setup with WiFi scans
+      WiFi.disconnect(true, true);  // disconnect + erase stored credentials
+      WiFi.mode(WIFI_OFF);
+      delay(200);
+
       WiFi.mode(WIFI_AP_STA);
       WiFi.setHostname(cfg.hostname);
-      WiFi.begin(cfg.wifi_ssid, cfg.wifi_pass);
 
       Serial.printf("[BOOT] Connecting to WiFi '%s'...", cfg.wifi_ssid);
 
-      // Wait up to 15 seconds for connection
-      unsigned long wifiStart = millis();
-      while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 15000) {
-        delay(200);
-        Serial.print(".");
-        // Blink LED while connecting
-        if (cfg.led_pin > 0) {
-          pinMode(cfg.led_pin, OUTPUT);
-          digitalWrite(cfg.led_pin, !digitalRead(cfg.led_pin));
-        }
-      }
-      Serial.println();
+      // Try connecting with retry logic - ESP32 sometimes needs multiple attempts
+      int wifiAttempts = 0;
+      const int maxAttempts = 3;
+      bool wifiConnected = false;
 
-      if (WiFi.status() == WL_CONNECTED) {
+      while (wifiAttempts < maxAttempts && !wifiConnected) {
+        if (wifiAttempts > 0) {
+          Serial.printf("\n[BOOT] WiFi attempt %d/%d...", wifiAttempts + 1, maxAttempts);
+          WiFi.disconnect(true);
+          delay(500);
+        }
+
+        WiFi.begin(cfg.wifi_ssid, cfg.wifi_pass);
+
+        // Wait up to 10 seconds per attempt
+        unsigned long wifiStart = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 10000) {
+          delay(200);
+          Serial.print(".");
+          // Blink LED while connecting
+          if (cfg.led_pin > 0) {
+            pinMode(cfg.led_pin, OUTPUT);
+            digitalWrite(cfg.led_pin, !digitalRead(cfg.led_pin));
+          }
+        }
+        Serial.println();
+
+        if (WiFi.status() == WL_CONNECTED) {
+          wifiConnected = true;
+        }
+        wifiAttempts++;
+      }
+
+      if (wifiConnected) {
         Serial.printf("[BOOT] WiFi connected! IP: %s\n", WiFi.localIP().toString().c_str());
         if (cfg.led_pin > 0) digitalWrite(cfg.led_pin, HIGH);
       } else {
-        Serial.println("[BOOT] WiFi connection failed - running in AP fallback mode");
+        Serial.printf("[BOOT] WiFi connection failed after %d attempts - running in AP fallback mode\n", maxAttempts);
         WiFi.softAP(cfg.hostname);
         Serial.printf("[BOOT] Fallback AP: %s at 192.168.4.1\n", cfg.hostname);
       }

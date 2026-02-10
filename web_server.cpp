@@ -6,6 +6,8 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <WiFi.h>
+#include <HTTPClient.h>
+#include <esp_mac.h>
 
 WebServer server(80);
 WebSocketsServer webSocket(81);
@@ -195,7 +197,16 @@ static void handleApiScan() {
 
 static void handleApiMac() {
   StaticJsonDocument<128> doc;
-  doc["mac"] = WiFi.macAddress();
+
+  // WiFi.macAddress() returns STA MAC which may be 00:00:00:00:00:00 in AP-only mode
+  // Use esp_efuse_mac_get_default() to always get the base MAC burned into the chip
+  uint8_t baseMac[6];
+  esp_efuse_mac_get_default(baseMac);
+  char macStr[18];
+  snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+           baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4], baseMac[5]);
+  doc["mac"] = macStr;
+
   String output;
   serializeJson(doc, output);
   server.send(200, "application/json", output);
