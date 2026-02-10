@@ -177,7 +177,14 @@ static void handleApiConfig() {
 }
 
 static void handleApiScan() {
-  int n = WiFi.scanNetworks();
+  // Use passive scan in AP mode to avoid disrupting the radio state
+  // Active scans can cause "association refused" on next WiFi.begin()
+  wifi_scan_config_t scanConfig = {};
+  scanConfig.scan_type = WIFI_SCAN_TYPE_PASSIVE;
+  scanConfig.scan_time.passive = 300;  // 300ms per channel
+
+  int n = WiFi.scanNetworks(false, false, false, scanConfig.scan_time.passive);
+
   StaticJsonDocument<1024> doc;
   JsonArray arr = doc.to<JsonArray>();
 

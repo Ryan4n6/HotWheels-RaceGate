@@ -99,45 +99,69 @@ void setup() {
     // WiFi mode: AP_STA for WiFi + ESP-NOW coexistence
     if (strcmp(cfg.network_mode, "standalone") == 0) {
       // Standalone: AP only, no external WiFi
+      // Append MAC suffix so multiple boards don't collide
+      uint8_t sMac[6];
+      esp_efuse_mac_get_default(sMac);
+      char standaloneAP[48];
+      snprintf(standaloneAP, sizeof(standaloneAP), "%s-%02X%02X",
+               cfg.hostname, sMac[4], sMac[5]);
       WiFi.mode(WIFI_AP);
-      WiFi.softAP(cfg.hostname);
-      Serial.printf("[BOOT] Standalone AP: %s\n", cfg.hostname);
+      WiFi.softAP(standaloneAP);
+      Serial.printf("[BOOT] Standalone AP: %s\n", standaloneAP);
     }
     else {
       // Normal: connect to WiFi, keep soft AP for fallback
-      // Clean disconnect first to avoid "association refused" errors
-      // This is critical after reboot from AP-mode setup with WiFi scans
-      WiFi.disconnect(true, true);  // disconnect + erase stored credentials
-      WiFi.mode(WIFI_OFF);
-      delay(200);
+      //
+      // CRITICAL: The ESP32 WiFi driver caches radio state between reboots.
+      // After running in AP-mode with WiFi scans (setup mode), the driver
+      // can get stuck with "Association refused too many times, max allowed 1"
+      // because the internal retry counter is only 1 by default.
+      //
+      // Fix: Full radio reset sequence, then persistent mode with retries.
 
+      // Step 1: Nuke all stored WiFi state from previous boot
+      WiFi.persistent(false);       // Don't auto-save credentials to flash
+      WiFi.disconnect(true, true);  // Disconnect + erase any stored credentials in NVS
+      WiFi.mode(WIFI_OFF);
+      delay(500);                   // Give the radio time to fully power down
+
+      // Step 2: Start fresh in AP+STA mode
       WiFi.mode(WIFI_AP_STA);
+      delay(100);
       WiFi.setHostname(cfg.hostname);
 
-      Serial.printf("[BOOT] Connecting to WiFi '%s'...", cfg.wifi_ssid);
+      // Configure LED for connection feedback
+      if (cfg.led_pin > 0) {
+        pinMode(cfg.led_pin, OUTPUT);
+      }
 
-      // Try connecting with retry logic - ESP32 sometimes needs multiple attempts
-      int wifiAttempts = 0;
-      const int maxAttempts = 3;
+      Serial.printf("[BOOT] Connecting to WiFi '%s'...\n", cfg.wifi_ssid);
+
+      // Step 3: Try connecting with robust retry logic
+      // ESP32-S3 sometimes needs 2-3 attempts, especially after AP-mode reboot
+      const int maxAttempts = 5;
       bool wifiConnected = false;
 
-      while (wifiAttempts < maxAttempts && !wifiConnected) {
-        if (wifiAttempts > 0) {
-          Serial.printf("\n[BOOT] WiFi attempt %d/%d...", wifiAttempts + 1, maxAttempts);
+      for (int attempt = 1; attempt <= maxAttempts && !wifiConnected; attempt++) {
+        Serial.printf("[BOOT] WiFi attempt %d/%d...", attempt, maxAttempts);
+
+        if (attempt > 1) {
+          // Full disconnect between retries
           WiFi.disconnect(true);
-          delay(500);
+          delay(1000);  // Longer delay between retries for radio to settle
+          WiFi.mode(WIFI_AP_STA);
+          delay(100);
         }
 
         WiFi.begin(cfg.wifi_ssid, cfg.wifi_pass);
 
-        // Wait up to 10 seconds per attempt
+        // Wait up to 15 seconds per attempt (generous for slow routers)
         unsigned long wifiStart = millis();
-        while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 10000) {
-          delay(200);
+        while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 15000) {
+          delay(250);
           Serial.print(".");
           // Blink LED while connecting
           if (cfg.led_pin > 0) {
-            pinMode(cfg.led_pin, OUTPUT);
             digitalWrite(cfg.led_pin, !digitalRead(cfg.led_pin));
           }
         }
@@ -145,17 +169,25 @@ void setup() {
 
         if (WiFi.status() == WL_CONNECTED) {
           wifiConnected = true;
+        } else {
+          wl_status_t status = WiFi.status();
+          Serial.printf("[BOOT] Attempt %d failed (status=%d)\n", attempt, (int)status);
         }
-        wifiAttempts++;
       }
 
       if (wifiConnected) {
         Serial.printf("[BOOT] WiFi connected! IP: %s\n", WiFi.localIP().toString().c_str());
         if (cfg.led_pin > 0) digitalWrite(cfg.led_pin, HIGH);
       } else {
-        Serial.printf("[BOOT] WiFi connection failed after %d attempts - running in AP fallback mode\n", maxAttempts);
-        WiFi.softAP(cfg.hostname);
-        Serial.printf("[BOOT] Fallback AP: %s at 192.168.4.1\n", cfg.hostname);
+        Serial.printf("[BOOT] WiFi failed after %d attempts - AP fallback mode\n", maxAttempts);
+        // Build unique fallback AP name using MAC suffix so boards don't collide
+        uint8_t fMac[6];
+        esp_efuse_mac_get_default(fMac);
+        char fallbackAP[48];
+        snprintf(fallbackAP, sizeof(fallbackAP), "%s-%02X%02X",
+                 cfg.hostname, fMac[4], fMac[5]);
+        WiFi.softAP(fallbackAP);
+        Serial.printf("[BOOT] Fallback AP: %s at 192.168.4.1\n", fallbackAP);
       }
     }
 
