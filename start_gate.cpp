@@ -1,9 +1,7 @@
 #include "start_gate.h"
 #include "config.h"
-#include "wled_integration.h"
-
-// Forward declaration from web_server
-extern void broadcastState();
+// NOTE: Start gate does NOT include wled_integration.h
+// Only the finish gate controls WLED to avoid HTTP conflicts.
 
 // Trigger detection
 static volatile bool triggerDetected = false;
@@ -12,6 +10,8 @@ static volatile uint64_t triggerTime_us = 0;
 // Timing
 static unsigned long lastPingTime = 0;
 static unsigned long triggeredTime = 0;
+static unsigned long finishedAt = 0;
+static bool waitingToReset = false;
 
 // ============================================================================
 // START TRIGGER INTERRUPT
@@ -56,11 +56,17 @@ void startGateLoop() {
 
   // NOTE: The FINISH gate owns clock sync (it initiates SYNC_REQ every 10s).
   // The start gate just responds to SYNC_REQ with MSG_OFFSET.
-  // This avoids both sides overwriting the global clockOffset_us.
 
   // Check peer connectivity timeout
   if (peerConnected && millis() - lastPeerSeen > 10000) {
     peerConnected = false;
+  }
+
+  // Non-blocking reset after FINISHED state
+  if (waitingToReset && millis() - finishedAt > 2000) {
+    waitingToReset = false;
+    raceState = IDLE;
+    Serial.println("[START] Auto-reset to IDLE");
   }
 
   switch (raceState) {
@@ -86,9 +92,7 @@ void startGateLoop() {
         // Detach interrupt to prevent re-trigger
         detachInterrupt(digitalPinToInterrupt(cfg.sensor_pin));
 
-        setWLEDState("racing");
         Serial.println("[START] Race started.");
-        broadcastState();
       }
       break;
 
@@ -100,18 +104,16 @@ void startGateLoop() {
       if (millis() - triggeredTime > 30000) {
         Serial.println("[START] Race timeout - no finish confirmation");
         raceState = IDLE;
-        setWLEDState("idle");
-        broadcastState();
       }
       break;
 
     case FINISHED:
-      // Brief flash then return to idle
-      digitalWrite(cfg.led_pin, HIGH);
-      delay(2000);
-      raceState = IDLE;
-      setWLEDState("idle");
-      broadcastState();
+      // Solid LED briefly then non-blocking reset
+      if (!waitingToReset) {
+        digitalWrite(cfg.led_pin, HIGH);
+        waitingToReset = true;
+        finishedAt = millis();
+      }
       break;
   }
 }
@@ -130,20 +132,16 @@ void onStartGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
       // Finish gate confirmed race complete
       raceState = FINISHED;
       Serial.println("[START] Race confirmed complete!");
-      broadcastState();
       break;
 
     case MSG_SYNC_REQ:
       // Finish gate is requesting clock sync - reply with our current time.
       // The finish gate will use this to compute the offset between our clocks.
       sendToPeer(MSG_OFFSET, nowUs(), 0);
-      Serial.println("[START] Responded to sync request");
       break;
 
     case MSG_OFFSET:
-      // We don't need to compute our own offset - the finish gate handles it.
-      // Just log it for debugging.
-      Serial.printf("[START] Received offset response (ignored - finish gate owns sync)\n");
+      // Finish gate owns the offset - we ignore this.
       break;
 
     case MSG_ARM_CMD:
@@ -154,9 +152,7 @@ void onStartGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
         triggerTime_us = 0;
         // Attach interrupt to detect beam break
         attachInterrupt(digitalPinToInterrupt(cfg.sensor_pin), startTriggerISR, FALLING);
-        setWLEDState("armed");
         Serial.println("[START] ARMED - waiting for trigger");
-        broadcastState();
       }
       break;
 
@@ -165,9 +161,7 @@ void onStartGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
       raceState = IDLE;
       triggerDetected = false;
       detachInterrupt(digitalPinToInterrupt(cfg.sensor_pin));
-      setWLEDState("idle");
       Serial.println("[START] DISARMED");
-      broadcastState();
       break;
   }
 }

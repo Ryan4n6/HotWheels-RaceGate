@@ -279,11 +279,9 @@
       color: #888;
     }
 
-    .delete-btn {
+    .delete-btn, .edit-btn {
       position: absolute;
       top: 8px;
-      right: 8px;
-      background: var(--hw-red);
       color: white;
       width: 24px;
       height: 24px;
@@ -294,6 +292,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+    .delete-btn {
+      right: 8px;
+      background: var(--hw-red);
+    }
+    .edit-btn {
+      right: 36px;
+      background: var(--hw-blue);
     }
 
     /* ===== INPUTS ===== */
@@ -471,7 +477,7 @@
         <input type="number" id="carWeight" placeholder="Weight (g)" step="0.1">
       </div>
 
-      <button class="btn btn-warning" onclick="addCar()">
+      <button id="addCarBtn" class="btn btn-warning" onclick="addCar()">
         ADD TO GARAGE
       </button>
 
@@ -672,13 +678,52 @@
     }
 
     // ========================================================================
-    // GARAGE MANAGEMENT
+    // GARAGE MANAGEMENT - Persistent on ESP32 filesystem via /api/garage
+    // Also mirrors to localStorage as a fast local cache
     // ========================================================================
-    let garage = JSON.parse(localStorage.getItem('hw_garage') || '[]');
+    let garage = [];
     let activeCar = JSON.parse(localStorage.getItem('hw_active_car') || 'null');
+    let editingCarIndex = -1;
+
+    async function loadGarageFromESP() {
+      try {
+        const resp = await fetch('/api/garage');
+        const data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) {
+          garage = data;
+        } else {
+          // Fallback: check localStorage for migration from old version
+          const local = JSON.parse(localStorage.getItem('hw_garage') || '[]');
+          if (local.length > 0) {
+            garage = local;
+            await saveGarageToESP(); // Migrate to ESP32
+            console.log('Migrated garage from localStorage to ESP32');
+          }
+        }
+      } catch (e) {
+        // Offline fallback
+        garage = JSON.parse(localStorage.getItem('hw_garage') || '[]');
+        console.log('Using localStorage fallback for garage');
+      }
+      renderGarage();
+    }
+
+    async function saveGarageToESP() {
+      // Save to both ESP32 and localStorage (belt and suspenders)
+      localStorage.setItem('hw_garage', JSON.stringify(garage));
+      try {
+        await fetch('/api/garage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(garage)
+        });
+      } catch (e) {
+        console.error('Failed to save garage to ESP32:', e);
+      }
+    }
 
     function saveGarage() {
-      localStorage.setItem('hw_garage', JSON.stringify(garage));
+      saveGarageToESP();
       renderGarage();
     }
 
@@ -697,23 +742,51 @@
         return;
       }
 
-      if (garage.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-        alert('Car already exists!');
-        return;
+      // If editing, update existing car
+      if (editingCarIndex >= 0) {
+        garage[editingCarIndex].name = name;
+        garage[editingCarIndex].color = color || 'N/A';
+        garage[editingCarIndex].weight = weight;
+        // Update activeCar if we're editing the active one
+        if (activeCar && activeCar.id === garage[editingCarIndex].id) {
+          activeCar = garage[editingCarIndex];
+          localStorage.setItem('hw_active_car', JSON.stringify(activeCar));
+          send({ cmd: 'setCar', name: activeCar.name, weight: activeCar.weight });
+          document.getElementById('currentCar').innerHTML =
+            'Currently Racing: <span style="color: var(--hw-green);">' + activeCar.name + '</span> (' + activeCar.weight + 'g)';
+        }
+        editingCarIndex = -1;
+        document.getElementById('addCarBtn').textContent = 'ADD TO GARAGE';
+      } else {
+        // Adding new car - check for duplicates
+        if (garage.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+          alert('Car already exists! Click the pencil icon to edit it.');
+          return;
+        }
+        garage.push({
+          id: Date.now(),
+          name: name,
+          color: color || 'N/A',
+          weight: weight,
+          stats: { runs: 0, bestTime: Infinity, bestSpeed: 0 }
+        });
       }
-
-      garage.push({
-        id: Date.now(),
-        name: name,
-        color: color || 'N/A',
-        weight: weight,
-        stats: { runs: 0, bestTime: Infinity, bestSpeed: 0 }
-      });
 
       saveGarage();
       document.getElementById('carName').value = '';
       document.getElementById('carColor').value = '';
       document.getElementById('carWeight').value = '';
+    }
+
+    function editCar(index, event) {
+      event.stopPropagation();
+      editingCarIndex = index;
+      const car = garage[index];
+      document.getElementById('carName').value = car.name;
+      document.getElementById('carColor').value = car.color === 'N/A' ? '' : car.color;
+      document.getElementById('carWeight').value = car.weight;
+      document.getElementById('addCarBtn').textContent = 'SAVE CHANGES';
+      document.getElementById('carName').focus();
     }
 
     function selectCar(index) {
@@ -735,6 +808,7 @@
           localStorage.removeItem('hw_active_car');
           document.getElementById('currentCar').textContent = 'No car selected';
         }
+        if (editingCarIndex === index) editingCarIndex = -1;
         saveGarage();
       }
     }
@@ -747,7 +821,8 @@
       }
       grid.innerHTML = garage.map((car, i) =>
         '<div class="garage-car ' + (activeCar && activeCar.id === car.id ? 'active' : '') + '" onclick="selectCar(' + i + ')">' +
-          '<button class="delete-btn" onclick="deleteCar(' + i + ', event)">x</button>' +
+          '<button class="delete-btn" onclick="deleteCar(' + i + ', event)" title="Delete">x</button>' +
+          '<button class="edit-btn" onclick="editCar(' + i + ', event)" title="Edit">&#9998;</button>' +
           '<h3>' + car.name + '</h3>' +
           '<p>' + car.color + '</p>' +
           '<p>' + car.weight + 'g</p>' +
@@ -859,7 +934,7 @@
     // INITIALIZATION
     // ========================================================================
     window.onload = () => {
-      renderGarage();
+      loadGarageFromESP(); // Load from ESP32 (falls back to localStorage)
       renderHistory();
       connectWebSocket();
       if (activeCar) {

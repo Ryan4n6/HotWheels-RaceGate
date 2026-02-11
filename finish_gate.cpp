@@ -16,6 +16,10 @@ uint32_t totalRuns = 0;
 static unsigned long lastPingTime = 0;
 static unsigned long lastSyncTime = 0;
 
+// Non-blocking auto-reset timer (replaces the old blocking delay(5000))
+static bool waitingToReset = false;
+static unsigned long finishedAt = 0;
+
 // ============================================================================
 // FINISH LINE INTERRUPT
 // ============================================================================
@@ -67,10 +71,22 @@ void finishGateLoop() {
     peerConnected = false;
   }
 
-  // Handle race finish
-  if (raceState == FINISHED && finishTime_us > 0) {
-    delay(100); // Small delay for stability
+  // ================================================================
+  // Non-blocking auto-reset: wait 5 seconds THEN reset to IDLE
+  // During this wait, WebSocket/HTTP keep running so clients see results
+  // ================================================================
+  if (waitingToReset && millis() - finishedAt > 5000) {
+    waitingToReset = false;
+    raceState = IDLE;
+    startTime_us = 0;
+    finishTime_us = 0;
+    setWLEDState("idle");
+    broadcastState();
+    Serial.println("[FINISH] Auto-reset to IDLE");
+  }
 
+  // Handle race finish (runs ONCE when ISR sets FINISHED)
+  if (raceState == FINISHED && finishTime_us > 0 && !waitingToReset) {
     // ================================================================
     // TIMING CALCULATION
     // Use SIGNED math to catch underflows instead of wrapping to huge numbers
@@ -85,14 +101,7 @@ void finishGateLoop() {
 
     // Sanity check: elapsed must be positive and reasonable (< 60 seconds)
     if (elapsed_us <= 0 || elapsed_us > 60000000LL) {
-      Serial.printf("[FINISH] BAD TIMING! elapsed=%lld us - using finish-gate-only timing\n", elapsed_us);
-
-      // FALLBACK: If two-gate timing failed, the finish gate can still
-      // measure time from when it received the START message to when the
-      // car crossed the finish line. This isn't as precise, but it gives
-      // a real number instead of garbage.
-      // startTime_us was set when MSG_START arrived, finishTime_us when ISR fired.
-      // If startTime_us is the problem (offset mangled it), just report error.
+      Serial.printf("[FINISH] BAD TIMING! elapsed=%lld us\n", elapsed_us);
       elapsed_us = 0; // Will show as 0.000s which signals a timing error
     }
 
@@ -115,19 +124,15 @@ void finishGateLoop() {
     // Send CONFIRM to start gate
     sendToPeer(MSG_CONFIRM, nowUs(), 0);
 
-    // Trigger WLED finished effect
+    // Trigger WLED finished effect (ONLY finish gate controls WLED)
     setWLEDState("finished");
 
-    // Broadcast to WebSocket clients
+    // Broadcast results to WebSocket clients IMMEDIATELY - no delay!
     broadcastState();
 
-    // Wait then auto-reset
-    delay(5000);
-    raceState = IDLE;
-    startTime_us = 0;
-    finishTime_us = 0;
-    setWLEDState("idle");
-    broadcastState();
+    // Start the non-blocking 5-second reset timer
+    waitingToReset = true;
+    finishedAt = millis();
   }
 }
 

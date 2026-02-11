@@ -307,6 +307,39 @@ static void handleApiDiscover() {
 }
 
 // ============================================================================
+// GARAGE API - Persistent car storage on ESP32 filesystem
+// ============================================================================
+static void handleApiGarage() {
+  if (server.method() == HTTP_GET) {
+    // Return garage.json contents (or empty array if doesn't exist)
+    if (LittleFS.exists("/garage.json")) {
+      File f = LittleFS.open("/garage.json", "r");
+      String content = f.readString();
+      f.close();
+      server.send(200, "application/json", content);
+    } else {
+      server.send(200, "application/json", "[]");
+    }
+  }
+  else if (server.method() == HTTP_POST) {
+    // Save garage array to filesystem
+    String body = server.arg("plain");
+    if (body.length() == 0) {
+      server.send(400, "application/json", "{\"error\":\"Empty body\"}");
+      return;
+    }
+    File f = LittleFS.open("/garage.json", "w");
+    if (!f) {
+      server.send(500, "application/json", "{\"error\":\"Failed to write garage\"}");
+      return;
+    }
+    f.print(body);
+    f.close();
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+  }
+}
+
+// ============================================================================
 // NORMAL MODE ROUTES
 // ============================================================================
 void initWebServer() {
@@ -329,6 +362,7 @@ void initWebServer() {
   server.on("/api/reset", HTTP_POST, handleApiReset);
   server.on("/api/info", HTTP_GET, handleApiInfo);
   server.on("/api/discover", HTTP_GET, handleApiDiscover);
+  server.on("/api/garage", handleApiGarage);
 
   // WLED proxy endpoints (for config page to fetch WLED data without CORS issues)
   server.on("/api/wled/info", HTTP_GET, []() {
