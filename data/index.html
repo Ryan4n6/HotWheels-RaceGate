@@ -501,13 +501,17 @@
         </div>
         <div>
           <div class="card-label">Google Sheets URL (optional)</div>
-          <input type="text" id="sheetsUrl" placeholder="https://script.google.com/...">
+          <input type="text" id="sheetsUrl" placeholder="https://script.google.com/..." onchange="saveSheetsUrl()">
+          <div id="sheetsStatus" style="font-size:0.8rem; margin-top:4px; color:#888;"></div>
         </div>
       </div>
 
-      <div class="grid" style="grid-template-columns: repeat(2, 1fr);">
+      <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
         <button class="btn btn-primary" onclick="exportCSV()">
           DOWNLOAD CSV
+        </button>
+        <button class="btn btn-success" onclick="testSheetsUpload()">
+          TEST SHEETS
         </button>
         <button class="btn btn-danger" onclick="clearHistory()">
           CLEAR HISTORY
@@ -631,14 +635,15 @@
       document.getElementById('statKE').textContent = data.ke ? data.ke.toFixed(4) : '--';
       document.getElementById('statRuns').textContent = data.totalRuns || 0;
 
-      // If race finished, update garage stats
-      if (data.state === 'FINISHED' && data.time) {
+      // If race finished, update garage stats and upload
+      // Check data.time !== undefined (not just truthy) because 0 is a valid timing error
+      if (data.state === 'FINISHED' && data.time !== undefined) {
         updateGarageStats(data);
         addToHistory(data);
 
-        // Auto-upload to Google Sheets if configured
+        // Auto-upload to Google Sheets if configured AND time is valid (> 0)
         const sheetsUrl = document.getElementById('sheetsUrl').value || configSheetsUrl;
-        if (sheetsUrl) {
+        if (sheetsUrl && data.time > 0) {
           uploadToSheets(data, sheetsUrl);
         }
       }
@@ -845,9 +850,44 @@
     }
 
     // ========================================================================
-    // HISTORY MANAGEMENT
+    // HISTORY MANAGEMENT - Persistent on ESP32 filesystem via /api/history
     // ========================================================================
-    let history = JSON.parse(localStorage.getItem('hw_history') || '[]');
+    let history = [];
+
+    async function loadHistoryFromESP() {
+      try {
+        const resp = await fetch('/api/history');
+        const data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) {
+          history = data;
+        } else {
+          // Migrate from localStorage if available
+          const local = JSON.parse(localStorage.getItem('hw_history') || '[]');
+          if (local.length > 0) {
+            history = local;
+            await saveHistoryToESP();
+            console.log('Migrated history from localStorage to ESP32');
+          }
+        }
+      } catch (e) {
+        history = JSON.parse(localStorage.getItem('hw_history') || '[]');
+        console.log('Using localStorage fallback for history');
+      }
+      renderHistory();
+    }
+
+    async function saveHistoryToESP() {
+      localStorage.setItem('hw_history', JSON.stringify(history));
+      try {
+        await fetch('/api/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(history)
+        });
+      } catch (e) {
+        console.error('Failed to save history to ESP32:', e);
+      }
+    }
 
     function addToHistory(raceData) {
       history.unshift({
@@ -862,7 +902,7 @@
         ke: raceData.ke
       });
       if (history.length > 100) history = history.slice(0, 100);
-      localStorage.setItem('hw_history', JSON.stringify(history));
+      saveHistoryToESP();
       renderHistory();
     }
 
@@ -889,7 +929,7 @@
       const c = prompt('Type DELETE to clear all history:');
       if (c === 'DELETE') {
         history = [];
-        localStorage.setItem('hw_history', JSON.stringify(history));
+        saveHistoryToESP();
         renderHistory();
       }
     }
@@ -913,6 +953,10 @@
     }
 
     function uploadToSheets(data, url) {
+      const status = document.getElementById('sheetsStatus');
+      status.textContent = 'Uploading to Sheets...';
+      status.style.color = '#007ACC';
+
       fetch(url, {
         method: 'POST',
         mode: 'no-cors',
@@ -927,15 +971,55 @@
           momentum: data.momentum,
           ke: data.ke
         })
-      }).catch(err => console.error('Sheets upload failed:', err));
+      }).then(() => {
+        // no-cors means we can't read the response, but if fetch didn't throw, it sent
+        status.textContent = 'Sent to Sheets!';
+        status.style.color = '#28a745';
+        setTimeout(() => { status.textContent = ''; }, 3000);
+      }).catch(err => {
+        status.textContent = 'Upload failed: ' + err.message;
+        status.style.color = '#dc3545';
+        console.error('Sheets upload failed:', err);
+      });
+    }
+
+    // Save Sheets URL to ESP32 config when changed on dashboard
+    // Uses a lightweight endpoint that updates config without rebooting
+    function saveSheetsUrl() {
+      const url = document.getElementById('sheetsUrl').value.trim();
+      configSheetsUrl = url;
+      // Also tell the ESP32 via WebSocket so it updates in memory
+      send({ cmd: 'setSheetsUrl', url: url });
+      const status = document.getElementById('sheetsStatus');
+      status.textContent = 'URL saved';
+      status.style.color = '#28a745';
+      setTimeout(() => { status.textContent = ''; }, 2000);
+    }
+
+    // Test Google Sheets connection with dummy data
+    function testSheetsUpload() {
+      const url = document.getElementById('sheetsUrl').value.trim() || configSheetsUrl;
+      if (!url) {
+        alert('Enter a Google Sheets URL first!');
+        return;
+      }
+      uploadToSheets({
+        car: 'TEST CAR',
+        weight: 35,
+        time: 1.234,
+        speed_mph: 1.62,
+        scale_mph: 103.7,
+        momentum: 0.057,
+        ke: 0.023
+      }, url);
     }
 
     // ========================================================================
     // INITIALIZATION
     // ========================================================================
     window.onload = () => {
-      loadGarageFromESP(); // Load from ESP32 (falls back to localStorage)
-      renderHistory();
+      loadGarageFromESP();   // Load from ESP32 (falls back to localStorage)
+      loadHistoryFromESP();  // Load from ESP32 (falls back to localStorage)
       connectWebSocket();
       if (activeCar) {
         document.getElementById('currentCar').innerHTML =

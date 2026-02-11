@@ -44,7 +44,7 @@ static void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t 
       break;
 
     case WStype_TEXT: {
-      StaticJsonDocument<256> doc;
+      StaticJsonDocument<512> doc;  // 512 to fit Google Sheets URLs
       DeserializationError error = deserializeJson(doc, payload);
       if (error) return;
 
@@ -78,6 +78,16 @@ static void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t 
       }
       else if (strcmp(cmd, "syncClock") == 0) {
         sendToPeer(MSG_SYNC_REQ, nowUs(), 0);
+      }
+      else if (strcmp(cmd, "setSheetsUrl") == 0) {
+        // Update Google Sheets URL in config and save (no reboot needed)
+        const char* url = doc["url"];
+        if (url) {
+          strncpy(cfg.google_sheets_url, url, sizeof(cfg.google_sheets_url) - 1);
+          cfg.google_sheets_url[sizeof(cfg.google_sheets_url) - 1] = '\0';
+          saveConfig();
+          Serial.printf("[WEB] Google Sheets URL updated: %s\n", cfg.google_sheets_url);
+        }
       }
       break;
     }
@@ -340,6 +350,37 @@ static void handleApiGarage() {
 }
 
 // ============================================================================
+// HISTORY API - Persistent race history on ESP32 filesystem
+// ============================================================================
+static void handleApiHistory() {
+  if (server.method() == HTTP_GET) {
+    if (LittleFS.exists("/history.json")) {
+      File f = LittleFS.open("/history.json", "r");
+      String content = f.readString();
+      f.close();
+      server.send(200, "application/json", content);
+    } else {
+      server.send(200, "application/json", "[]");
+    }
+  }
+  else if (server.method() == HTTP_POST) {
+    String body = server.arg("plain");
+    if (body.length() == 0) {
+      server.send(400, "application/json", "{\"error\":\"Empty body\"}");
+      return;
+    }
+    File f = LittleFS.open("/history.json", "w");
+    if (!f) {
+      server.send(500, "application/json", "{\"error\":\"Failed to write history\"}");
+      return;
+    }
+    f.print(body);
+    f.close();
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+  }
+}
+
+// ============================================================================
 // NORMAL MODE ROUTES
 // ============================================================================
 void initWebServer() {
@@ -363,6 +404,7 @@ void initWebServer() {
   server.on("/api/info", HTTP_GET, handleApiInfo);
   server.on("/api/discover", HTTP_GET, handleApiDiscover);
   server.on("/api/garage", handleApiGarage);
+  server.on("/api/history", handleApiHistory);
 
   // WLED proxy endpoints (for config page to fetch WLED data without CORS issues)
   server.on("/api/wled/info", HTTP_GET, []() {
