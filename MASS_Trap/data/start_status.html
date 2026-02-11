@@ -265,6 +265,38 @@
       background: var(--mass-green);
       box-shadow: 0 0 6px var(--mass-green);
     }
+
+    /* ===== PEER STATUS ===== */
+    .peer-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .peer-dot.online {
+      background: var(--mass-green);
+      box-shadow: 0 0 6px var(--mass-green);
+    }
+    .peer-dot.stale {
+      background: var(--mass-gold);
+      box-shadow: 0 0 4px var(--mass-gold);
+    }
+    .peer-dot.offline {
+      background: var(--mass-red);
+    }
+    .peer-role {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+    .peer-role.finish { background: rgba(74,144,217,0.2); color: var(--mass-blue); }
+    .peer-role.start { background: rgba(40,167,69,0.2); color: var(--mass-green); }
+    .peer-role.speedtrap { background: rgba(212,175,55,0.2); color: var(--mass-gold); }
   </style>
 </head>
 <body>
@@ -283,7 +315,7 @@
 
     <div id="stateBanner" class="state-banner idle">INITIALIZING</div>
 
-    <!-- Peer Connection -->
+    <!-- System Status -->
     <div class="card">
       <div class="card-title">System Status</div>
       <div class="info-row">
@@ -291,12 +323,19 @@
         <span class="info-value" id="wsStatus">Connecting...</span>
       </div>
       <div class="info-row">
-        <span class="info-label">Finish Gate</span>
-        <span class="info-value" id="peerStatus">--</span>
-      </div>
-      <div class="info-row">
         <span class="info-label">Race State</span>
         <span class="info-value" id="raceState">--</span>
+      </div>
+    </div>
+
+    <!-- Brother's Six — Peer Network -->
+    <div class="card" id="peerCard">
+      <div class="card-title">Brother's Six — Peer Network</div>
+      <div id="peerList">
+        <div class="info-row">
+          <span class="info-label">Scanning...</span>
+          <span class="info-value" style="color:var(--mass-muted);">Searching for peers</span>
+        </div>
       </div>
     </div>
 
@@ -378,16 +417,6 @@
           banner.textContent = d.state || 'UNKNOWN';
           document.getElementById('raceState').textContent = d.state || '--';
 
-          // Peer status
-          var peer = document.getElementById('peerStatus');
-          if (d.connected) {
-            peer.textContent = 'LINKED';
-            peer.className = 'info-value connected';
-          } else {
-            peer.textContent = 'NO LINK';
-            peer.className = 'info-value disconnected';
-          }
-
           // LiDAR data
           if (d.lidar) {
             var lidarCard = document.getElementById('lidarCard');
@@ -442,6 +471,47 @@
     }
 
     // ====================================================================
+    // PEER NETWORK STATUS (polled)
+    // ====================================================================
+    async function loadPeers() {
+      try {
+        var resp = await fetch('/api/peers');
+        var peers = await resp.json();
+        var container = document.getElementById('peerList');
+
+        if (!peers || peers.length === 0) {
+          container.innerHTML = '<div class="info-row">' +
+            '<span class="info-label">No peers found</span>' +
+            '<span class="info-value" style="color:var(--mass-muted);">Beaconing...</span></div>';
+          return;
+        }
+
+        var html = '';
+        for (var i = 0; i < peers.length; i++) {
+          var p = peers[i];
+          var dotClass = p.status || 'offline';
+          var statusText = p.status === 'online' ? 'ONLINE' :
+                          p.status === 'stale' ? 'STALE' : 'OFFLINE';
+          var statusClass = p.status === 'online' ? 'connected' :
+                           p.status === 'stale' ? '' : 'disconnected';
+          var role = p.role || 'unknown';
+          var name = p.hostname || p.mac || '--';
+          var pairedBadge = p.paired ? ' ★' : '';
+
+          html += '<div class="info-row">' +
+            '<span class="info-label">' +
+              '<span class="peer-dot ' + dotClass + '"></span>' +
+              name + pairedBadge +
+              '<span class="peer-role ' + role + '">' + role + '</span>' +
+            '</span>' +
+            '<span class="info-value ' + statusClass + '">' + statusText + '</span>' +
+          '</div>';
+        }
+        container.innerHTML = html;
+      } catch (e) {}
+    }
+
+    // ====================================================================
     // VERSION
     // ====================================================================
     async function loadVersion() {
@@ -461,8 +531,10 @@
     window.onload = function() {
       connectWS();
       loadInfo();
+      loadPeers();
       loadVersion();
       setInterval(loadInfo, 15000);
+      setInterval(loadPeers, 5000);
     };
   </script>
 </body>

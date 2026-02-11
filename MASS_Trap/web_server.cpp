@@ -158,6 +158,14 @@ void broadcastState() {
     lidar["distance_mm"] = getDistanceMM();
   }
 
+  // Peer count for dashboard status indicators
+  int onlinePeers = 0;
+  for (int i = 0; i < peerCount; i++) {
+    if (peers[i].paired && getPeerStatus(peers[i]) == PEER_ONLINE) onlinePeers++;
+  }
+  doc["peerCount"] = peerCount;
+  doc["onlinePeers"] = onlinePeers;
+
   if (raceState == FINISHED && startTime_us > 0 && finishTime_us > 0) {
     // Use SIGNED math to detect underflows instead of wrapping to huge values
     int64_t elapsed_us = (int64_t)finishTime_us - (int64_t)startTime_us;
@@ -454,6 +462,7 @@ static void handleApiInfo() {
   doc["free_heap"] = ESP.getFreeHeap();
   doc["wifi_rssi"] = WiFi.RSSI();
   doc["peer_connected"] = peerConnected;
+  doc["peer_count"] = peerCount;
   doc["ip"] = WiFi.localIP().toString();
   doc["audio_enabled"] = cfg.audio_enabled;
   doc["lidar_enabled"] = cfg.lidar_enabled;
@@ -482,16 +491,34 @@ static void handleApiVersion() {
   server.send(200, "application/json", output);
 }
 
-static void handleApiDiscover() {
-  // Restart discovery scan
-  discoveredCount = 0;
-  discoveryActive = true;
-  sendDiscoveryBroadcast();
+// ============================================================================
+// PEER DISCOVERY API — Brother's Six Protocol
+// ============================================================================
+static void handleApiPeers() {
+  server.send(200, "application/json", getPeersJson());
+}
 
-  // Wait briefly for responses
-  delay(2000);
+static void handleApiPeersForget() {
+  if (!requireAuth()) return;
 
-  server.send(200, "application/json", getDiscoveredDevicesJson());
+  String body = server.arg("plain");
+  if (body.length() > 0) {
+    // Forget a specific peer by MAC
+    StaticJsonDocument<128> doc;
+    deserializeJson(doc, body);
+    const char* macStr = doc["mac"] | "";
+    uint8_t mac[6];
+    if (parseMacString(macStr, mac)) {
+      forgetPeer(mac);
+      server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"forgot_one\"}");
+    } else {
+      server.send(400, "application/json", "{\"error\":\"Invalid MAC\"}");
+    }
+  } else {
+    // Forget all peers
+    forgetAllPeers();
+    server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"forgot_all\"}");
+  }
 }
 
 // ============================================================================
@@ -765,7 +792,8 @@ void initWebServer() {
   server.on("/api/reset", HTTP_POST, handleApiReset);
   server.on("/api/info", HTTP_GET, handleApiInfo);
   server.on("/api/version", HTTP_GET, handleApiVersion);
-  server.on("/api/discover", HTTP_GET, handleApiDiscover);
+  server.on("/api/peers", HTTP_GET, handleApiPeers);
+  server.on("/api/peers/forget", HTTP_POST, handleApiPeersForget);
   server.on("/api/garage", HTTP_GET, handleApiGarage);
   server.on("/api/garage", HTTP_POST, handleApiGarage);
   server.on("/api/history", HTTP_GET, handleApiHistory);

@@ -10,8 +10,8 @@
  * After WiFi connects, we switch to AP_STA for ESP-NOW coexistence.
  *
  * Features:
- *   - Web-based configuration (WiFi, pins, MAC, track, WLED)
- *   - ESP-NOW device discovery (auto-find peer devices)
+ *   - Zero-config ESP-NOW auto-discovery (devices find each other automatically)
+ *   - Web-based configuration (WiFi, pins, track, WLED)
  *   - WLED integration for race state visual effects
  *   - Google Sheets data logging
  *   - OTA firmware updates
@@ -21,8 +21,29 @@
  *   - Speed trap node with dual IR sensors for mid-track velocity
  *
  * Hardware: ESP32-S3-WROOM-1 N16R8 (16MB Flash / 8MB PSRAM)
- * Libraries: WebSockets, ArduinoJson (install via Library Manager)
+ *
+ * Arduino IDE Setup:
+ *   Board:       "ESP32S3 Dev Module"
+ *   Flash Size:  "16MB (128Mb)"
+ *   PSRAM:       "OPI PSRAM"
+ *   Partition:   Any (partitions.csv in sketch folder auto-overrides)
+ *   Libraries:   WebSockets, ArduinoJson (install via Library Manager)
  */
+
+// ============================================================================
+// BOARD VALIDATION — Catch misconfiguration at compile time, not at runtime
+// ============================================================================
+#if !defined(CONFIG_IDF_TARGET_ESP32S3)
+  #error "M.A.S.S. Trap requires ESP32-S3. In Arduino IDE: Tools > Board > ESP32S3 Dev Module"
+#endif
+
+#if !defined(CONFIG_ESPTOOLPY_FLASHSIZE_16MB)
+  #warning "M.A.S.S. Trap is designed for 16MB flash. In Arduino IDE: Tools > Flash Size > 16MB (128Mb)"
+#endif
+
+#if !defined(CONFIG_SPIRAM)
+  #warning "M.A.S.S. Trap works best with PSRAM enabled. In Arduino IDE: Tools > PSRAM > OPI PSRAM"
+#endif
 
 #include <WiFi.h>
 #include <WebServer.h>
