@@ -228,6 +228,14 @@ static void handleApiConfig() {
     // configFromJson already loaded into global cfg
     cfg.configured = true;
 
+    // Auto-generate role-based hostname if user left it blank or default
+    if (strlen(cfg.hostname) == 0 || strcmp(cfg.hostname, "masstrap") == 0) {
+      char suffix[5];
+      getMacSuffix(suffix, sizeof(suffix));
+      generateHostname(cfg.role, suffix, cfg.hostname, sizeof(cfg.hostname));
+      LOG.printf("[CONFIG] Auto-generated hostname: %s\n", cfg.hostname);
+    }
+
     if (!validateConfig(cfg)) {
       loadConfig(); // Restore previous
       server.send(400, "application/json", "{\"error\":\"Config validation failed\"}");
@@ -239,7 +247,11 @@ static void handleApiConfig() {
       return;
     }
 
-    server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Config saved. Rebooting...\"}");
+    // Include hostname in response so client knows where to redirect
+    String resp = "{\"status\":\"ok\",\"message\":\"Config saved. Rebooting...\",\"hostname\":\"";
+    resp += cfg.hostname;
+    resp += "\"}";
+    server.send(200, "application/json", resp);
     delay(500);
     ESP.restart();
   }

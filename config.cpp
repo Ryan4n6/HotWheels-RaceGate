@@ -1,6 +1,7 @@
 #include "config.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include <esp_mac.h>
 
 DeviceConfig cfg;
 
@@ -327,4 +328,34 @@ String formatMac(const uint8_t* mac) {
   snprintf(buf, sizeof(buf), "%02X:%02X:%02X:%02X:%02X:%02X",
            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
   return String(buf);
+}
+
+void getMacSuffix(char* buf, size_t len) {
+  uint8_t mac[6];
+  esp_efuse_mac_get_default(mac);
+  snprintf(buf, len, "%02X%02X", mac[4], mac[5]);
+}
+
+void generateHostname(const char* role, const char* macSuffix, char* outBuf, size_t outLen) {
+  // Abbreviate "speedtrap" to "speed" for compact hostnames
+  const char* abbrev = role;
+  if (strcmp(role, "speedtrap") == 0) abbrev = "speed";
+
+  if (abbrev && strlen(abbrev) > 0) {
+    snprintf(outBuf, outLen, "masstrap-%s-%s", abbrev, macSuffix);
+  } else {
+    snprintf(outBuf, outLen, "masstrap-%s", macSuffix);
+  }
+
+  // Force lowercase (mDNS convention)
+  for (size_t i = 0; i < strlen(outBuf); i++) {
+    outBuf[i] = tolower(outBuf[i]);
+  }
+}
+
+const char* getRoleEmoji(const char* role) {
+  if (strcmp(role, "finish") == 0)    return "\xF0\x9F\x8F\x81";  // 🏁 checkered flag
+  if (strcmp(role, "start") == 0)     return "\xF0\x9F\x9A\xA6";  // 🚦 traffic light
+  if (strcmp(role, "speedtrap") == 0) return "\xF0\x9F\x93\xA1";  // 📡 satellite dish
+  return "\xF0\x9F\x9A\x94";                                      // 🚔 police car (setup/unknown)
 }

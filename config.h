@@ -111,4 +111,15 @@ bool parseMacString(const char* macStr, uint8_t* macOut);
 // Format uint8_t[6] MAC to "XX:XX:XX:XX:XX:XX" string
 String formatMac(const uint8_t* mac);
 
+// Get 4-char hex suffix from hardware MAC (e.g., "A7B2")
+void getMacSuffix(char* buf, size_t len);
+
+// Generate role-based hostname: "masstrap-finish-a7b2"
+// Abbreviates "speedtrap" to "speed". Forces lowercase.
+void generateHostname(const char* role, const char* macSuffix, char* outBuf, size_t outLen);
+
+// Returns UTF-8 emoji string for a role's AP SSID personality
+// finish → 🏁  start → 🚦  speedtrap → 📡  default/setup → 🚔
+const char* getRoleEmoji(const char* role);
+
 #endif

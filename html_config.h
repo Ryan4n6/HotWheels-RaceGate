@@ -436,8 +436,8 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
       </div>
 
       <label>Hostname</label>
-      <input type="text" id="hostname" placeholder="masstrap" value="masstrap">
-      <div class="hint">Access device at http://[hostname].local</div>
+      <input type="text" id="hostname" placeholder="masstrap-finish-xxxx" value="">
+      <div class="hint">Leave blank for auto-naming: <strong>masstrap-{role}-{mac}</strong>. Access at http://hostname.local</div>
 
       <label>Network Mode</label>
       <select id="networkMode">
@@ -908,7 +908,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
         network: {
           wifi_ssid: document.getElementById('wifiSSID').value.trim(),
           wifi_pass: document.getElementById('wifiPass').value,
-          hostname: document.getElementById('hostname').value.trim() || 'masstrap',
+          hostname: document.getElementById('hostname').value.trim(),
           mode: networkMode
         },
         device: {
@@ -965,9 +965,10 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
         });
         const result = await resp.json();
         if (resp.ok) {
-          showStatus('Config saved! Device rebooting...', 'success');
+          // Server returns the final hostname (may have been auto-generated)
+          const host = result.hostname || config.network.hostname || 'masstrap';
+          showStatus('Config saved! Device rebooting as ' + host + '...', 'success');
           setTimeout(() => {
-            const host = config.network.hostname || 'masstrap';
             showStatus('Reconnecting to http://' + host + '.local ...', '');
             setTimeout(() => { window.location.href = 'http://' + host + '.local/'; }, 5000);
           }, 3000);
@@ -1097,7 +1098,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
           if (cfg.network) {
             document.getElementById('wifiSSID').value = cfg.network.wifi_ssid || '';
             document.getElementById('wifiPass').value = cfg.network.wifi_pass || '';
-            document.getElementById('hostname').value = cfg.network.hostname || 'masstrap';
+            document.getElementById('hostname').value = cfg.network.hostname || '';
             document.getElementById('networkMode').value = cfg.network.mode || 'wifi';
           }
           if (cfg.device) {

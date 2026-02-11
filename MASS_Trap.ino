@@ -81,12 +81,8 @@ bool setupMode = false;
 // Global log output — defaults to Serial, switched to serialTee in setup()
 Print* logOutput = &Serial;
 
-// Helper: get unique 4-char hex suffix from hardware MAC
-static void getMacSuffix(char* buf, size_t len) {
-  uint8_t mac[6];
-  esp_efuse_mac_get_default(mac);
-  snprintf(buf, len, "%02X%02X", mac[4], mac[5]);
-}
+// getMacSuffix() and generateHostname() are now in config.cpp
+// getRoleEmoji() returns UTF-8 emoji per role for AP SSIDs
 
 // ============================================================================
 // WiFi CONNECTION - Mirrors the proven original BULLETPROOF pattern
@@ -184,17 +180,18 @@ void setup() {
     setupMode = true;
     LOG.println("[BOOT] No config found - entering SETUP MODE");
 
-    // Create AP with unique SSID using last 2 bytes of the hardware MAC
+    // Create AP with emoji SSID: "🚔 MassTrap Setup XXXX"
     char suffix[5];
     getMacSuffix(suffix, sizeof(suffix));
-    String apName = "MASSTrap-Setup-" + String(suffix);
+    char apName[48];
+    snprintf(apName, sizeof(apName), "%s MassTrap Setup %s", getRoleEmoji(""), suffix);
 
     WiFi.mode(WIFI_AP);
-    WiFi.softAP(apName.c_str());
+    WiFi.softAP(apName);
     delay(500);
 
-    LOG.printf("[BOOT] AP started: %s\n", apName.c_str());
-    LOG.printf("[BOOT] Connect to WiFi '%s' and open http://192.168.4.1\n", apName.c_str());
+    LOG.printf("[BOOT] AP started: %s\n", apName);
+    LOG.printf("[BOOT] Connect to WiFi '%s' and open http://192.168.4.1\n", apName);
 
     // Start DNS server for captive portal
     dnsServer.start(53, "*", WiFi.softAPIP());
@@ -212,11 +209,9 @@ void setup() {
     LOG.printf("[BOOT] Config loaded: role=%s, hostname=%s\n", cfg.role, cfg.hostname);
 
     if (strcmp(cfg.network_mode, "standalone") == 0) {
-      // Standalone: AP only, no external WiFi
-      char suffix[5];
-      getMacSuffix(suffix, sizeof(suffix));
+      // Standalone: AP only, emoji SSID e.g. "🏁 masstrap-finish-a7b2"
       char standaloneAP[48];
-      snprintf(standaloneAP, sizeof(standaloneAP), "%s-%s", cfg.hostname, suffix);
+      snprintf(standaloneAP, sizeof(standaloneAP), "%s %s", getRoleEmoji(cfg.role), cfg.hostname);
       WiFi.mode(WIFI_AP);
       WiFi.softAP(standaloneAP);
       LOG.printf("[BOOT] Standalone AP: %s\n", standaloneAP);
@@ -242,10 +237,8 @@ void setup() {
       // Try 3: If all else fails, become an AP so you can still reach config
       if (!connected) {
         LOG.println("[BOOT] All WiFi failed - AP fallback mode");
-        char suffix[5];
-        getMacSuffix(suffix, sizeof(suffix));
         char fallbackAP[48];
-        snprintf(fallbackAP, sizeof(fallbackAP), "%s-%s", cfg.hostname, suffix);
+        snprintf(fallbackAP, sizeof(fallbackAP), "%s %s", getRoleEmoji(cfg.role), cfg.hostname);
         WiFi.mode(WIFI_AP);
         WiFi.softAP(fallbackAP);
         LOG.printf("[BOOT] Fallback AP: %s at 192.168.4.1\n", fallbackAP);
