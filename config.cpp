@@ -68,7 +68,22 @@ bool loadConfig() {
   String json = file.readString();
   file.close();
 
-  return configFromJson(json);
+  if (!configFromJson(json)) {
+    // configFromJson returns cfg.configured, but after an OTA update the
+    // config file survives on LittleFS even though the "configured" flag
+    // may be missing or false (e.g. older firmware versions, manual edits).
+    // If the file parsed successfully AND has a non-empty role, treat it
+    // as a valid config so the device doesn't drop into setup mode.
+    if (strlen(cfg.role) > 0 && strlen(cfg.hostname) > 0) {
+      LOG.println("[CONFIG] Config file valid but 'configured' flag was false — auto-recovering");
+      cfg.configured = true;
+      saveConfig();  // Persist the fix so next boot is clean
+      return true;
+    }
+    return false;
+  }
+
+  return true;
 }
 
 bool saveConfig() {

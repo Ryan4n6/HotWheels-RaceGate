@@ -7,182 +7,355 @@
   <title>M.A.S.S. Trap - Configuration</title>
   <style>
     :root {
-      --hw-orange: #FF4400;
-      --hw-blue: #007ACC;
-      --hw-yellow: #FFCC00;
-      --hw-green: #28a745;
-      --hw-red: #dc3545;
-      --bg: #1a1a1a;
-      --card: #ffffff;
-      --text: #333;
+      --mass-navy: #1a1a2e;
+      --mass-gold: #d4af37;
+      --mass-blue: #4a90d9;
+      --mass-green: #28a745;
+      --mass-red: #dc3545;
+      --mass-dark: #0f0f1e;
+      --mass-card: #16213e;
+      --mass-card-border: #2a2a4a;
+      --mass-text: #e0e0e0;
+      --mass-muted: #8888aa;
+      --mass-input-bg: #0f0f1e;
+      --mass-input-border: #2a2a4a;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, var(--hw-blue) 0%, #005599 100%);
+      background: var(--mass-navy);
       min-height: 100vh;
       padding: 15px;
-      color: var(--text);
+      color: var(--mass-text);
     }
-    .container { max-width: 800px; margin: 0 auto; }
+    .container { max-width: 800px; margin: 0 auto; padding-bottom: 80px; }
+
+    /* ===== HEADER ===== */
     .header {
       text-align: center;
-      color: white;
-      margin-bottom: 20px;
-      text-shadow: 2px 2px 0px #000;
+      margin-bottom: 24px;
+      padding: 20px 0;
     }
-    .header h1 { font-size: 2rem; font-weight: 900; font-style: italic; }
-    .header p { color: var(--hw-yellow); font-weight: bold; margin-top: 5px; }
+    .header-shield {
+      display: inline-block;
+      width: 50px; height: 58px;
+      background: var(--mass-gold);
+      clip-path: polygon(50% 0%, 100% 15%, 100% 65%, 50% 100%, 0% 65%, 0% 15%);
+      margin-bottom: 8px;
+      position: relative;
+    }
+    .header-shield::after {
+      content: 'M';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--mass-navy);
+    }
+    .header h1 {
+      font-size: 1.8rem;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: var(--mass-gold);
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+    .header .subtitle {
+      font-size: 0.75rem;
+      letter-spacing: 5px;
+      color: var(--mass-muted);
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+    .nav-links {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+    .nav-links a {
+      color: var(--mass-blue);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      border-bottom: 2px solid transparent;
+      padding-bottom: 2px;
+      transition: all 0.2s;
+    }
+    .nav-links a:hover {
+      color: var(--mass-gold);
+      border-bottom-color: var(--mass-gold);
+    }
 
-    /* Tabs */
+    /* ===== TABS ===== */
     .tabs {
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
-      margin-bottom: 20px;
+      margin-bottom: 0;
     }
     .tab {
       padding: 10px 16px;
-      background: rgba(255,255,255,0.2);
-      color: white;
-      border: none;
+      background: var(--mass-card);
+      color: var(--mass-muted);
+      border: 1px solid var(--mass-card-border);
+      border-bottom: none;
       border-radius: 8px 8px 0 0;
       cursor: pointer;
       font-weight: 700;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: all 0.2s;
     }
+    .tab:hover { color: var(--mass-text); background: #1e2a4a; }
     .tab.active {
-      background: white;
-      color: var(--hw-blue);
+      background: var(--mass-card);
+      color: var(--mass-gold);
+      border-color: var(--mass-gold);
+      border-bottom: 1px solid var(--mass-card);
+      position: relative;
+      z-index: 2;
     }
     .tab-content {
       display: none;
-      background: white;
-      border-radius: 0 12px 12px 12px;
+      background: var(--mass-card);
+      border: 1px solid var(--mass-card-border);
+      border-radius: 0 8px 8px 8px;
       padding: 25px;
-      box-shadow: 0 6px 0 rgba(0,0,0,0.1);
+      position: relative;
+      z-index: 1;
+      margin-top: -1px;
     }
     .tab-content.active { display: block; }
 
-    /* Form elements */
+    /* ===== FORM ELEMENTS ===== */
     label {
       display: block;
       font-weight: 700;
-      font-size: 0.85rem;
+      font-size: 0.75rem;
       text-transform: uppercase;
-      color: #666;
+      letter-spacing: 1px;
+      color: var(--mass-gold);
       margin-bottom: 6px;
-      margin-top: 16px;
+      margin-top: 18px;
     }
     label:first-child { margin-top: 0; }
     input, select {
       width: 100%;
-      padding: 12px;
-      border: 2px solid #ddd;
+      padding: 11px 14px;
+      border: 1px solid var(--mass-input-border);
       border-radius: 6px;
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-family: inherit;
+      background: var(--mass-input-bg);
+      color: var(--mass-text);
+      transition: border-color 0.2s;
     }
     input:focus, select:focus {
       outline: none;
-      border-color: var(--hw-blue);
+      border-color: var(--mass-gold);
+      box-shadow: 0 0 0 2px rgba(212,175,55,0.15);
     }
-    .hint { font-size: 0.8rem; color: #999; margin-top: 4px; }
+    input::placeholder { color: #555577; }
+    select option { background: var(--mass-dark); color: var(--mass-text); }
+    .hint {
+      font-size: 0.78rem;
+      color: var(--mass-muted);
+      margin-top: 4px;
+      line-height: 1.3;
+    }
 
-    /* Role cards */
-    .role-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+    /* ===== TOGGLE SWITCH ===== */
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 18px;
+      padding: 12px 14px;
+      background: var(--mass-input-bg);
+      border: 1px solid var(--mass-input-border);
+      border-radius: 6px;
+    }
+    .toggle-row span { font-weight: 700; font-size: 0.85rem; }
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 26px;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #333;
+      border-radius: 26px;
+      transition: 0.3s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      height: 20px; width: 20px;
+      left: 3px; bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--mass-gold); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+    /* ===== ROLE CARDS ===== */
+    .role-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
     .role-card {
-      border: 3px solid #ddd;
-      border-radius: 12px;
-      padding: 20px;
+      border: 2px solid var(--mass-card-border);
+      border-radius: 10px;
+      padding: 18px 12px;
       text-align: center;
       cursor: pointer;
       transition: all 0.2s;
+      background: var(--mass-input-bg);
     }
-    .role-card:hover { border-color: var(--hw-blue); transform: translateY(-2px); }
-    .role-card.selected { border-color: var(--hw-green); background: #f0fff4; border-width: 4px; }
-    .role-card h3 { font-size: 1.3rem; margin-bottom: 8px; }
-    .role-card p { font-size: 0.85rem; color: #666; }
-    .role-icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .role-card:hover {
+      border-color: var(--mass-blue);
+      background: #1a1a3e;
+    }
+    .role-card.selected {
+      border-color: var(--mass-gold);
+      background: rgba(212,175,55,0.08);
+      box-shadow: 0 0 12px rgba(212,175,55,0.15);
+    }
+    .role-card h3 { font-size: 0.9rem; margin-bottom: 6px; color: var(--mass-text); letter-spacing: 1px; }
+    .role-card p { font-size: 0.75rem; color: var(--mass-muted); line-height: 1.3; }
+    .role-card.selected h3 { color: var(--mass-gold); }
+    .role-icon { font-size: 2rem; margin-bottom: 8px; }
 
-    /* Buttons */
+    /* ===== BUTTONS ===== */
     .btn {
-      padding: 14px 28px;
+      padding: 12px 24px;
       border: none;
-      border-radius: 8px;
-      font-size: 1.1rem;
-      font-weight: 900;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 800;
       cursor: pointer;
       text-transform: uppercase;
-      box-shadow: 0 4px 0 rgba(0,0,0,0.2);
-      transition: all 0.1s;
+      letter-spacing: 1px;
+      transition: all 0.15s;
       width: 100%;
       margin-top: 20px;
     }
-    .btn:active { transform: translateY(4px); box-shadow: none; }
-    .btn-primary { background: var(--hw-blue); color: white; }
-    .btn-success { background: var(--hw-green); color: white; }
-    .btn-danger { background: var(--hw-red); color: white; }
-    .btn-warning { background: var(--hw-yellow); color: black; }
-    .btn-sm { padding: 8px 16px; font-size: 0.85rem; width: auto; margin-top: 10px; }
+    .btn:hover { filter: brightness(1.1); }
+    .btn:active { transform: translateY(2px); }
+    .btn-gold { background: var(--mass-gold); color: var(--mass-navy); }
+    .btn-blue { background: var(--mass-blue); color: white; }
+    .btn-green { background: var(--mass-green); color: white; }
+    .btn-red { background: var(--mass-red); color: white; }
+    .btn-outline {
+      background: transparent;
+      color: var(--mass-gold);
+      border: 2px solid var(--mass-gold);
+    }
+    .btn-outline:hover { background: rgba(212,175,55,0.1); }
+    .btn-sm { padding: 8px 14px; font-size: 0.78rem; width: auto; margin-top: 0; }
 
-    /* Discovered devices */
+    /* ===== DEVICE LIST ===== */
     .device-list { margin-top: 10px; }
     .device-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px;
-      border: 2px solid #eee;
-      border-radius: 8px;
+      padding: 10px 14px;
+      border: 1px solid var(--mass-card-border);
+      border-radius: 6px;
       margin-bottom: 8px;
       cursor: pointer;
+      transition: all 0.2s;
+      background: var(--mass-input-bg);
     }
-    .device-item:hover { border-color: var(--hw-green); background: #f8fff8; }
-    .device-role { font-weight: 700; color: var(--hw-blue); }
-    .device-mac { font-family: monospace; font-size: 0.9rem; color: #666; }
+    .device-item:hover {
+      border-color: var(--mass-gold);
+      background: rgba(212,175,55,0.05);
+    }
+    .device-role { font-weight: 700; color: var(--mass-gold); }
+    .device-mac { font-family: monospace; font-size: 0.85rem; color: var(--mass-muted); }
 
-    /* Info box */
+    /* ===== INFO BOX ===== */
     .info-box {
-      background: #e8f4fd;
-      border: 2px solid var(--hw-blue);
-      border-radius: 8px;
-      padding: 12px;
-      font-size: 0.9rem;
+      background: rgba(74,144,217,0.1);
+      border: 1px solid var(--mass-blue);
+      border-radius: 6px;
+      padding: 12px 14px;
+      font-size: 0.85rem;
       margin-top: 10px;
+      line-height: 1.5;
     }
+    .info-box strong { color: var(--mass-gold); }
     .info-box.warning {
-      background: #fff3cd;
-      border-color: var(--hw-yellow);
+      background: rgba(212,175,55,0.1);
+      border-color: var(--mass-gold);
+    }
+    .info-box.danger {
+      background: rgba(220,53,69,0.1);
+      border-color: var(--mass-red);
     }
 
-    /* Grid */
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    /* ===== SECTION HEADER ===== */
+    .section-title {
+      color: var(--mass-gold);
+      font-size: 0.85rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 24px;
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--mass-card-border);
+    }
+    .section-title:first-child { margin-top: 0; }
 
-    /* Status bar */
+    /* ===== GRID ===== */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    /* ===== DIVIDER ===== */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--mass-card-border);
+      margin: 24px 0;
+    }
+
+    /* ===== STATUS BAR ===== */
     .status-bar {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      background: rgba(0,0,0,0.9);
-      color: white;
-      padding: 12px 20px;
+      background: var(--mass-card);
+      color: var(--mass-text);
+      padding: 14px 20px;
       text-align: center;
       font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 1px;
       z-index: 1000;
       display: none;
+      border-top: 2px solid var(--mass-card-border);
     }
     .status-bar.show { display: block; }
-    .status-bar.success { background: var(--hw-green); }
-    .status-bar.error { background: var(--hw-red); }
+    .status-bar.success { background: var(--mass-green); color: white; border-top-color: var(--mass-green); }
+    .status-bar.error { background: var(--mass-red); color: white; border-top-color: var(--mass-red); }
 
     .version-badge {
       position: fixed;
       bottom: 8px;
       right: 8px;
       background: rgba(0,0,0,0.7);
-      color: #888;
+      color: var(--mass-muted);
       padding: 4px 10px;
       border-radius: 6px;
       font-size: 0.7rem;
@@ -190,22 +363,40 @@
       font-family: monospace;
     }
 
+    /* ===== SAVE BUTTON (fixed bottom) ===== */
+    .save-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--mass-dark);
+      border-top: 2px solid var(--mass-gold);
+      padding: 12px 20px;
+      z-index: 999;
+      display: flex;
+      justify-content: center;
+    }
+    .save-bar .btn {
+      max-width: 800px;
+      margin: 0;
+    }
+
     @media (max-width: 600px) {
       .role-cards { grid-template-columns: 1fr; }
-      .grid-2 { grid-template-columns: 1fr; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
       .tabs { gap: 2px; }
-      .tab { padding: 8px 10px; font-size: 0.75rem; }
+      .tab { padding: 8px 8px; font-size: 0.65rem; letter-spacing: 0; }
+      .header h1 { font-size: 1.3rem; letter-spacing: 1px; }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>M.A.S.S. TRAP CONFIGURATION</h1>
-      <p>DEVICE CONFIGURATION</p>
-      <div style="margin-top:8px;">
-        <a href="/" style="color:var(--hw-yellow); text-decoration:none; margin-right:15px; font-weight:700;">Dashboard</a>
-        <a href="/console" style="color:var(--hw-yellow); text-decoration:none; font-weight:700;">Debug Console</a>
+      <div class="header-shield"></div>
+      <h1>M.A.S.S. TRAP</h1>
+      <div class="subtitle">System Configuration</div>
+      <div class="nav-links">
+        <a href="/">Command Center</a>
+        <a href="/console">Debug Console</a>
       </div>
     </div>
 
@@ -216,8 +407,10 @@
       <button class="tab" onclick="showTab('pins')">Pins</button>
       <button class="tab" onclick="showTab('peer')">Peer</button>
       <button class="tab" onclick="showTab('track')">Track</button>
-      <button class="tab" onclick="showTab('integrations')">Integrations</button>
-      <button class="tab" onclick="showTab('maintenance')">Maintenance</button>
+      <button class="tab" onclick="showTab('audio')">Audio</button>
+      <button class="tab" onclick="showTab('lidar')">LiDAR</button>
+      <button class="tab" onclick="showTab('integrations')">WLED</button>
+      <button class="tab" onclick="showTab('maintenance')">System</button>
     </div>
 
     <!-- Tab: Network -->
@@ -227,14 +420,14 @@
         <select id="wifiScan" style="flex:1;" onchange="document.getElementById('wifiSSID').value=this.value; if(this.value) document.getElementById('networkMode').value='wifi';">
           <option value="">-- Scan for networks --</option>
         </select>
-        <button class="btn btn-primary btn-sm" onclick="scanWifi()">Scan</button>
+        <button class="btn btn-blue btn-sm" onclick="scanWifi()">Scan</button>
       </div>
       <input type="text" id="wifiSSID" placeholder="WiFi SSID (or type manually)">
 
       <label>WiFi Password</label>
       <div style="display:flex; gap:8px;">
         <input type="password" id="wifiPass" placeholder="WiFi Password" style="flex:1;">
-        <button class="btn btn-warning btn-sm" onclick="togglePass('wifiPass')">Show</button>
+        <button class="btn btn-outline btn-sm" onclick="togglePass('wifiPass')">Show</button>
       </div>
 
       <label>Hostname</label>
@@ -246,7 +439,7 @@
         <option value="wifi" selected>Connect to WiFi (recommended)</option>
         <option value="standalone">Standalone AP (no router needed)</option>
       </select>
-      <div class="hint">Standalone mode creates its own WiFi network. Use when no router is available.</div>
+      <div class="hint">Standalone mode creates its own WiFi network for use when no router is available.</div>
     </div>
 
     <!-- Tab: Device -->
@@ -254,14 +447,19 @@
       <label>Device Role</label>
       <div class="role-cards">
         <div class="role-card" id="role-start" onclick="selectRole('start')">
-          <div class="role-icon" id="icon-start">&#x1F7E2;</div>
+          <div class="role-icon">&#x1F7E2;</div>
           <h3>START GATE</h3>
-          <p>Detects car release and sends start signal to finish gate</p>
+          <p>Detects car release, sends start signal</p>
         </div>
         <div class="role-card selected" id="role-finish" onclick="selectRole('finish')">
-          <div class="role-icon" id="icon-finish">&#x1F3C1;</div>
+          <div class="role-icon">&#x1F3C1;</div>
           <h3>FINISH GATE</h3>
-          <p>Detects car crossing finish line, calculates speed and physics</p>
+          <p>Logs time, calculates speed &amp; physics</p>
+        </div>
+        <div class="role-card" id="role-speedtrap" onclick="selectRole('speedtrap')">
+          <div class="role-icon">&#x1F6A8;</div>
+          <h3>SPEED TRAP</h3>
+          <p>Mid-track velocity via dual IR sensors</p>
         </div>
       </div>
       <input type="hidden" id="role" value="finish">
@@ -274,7 +472,7 @@
     <!-- Tab: Pins -->
     <div id="tab-pins" class="tab-content">
       <div class="info-box">
-        <strong>ESP32-S3 Safe GPIOs:</strong> 1, 2, 3, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 35-48<br>
+        <strong>ESP32-S3 Safe GPIOs:</strong> 1-5, 12-21, 35-48<br>
         <strong>Avoid:</strong> GPIO 0 (boot), 6-11 (flash SPI)
       </div>
 
@@ -298,9 +496,31 @@
       </select>
       <div class="hint">Connect your IR break-beam sensor signal wire to this pin</div>
 
+      <div id="sensorPin2Group" style="display:none;">
+        <label>Second IR Sensor Pin (Speed Trap)</label>
+        <select id="sensorPin2">
+          <option value="5" selected>GPIO 5 (default)</option>
+          <option value="1">GPIO 1</option>
+          <option value="2">GPIO 2</option>
+          <option value="3">GPIO 3</option>
+          <option value="4">GPIO 4</option>
+          <option value="12">GPIO 12</option>
+          <option value="13">GPIO 13</option>
+          <option value="14">GPIO 14</option>
+          <option value="15">GPIO 15</option>
+          <option value="16">GPIO 16</option>
+          <option value="17">GPIO 17</option>
+          <option value="18">GPIO 18</option>
+          <option value="19">GPIO 19</option>
+          <option value="20">GPIO 20</option>
+          <option value="21">GPIO 21</option>
+        </select>
+        <div class="hint">Second sensor ~10cm apart from first for velocity measurement</div>
+      </div>
+
       <label>Status LED Pin</label>
       <select id="ledPin">
-        <option value="2" selected>GPIO 2 (default, built-in LED)</option>
+        <option value="2" selected>GPIO 2 (default / built-in LED)</option>
         <option value="1">GPIO 1</option>
         <option value="3">GPIO 3</option>
         <option value="4">GPIO 4</option>
@@ -318,16 +538,16 @@
     <!-- Tab: Peer -->
     <div id="tab-peer" class="tab-content">
       <label>This Device's MAC Address</label>
-      <input type="text" id="myMac" readonly style="background:#f0f0f0; font-family:monospace;">
+      <input type="text" id="myMac" readonly style="background:var(--mass-dark); font-family:monospace; color:var(--mass-gold);">
       <div class="hint">Give this MAC address to your partner device</div>
 
       <label>Partner Device MAC Address</label>
       <input type="text" id="peerMac" placeholder="XX:XX:XX:XX:XX:XX" style="font-family:monospace;">
-      <div class="hint">Enter the MAC address of the other gate, or use discovery below</div>
+      <div class="hint">Enter the MAC of the other gate, or use discovery below</div>
 
-      <button class="btn btn-primary btn-sm" onclick="discoverDevices()">Scan for Devices</button>
+      <button class="btn btn-blue btn-sm" style="margin-top:14px;" onclick="discoverDevices()">Scan for Devices</button>
       <div id="deviceList" class="device-list">
-        <div class="hint">Click "Scan for Devices" to find nearby M.A.S.S. Trap devices</div>
+        <div class="hint">Click "Scan for Devices" to find nearby M.A.S.S. Trap devices on the network</div>
       </div>
     </div>
 
@@ -335,34 +555,113 @@
     <div id="tab-track" class="tab-content">
       <label>Track Length (meters)</label>
       <input type="number" id="trackLength" value="2.0" step="0.01" min="0.1" max="100">
-      <div class="hint">Measure from start gate sensor to finish gate sensor</div>
+      <div class="hint">Distance from start gate sensor to finish gate sensor</div>
 
       <label>Scale Factor</label>
       <input type="number" id="scaleFactor" value="64" min="1" max="1000">
-      <div class="hint">1:64 for standard Hot Wheels. Scale speed = real speed x this factor.</div>
+      <div class="hint">1:64 for standard Hot Wheels. Scale speed = actual speed x this factor.</div>
+
+      <div id="speedTrapSpacing" style="display:none;">
+        <label>Speed Trap Sensor Spacing (meters)</label>
+        <input type="number" id="sensorSpacing" value="0.10" step="0.01" min="0.01" max="1.0">
+        <div class="hint">Distance between the two IR sensors on the speed trap (~10cm recommended)</div>
+      </div>
     </div>
 
-    <!-- Tab: Integrations -->
+    <!-- Tab: Audio -->
+    <div id="tab-audio" class="tab-content">
+      <div class="section-title">Audio System (MAX98357A I2S)</div>
+
+      <div class="toggle-row">
+        <span>Enable Audio</span>
+        <label class="toggle-switch" style="margin:0;">
+          <input type="checkbox" id="audioEnabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="hint">Non-blocking WAV playback via I2S DMA. Requires MAX98357A amplifier.</div>
+
+      <div id="audioSettings">
+        <div class="grid-3" style="margin-top:14px;">
+          <div>
+            <label>BCLK Pin</label>
+            <input type="number" id="audioBclk" value="15" min="0" max="48">
+          </div>
+          <div>
+            <label>LRC Pin</label>
+            <input type="number" id="audioLrc" value="16" min="0" max="48">
+          </div>
+          <div>
+            <label>DOUT Pin</label>
+            <input type="number" id="audioDout" value="17" min="0" max="48">
+          </div>
+        </div>
+
+        <label>Volume (0-21)</label>
+        <input type="range" id="audioVolume" min="0" max="21" value="10" style="padding:0; border:none; background:transparent;"
+               oninput="document.getElementById('volLabel').textContent=this.value">
+        <div class="hint">Current: <span id="volLabel">10</span></div>
+      </div>
+    </div>
+
+    <!-- Tab: LiDAR -->
+    <div id="tab-lidar" class="tab-content">
+      <div class="section-title">LiDAR Staging (Benewake TF-Luna)</div>
+
+      <div class="toggle-row">
+        <span>Enable LiDAR</span>
+        <label class="toggle-switch" style="margin:0;">
+          <input type="checkbox" id="lidarEnabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="hint">Solid-state UART LiDAR for automatic car staging detection and auto-arm.</div>
+
+      <div id="lidarSettings">
+        <div class="grid-2" style="margin-top:14px;">
+          <div>
+            <label>RX Pin (from Luna TX)</label>
+            <input type="number" id="lidarRx" value="39" min="0" max="48">
+          </div>
+          <div>
+            <label>TX Pin (to Luna RX)</label>
+            <input type="number" id="lidarTx" value="38" min="0" max="48">
+          </div>
+        </div>
+
+        <label>Detection Threshold (mm)</label>
+        <input type="number" id="lidarThreshold" value="50" min="10" max="500">
+        <div class="hint">Objects closer than this distance are detected as a car. Default 50mm.</div>
+
+        <div id="lidarLive" class="info-box" style="margin-top:14px; display:none;">
+          <strong>Live Reading:</strong> <span id="lidarDistance">--</span>mm | State: <span id="lidarState">--</span>
+        </div>
+        <button class="btn btn-blue btn-sm" style="margin-top:10px;" onclick="pollLidar()">Test LiDAR</button>
+      </div>
+    </div>
+
+    <!-- Tab: Integrations (WLED) -->
     <div id="tab-integrations" class="tab-content">
-      <label>Google Sheets Webhook URL</label>
+      <div class="section-title">Google Sheets</div>
+      <label>Webhook URL</label>
       <input type="text" id="sheetsUrl" placeholder="https://script.google.com/macros/s/.../exec">
-      <div class="hint">Optional: race data auto-uploads to Google Sheets after each run</div>
+      <div class="hint">Race data auto-uploads after each run. Leave blank to disable.</div>
 
-      <hr style="margin: 20px 0; border: 1px solid #eee;">
+      <hr class="divider">
 
-      <h3 style="color: var(--hw-blue); margin-bottom: 10px;">WLED Integration</h3>
+      <div class="section-title">WLED Integration</div>
       <label>WLED Controller Host</label>
       <div style="display:flex; gap:8px;">
-        <input type="text" id="wledHost" placeholder="wled-1.local" style="flex:1;">
-        <button class="btn btn-primary btn-sm" onclick="testWled()">Test</button>
+        <input type="text" id="wledHost" placeholder="wled-1.local or 192.168.x.x" style="flex:1;">
+        <button class="btn btn-blue btn-sm" onclick="testWled()">Test</button>
       </div>
-      <div class="hint">Hostname or IP of your WLED controller</div>
+      <div class="hint">Hostname or IP of your WLED controller for LED race effects</div>
 
       <div id="wledStatus" class="info-box" style="display:none;"></div>
 
-      <button class="btn btn-warning btn-sm" onclick="loadWledEffects()">Load Effects from WLED</button>
+      <button class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="loadWledEffects()">Load Effects from WLED</button>
 
-      <div class="grid-2">
+      <div class="grid-2" style="margin-top:10px;">
         <div>
           <label>Idle Effect</label>
           <select id="wledIdle" class="wled-effect"><option value="0">0 - Solid</option></select>
@@ -382,34 +681,56 @@
       </div>
     </div>
 
-    <!-- Tab: Maintenance -->
+    <!-- Tab: Maintenance / System -->
     <div id="tab-maintenance" class="tab-content">
+      <div class="section-title">Device Information</div>
       <div id="deviceInfo" class="info-box">Loading device info...</div>
 
-      <label>OTA Update Password</label>
+      <hr class="divider">
+
+      <div class="section-title">OTA Update Password</div>
       <div style="display:flex; gap:8px;">
         <input type="password" id="otaPassword" placeholder="Default: admin" style="flex:1;">
-        <button class="btn btn-warning btn-sm" onclick="togglePass('otaPassword')">Show</button>
+        <button class="btn btn-outline btn-sm" onclick="togglePass('otaPassword')">Show</button>
       </div>
-      <div class="hint">Used for over-the-air firmware updates. Change from the default for security.</div>
+      <div class="hint">Used for over-the-air firmware updates and API authentication on protected endpoints.</div>
 
-      <div class="grid-2" style="margin-top: 20px;">
-        <button class="btn btn-primary" onclick="downloadBackup()">Download Backup</button>
-        <button class="btn btn-warning" onclick="document.getElementById('restoreFile').click()">
-          Restore Backup
-        </button>
-        <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="restoreBackup(this)">
+      <hr class="divider">
+
+      <div class="section-title">System Snapshot</div>
+      <div class="hint" style="margin-top:0; margin-bottom:10px;">Full backup of config + car garage + race history. Restore to same device or clone to a new one.</div>
+      <div class="grid-3">
+        <button class="btn btn-blue" style="margin:0;" onclick="downloadSnapshot()">Export</button>
+        <button class="btn btn-outline" style="margin:0;" onclick="document.getElementById('snapshotFile').click()">Import</button>
+        <button class="btn btn-outline" style="margin:0;" onclick="document.getElementById('cloneFile').click()">Clone</button>
       </div>
+      <input type="file" id="snapshotFile" accept=".json" style="display:none;" onchange="restoreSnapshot(this, false)">
+      <input type="file" id="cloneFile" accept=".json" style="display:none;" onchange="restoreSnapshot(this, true)">
+      <div class="hint" style="margin-top:6px;"><strong>Clone</strong> strips WiFi/hostname for flashing to a different device.</div>
 
-      <button class="btn btn-danger" onclick="factoryReset()" style="margin-top: 20px;">
+      <hr class="divider">
+
+      <div class="section-title">Legacy Config Backup</div>
+      <div class="grid-2">
+        <button class="btn btn-outline" style="margin:0;" onclick="downloadBackup()">Export Config</button>
+        <button class="btn btn-outline" style="margin:0;" onclick="document.getElementById('restoreFile').click()">Import Config</button>
+      </div>
+      <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="restoreBackup(this)">
+
+      <hr class="divider">
+
+      <div class="section-title" style="color:var(--mass-red);">Danger Zone</div>
+      <button class="btn btn-red" onclick="factoryReset()">
         Factory Reset
       </button>
-      <div class="hint">Deletes all configuration and race data. Device will reboot into setup mode.</div>
+      <div class="hint">Deletes ALL configuration and race data. Device reboots into setup mode.</div>
     </div>
+  </div>
 
-    <!-- Save Button -->
-    <button class="btn btn-success" onclick="saveConfig()">
-      SAVE CONFIGURATION
+  <!-- Save Bar -->
+  <div class="save-bar">
+    <button class="btn btn-gold" onclick="saveConfig()">
+      SAVE CONFIGURATION &amp; REBOOT
     </button>
   </div>
 
@@ -437,9 +758,16 @@
       document.getElementById('role').value = role;
       document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
       document.getElementById('role-' + role).classList.add('selected');
-      // Update pin label
-      const label = document.getElementById('sensorLabel');
-      label.textContent = role === 'start' ? 'Trigger Pin (Break-Beam Sensor)' : 'IR Sensor Pin (Finish Line)';
+
+      // Update pin labels
+      const sLabel = document.getElementById('sensorLabel');
+      if (role === 'start') sLabel.textContent = 'Trigger Pin (Break-Beam Sensor)';
+      else if (role === 'speedtrap') sLabel.textContent = 'IR Sensor Pin 1 (Speed Trap)';
+      else sLabel.textContent = 'IR Sensor Pin (Finish Line)';
+
+      // Show/hide speed trap fields
+      document.getElementById('sensorPin2Group').style.display = role === 'speedtrap' ? 'block' : 'none';
+      document.getElementById('speedTrapSpacing').style.display = role === 'speedtrap' ? 'block' : 'none';
     }
 
     // ====================================================================
@@ -454,7 +782,7 @@
         sel.innerHTML = '<option value="">-- Select network --</option>';
         networks.forEach(n => {
           const sec = n.secure ? ' (secured)' : ' (open)';
-          sel.innerHTML += `<option value="${n.ssid}">${n.ssid} (${n.rssi}dBm)${sec}</option>`;
+          sel.innerHTML += '<option value="' + n.ssid + '">' + n.ssid + ' (' + n.rssi + 'dBm)' + sec + '</option>';
         });
       } catch (e) {
         sel.innerHTML = '<option value="">Scan failed - try again</option>';
@@ -474,7 +802,7 @@
     // ====================================================================
     async function discoverDevices() {
       const list = document.getElementById('deviceList');
-      list.innerHTML = '<div class="hint">Scanning for devices... (this takes a few seconds)</div>';
+      list.innerHTML = '<div class="hint">Scanning for devices...</div>';
       try {
         const resp = await fetch('/api/discover');
         const devices = await resp.json();
@@ -482,15 +810,11 @@
           list.innerHTML = '<div class="hint">No devices found. Make sure other devices are powered on.</div>';
           return;
         }
-        list.innerHTML = devices.map(d => `
-          <div class="device-item" onclick="document.getElementById('peerMac').value='${d.mac}'">
-            <div>
-              <span class="device-role">${d.role.toUpperCase()}</span>
-              <span> - ${d.hostname}</span>
-            </div>
-            <span class="device-mac">${d.mac}</span>
-          </div>
-        `).join('');
+        list.innerHTML = devices.map(d =>
+          '<div class="device-item" onclick="document.getElementById(\'peerMac\').value=\'' + d.mac + '\'">' +
+          '<div><span class="device-role">' + d.role.toUpperCase() + '</span><span> - ' + d.hostname + '</span></div>' +
+          '<span class="device-mac">' + d.mac + '</span></div>'
+        ).join('');
       } catch (e) {
         list.innerHTML = '<div class="hint">Discovery failed. Try again.</div>';
       }
@@ -526,16 +850,37 @@
         const resp = await fetch('/api/wled/effects');
         if (!resp.ok) { alert('Could not load effects. Test WLED connection first.'); return; }
         const effects = await resp.json();
-        const selects = document.querySelectorAll('.wled-effect');
-        selects.forEach(sel => {
+        document.querySelectorAll('.wled-effect').forEach(sel => {
           const currentVal = sel.value;
           sel.innerHTML = effects.map((name, idx) =>
-            `<option value="${idx}" ${idx == currentVal ? 'selected' : ''}>${idx} - ${name}</option>`
+            '<option value="' + idx + '"' + (idx == currentVal ? ' selected' : '') + '>' + idx + ' - ' + name + '</option>'
           ).join('');
         });
         showStatus('Effects loaded from WLED!', 'success');
       } catch (e) {
         alert('Failed to load effects: ' + e.message);
+      }
+    }
+
+    // ====================================================================
+    // LIDAR TEST
+    // ====================================================================
+    async function pollLidar() {
+      const liveDiv = document.getElementById('lidarLive');
+      liveDiv.style.display = 'block';
+      try {
+        const resp = await fetch('/api/lidar/status');
+        const data = await resp.json();
+        if (!data.enabled) {
+          document.getElementById('lidarDistance').textContent = 'DISABLED';
+          document.getElementById('lidarState').textContent = 'Enable LiDAR and save config first';
+          return;
+        }
+        document.getElementById('lidarDistance').textContent = data.distance_mm;
+        document.getElementById('lidarState').textContent = data.state.toUpperCase();
+      } catch (e) {
+        document.getElementById('lidarDistance').textContent = 'ERROR';
+        document.getElementById('lidarState').textContent = e.message;
       }
     }
 
@@ -546,17 +891,15 @@
       const sensorPin = parseInt(document.getElementById('sensorPin').value);
       const ledPin = parseInt(document.getElementById('ledPin').value);
       if (sensorPin === ledPin) {
-        alert('Sensor pin and LED pin cannot be the same!');
+        showStatus('Sensor pin and LED pin cannot be the same!', 'error');
         return;
       }
 
-      // Ensure network mode has a valid value (some captive portal WebViews
-      // don't properly default select elements that were never interacted with)
       const networkMode = document.getElementById('networkMode').value || 'wifi';
 
       const config = {
         configured: true,
-        version: 1,
+        version: 2,
         network: {
           wifi_ssid: document.getElementById('wifiSSID').value.trim(),
           wifi_pass: document.getElementById('wifiPass').value,
@@ -569,14 +912,29 @@
         },
         pins: {
           sensor_pin: sensorPin,
+          sensor_pin_2: parseInt(document.getElementById('sensorPin2').value) || 5,
           led_pin: ledPin
+        },
+        audio: {
+          enabled: document.getElementById('audioEnabled').checked,
+          bclk_pin: parseInt(document.getElementById('audioBclk').value) || 15,
+          lrc_pin: parseInt(document.getElementById('audioLrc').value) || 16,
+          dout_pin: parseInt(document.getElementById('audioDout').value) || 17,
+          volume: parseInt(document.getElementById('audioVolume').value) || 10
+        },
+        lidar: {
+          enabled: document.getElementById('lidarEnabled').checked,
+          rx_pin: parseInt(document.getElementById('lidarRx').value) || 39,
+          tx_pin: parseInt(document.getElementById('lidarTx').value) || 38,
+          threshold_mm: parseInt(document.getElementById('lidarThreshold').value) || 50
         },
         peer: {
           mac: document.getElementById('peerMac').value.trim() || '00:00:00:00:00:00'
         },
         track: {
           length_m: parseFloat(document.getElementById('trackLength').value) || 2.0,
-          scale_factor: parseInt(document.getElementById('scaleFactor').value) || 64
+          scale_factor: parseInt(document.getElementById('scaleFactor').value) || 64,
+          sensor_spacing_m: parseFloat(document.getElementById('sensorSpacing').value) || 0.10
         },
         integrations: {
           google_sheets_url: document.getElementById('sheetsUrl').value.trim(),
@@ -603,13 +961,10 @@
         const result = await resp.json();
         if (resp.ok) {
           showStatus('Config saved! Device rebooting...', 'success');
-          // Try to reconnect after reboot
           setTimeout(() => {
             const host = config.network.hostname || 'masstrap';
-            showStatus('Trying to reach http://' + host + '.local ...', '');
-            setTimeout(() => {
-              window.location.href = 'http://' + host + '.local/';
-            }, 5000);
+            showStatus('Reconnecting to http://' + host + '.local ...', '');
+            setTimeout(() => { window.location.href = 'http://' + host + '.local/'; }, 5000);
           }, 3000);
         } else {
           showStatus('Error: ' + (result.error || 'Save failed'), 'error');
@@ -620,10 +975,14 @@
     }
 
     // ====================================================================
-    // BACKUP / RESTORE / RESET
+    // BACKUP / RESTORE / SNAPSHOT / RESET
     // ====================================================================
     function downloadBackup() {
       window.location.href = '/api/backup';
+    }
+
+    function downloadSnapshot() {
+      window.location.href = '/api/system/backup';
     }
 
     async function restoreBackup(input) {
@@ -631,7 +990,7 @@
       if (!file) return;
       try {
         const text = await file.text();
-        JSON.parse(text); // Validate JSON
+        JSON.parse(text);
         showStatus('Restoring configuration...', '');
         const resp = await fetch('/api/restore', {
           method: 'POST',
@@ -644,13 +1003,39 @@
           showStatus('Restore failed', 'error');
         }
       } catch (e) {
-        alert('Invalid JSON file');
+        showStatus('Invalid JSON file', 'error');
       }
+      input.value = '';
+    }
+
+    async function restoreSnapshot(input, skipNetwork) {
+      const file = input.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        JSON.parse(text);
+        const label = skipNetwork ? 'Cloning system snapshot...' : 'Restoring system snapshot...';
+        showStatus(label, '');
+        const url = '/api/system/restore' + (skipNetwork ? '?skip_network=true' : '');
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: text
+        });
+        if (resp.ok) {
+          showStatus('System snapshot restored! Device rebooting...', 'success');
+        } else {
+          showStatus('Restore failed', 'error');
+        }
+      } catch (e) {
+        showStatus('Invalid snapshot file', 'error');
+      }
+      input.value = '';
     }
 
     async function factoryReset() {
       if (!confirm('This will delete ALL configuration and race data. Continue?')) return;
-      if (!confirm('Are you sure? Type YES to confirm.')) return;
+      if (!confirm('Are you absolutely sure? This cannot be undone.')) return;
       try {
         await fetch('/api/reset', { method: 'POST', headers: authHeaders() });
         showStatus('Factory reset! Device rebooting into setup mode...', 'success');
@@ -682,31 +1067,28 @@
     // ====================================================================
     async function loadExistingConfig() {
       try {
-        // Load MAC address
         const macResp = await fetch('/api/mac');
         const macData = await macResp.json();
         document.getElementById('myMac').value = macData.mac;
 
-        // Load device info
         const infoResp = await fetch('/api/info');
         const info = await infoResp.json();
-        // Update Chrome tab title with device role
         if (info.role && info.role !== 'unconfigured') {
           const roleName = info.role.charAt(0).toUpperCase() + info.role.slice(1);
-          document.title = roleName + ' Gate - Setup';
+          document.title = 'M.A.S.S. Trap - ' + roleName + ' Config';
         }
         document.getElementById('deviceInfo').innerHTML =
-          `<strong>Firmware:</strong> v${info.firmware || '?'}<br>
-           <strong>Role:</strong> ${(info.role || 'unconfigured').toUpperCase()}<br>
-           <strong>IP:</strong> ${info.ip || 'N/A'}<br>
-           <strong>Uptime:</strong> ${info.uptime_s || 0}s<br>
-           <strong>Free Heap:</strong> ${info.free_heap || 0} bytes`;
+          '<strong>Firmware:</strong> v' + (info.firmware || '?') + '<br>' +
+          '<strong>Role:</strong> ' + (info.role || 'unconfigured').toUpperCase() + '<br>' +
+          '<strong>IP:</strong> ' + (info.ip || 'N/A') + '<br>' +
+          '<strong>Uptime:</strong> ' + (info.uptime_s || 0) + 's<br>' +
+          '<strong>Free Heap:</strong> ' + (info.free_heap || 0).toLocaleString() + ' bytes<br>' +
+          '<strong>Audio:</strong> ' + (info.audio_enabled ? 'Enabled' : 'Disabled') + '<br>' +
+          '<strong>LiDAR:</strong> ' + (info.lidar_enabled ? 'Enabled' : 'Disabled');
 
-        // Load existing config
         const cfgResp = await fetch('/api/config');
         const cfg = await cfgResp.json();
         if (cfg.configured) {
-          // Populate form with existing values
           if (cfg.network) {
             document.getElementById('wifiSSID').value = cfg.network.wifi_ssid || '';
             document.getElementById('wifiPass').value = cfg.network.wifi_pass || '';
@@ -719,7 +1101,22 @@
           }
           if (cfg.pins) {
             document.getElementById('sensorPin').value = cfg.pins.sensor_pin || 4;
+            document.getElementById('sensorPin2').value = cfg.pins.sensor_pin_2 || 5;
             document.getElementById('ledPin').value = cfg.pins.led_pin || 2;
+          }
+          if (cfg.audio) {
+            document.getElementById('audioEnabled').checked = cfg.audio.enabled || false;
+            document.getElementById('audioBclk').value = cfg.audio.bclk_pin || 15;
+            document.getElementById('audioLrc').value = cfg.audio.lrc_pin || 16;
+            document.getElementById('audioDout').value = cfg.audio.dout_pin || 17;
+            document.getElementById('audioVolume').value = cfg.audio.volume || 10;
+            document.getElementById('volLabel').textContent = cfg.audio.volume || 10;
+          }
+          if (cfg.lidar) {
+            document.getElementById('lidarEnabled').checked = cfg.lidar.enabled || false;
+            document.getElementById('lidarRx').value = cfg.lidar.rx_pin || 39;
+            document.getElementById('lidarTx').value = cfg.lidar.tx_pin || 38;
+            document.getElementById('lidarThreshold').value = cfg.lidar.threshold_mm || 50;
           }
           if (cfg.peer) {
             document.getElementById('peerMac').value = cfg.peer.mac || '';
@@ -727,6 +1124,7 @@
           if (cfg.track) {
             document.getElementById('trackLength').value = cfg.track.length_m || 2.0;
             document.getElementById('scaleFactor').value = cfg.track.scale_factor || 64;
+            document.getElementById('sensorSpacing').value = cfg.track.sensor_spacing_m || 0.10;
           }
           if (cfg.integrations) {
             document.getElementById('sheetsUrl').value = cfg.integrations.google_sheets_url || '';
@@ -747,7 +1145,6 @@
       }
     }
 
-    // Fetch and display firmware version
     async function loadVersion() {
       try {
         const resp = await fetch('/api/version');
@@ -759,7 +1156,6 @@
       }
     }
 
-    // Initialize
     window.onload = () => {
       loadExistingConfig();
       loadVersion();
