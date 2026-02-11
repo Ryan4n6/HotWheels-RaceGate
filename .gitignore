@@ -1,5 +1,25 @@
-.DS_Store
-*.o
-*.d
+# Build artifacts
 build/
 .pio/
+*.o
+*.d
+*.elf
+*.bin
+*.map
+
+# IDE files
+.vscode/
+*.code-workspace
+.idea/
+
+# Arduino IDE
+*.ino.globals.h
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Credentials - NEVER commit real WiFi passwords or API keys
+# Create a local credentials.h if you want persistent fallback WiFi
+credentials.h
+secrets.h

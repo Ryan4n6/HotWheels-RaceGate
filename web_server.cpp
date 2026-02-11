@@ -3,6 +3,10 @@
 #include "espnow_comm.h"
 #include "finish_gate.h"
 #include "wled_integration.h"
+#include "html_index.h"
+#include "html_config.h"
+#include "html_console.h"
+#include "html_start_status.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <WiFi.h>
@@ -305,6 +309,25 @@ static void handleApiInfo() {
   server.send(200, "application/json", output);
 }
 
+static void handleApiVersion() {
+  StaticJsonDocument<256> doc;
+  doc["firmware"] = FIRMWARE_VERSION;
+  doc["web_ui"] = WEB_UI_VERSION;
+  doc["build_date"] = BUILD_DATE;
+  doc["build_time"] = BUILD_TIME;
+#if CONFIG_IDF_TARGET_ESP32S3
+  doc["board"] = "ESP32-S3";
+#elif CONFIG_IDF_TARGET_ESP32
+  doc["board"] = "ESP32";
+#else
+  doc["board"] = "Unknown";
+#endif
+
+  String output;
+  serializeJson(doc, output);
+  server.send(200, "application/json", output);
+}
+
 static void handleApiDiscover() {
   // Restart discovery scan
   discoveredCount = 0;
@@ -484,14 +507,20 @@ static void handleApiFiles() {
 // NORMAL MODE ROUTES
 // ============================================================================
 void initWebServer() {
-  // Main page: serve race dashboard for finish gate, status for start gate
+  // Main page: serve role-appropriate page from PROGMEM
+  // Finish gate gets the full dashboard (garage, history, physics)
+  // Start gate gets a lightweight status page (no data recording)
   server.on("/", HTTP_GET, []() {
-    serveFile("/index.html", "text/html");
+    if (strcmp(cfg.role, "start") == 0) {
+      server.send_P(200, "text/html", START_STATUS_HTML);
+    } else {
+      server.send_P(200, "text/html", INDEX_HTML);
+    }
   });
 
-  // Config page always accessible
+  // Config page from PROGMEM
   server.on("/config", HTTP_GET, []() {
-    serveFile("/config.html", "text/html");
+    server.send_P(200, "text/html", CONFIG_HTML);
   });
 
   // Config API
@@ -502,6 +531,7 @@ void initWebServer() {
   server.on("/api/restore", HTTP_POST, handleApiRestore);
   server.on("/api/reset", HTTP_POST, handleApiReset);
   server.on("/api/info", HTTP_GET, handleApiInfo);
+  server.on("/api/version", HTTP_GET, handleApiVersion);
   server.on("/api/discover", HTTP_GET, handleApiDiscover);
   server.on("/api/garage", HTTP_GET, handleApiGarage);
   server.on("/api/garage", HTTP_POST, handleApiGarage);
@@ -515,9 +545,9 @@ void initWebServer() {
   server.on("/api/files", HTTP_POST, handleApiFiles);
   server.on("/api/files", HTTP_DELETE, handleApiFiles);
 
-  // Console page
+  // Console page from PROGMEM
   server.on("/console", HTTP_GET, []() {
-    serveFile("/console.html", "text/html");
+    server.send_P(200, "text/html", CONSOLE_HTML);
   });
 
   // WLED proxy endpoints (for config page to fetch WLED data without CORS issues)
@@ -578,9 +608,9 @@ void startWebServer() {
 // SETUP MODE SERVER (captive portal)
 // ============================================================================
 void initSetupServer() {
-  // In setup mode, serve config page at root
+  // In setup mode, serve config page from PROGMEM at root
   server.on("/", HTTP_GET, []() {
-    serveFile("/config.html", "text/html");
+    server.send_P(200, "text/html", CONFIG_HTML);
   });
 
   // Same config API endpoints

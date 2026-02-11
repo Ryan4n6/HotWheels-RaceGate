@@ -1,3 +1,9 @@
+#ifndef HTML_INDEX_H
+#define HTML_INDEX_H
+
+#include <Arduino.h>
+
+const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1210,3 +1216,7 @@
   </script>
 </body>
 </html>
+
+)rawliteral";
+
+#endif // HTML_INDEX_H

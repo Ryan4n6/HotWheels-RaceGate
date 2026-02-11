@@ -52,23 +52,25 @@ void finishGateLoop() {
     lastBlink = millis();
   }
 
-  // Ping peer (start gate) every 2 seconds
-  if (millis() - lastPingTime > 2000) {
+  // Check peer connectivity timeout (10 seconds)
+  if (peerConnected && millis() - lastPeerSeen > 10000) {
+    peerConnected = false;
+    LOG.println("[FINISH] Peer disconnected - pausing sync/ping");
+  }
+
+  // Ping peer every 2 seconds ONLY when connected.
+  // When disconnected, back off to every 10 seconds to reduce radio spam.
+  unsigned long pingInterval = peerConnected ? 2000 : 10000;
+  if (millis() - lastPingTime > pingInterval) {
     sendToPeer(MSG_PING, nowUs(), 0);
     lastPingTime = millis();
   }
 
-  // Request clock sync from start gate every 10 seconds
-  // The FINISH gate owns the clock sync - it needs to know the offset
-  // to translate start-gate timestamps into its own timebase.
-  if (millis() - lastSyncTime > 10000) {
+  // Request clock sync from start gate every 10 seconds - ONLY when connected.
+  // No point syncing with a peer that isn't there.
+  if (peerConnected && millis() - lastSyncTime > 10000) {
     sendToPeer(MSG_SYNC_REQ, nowUs(), 0);
     lastSyncTime = millis();
-  }
-
-  // Check peer connectivity timeout (10 seconds)
-  if (peerConnected && millis() - lastPeerSeen > 10000) {
-    peerConnected = false;
   }
 
   // ================================================================
@@ -112,12 +114,18 @@ void finishGateLoop() {
                   elapsed_s, speed_ms * 2.23694);
     LOG.println("[FINISH] =========================");
 
-    // Save to LittleFS CSV
+    // Save to LittleFS CSV (includes all physics data)
+    double mass_kg = currentWeight / 1000.0;
+    double momentum = mass_kg * speed_ms;
+    double ke = 0.5 * mass_kg * speed_ms * speed_ms;
+
     File file = LittleFS.open("/runs.csv", "a");
     if (file) {
-      if (file.size() == 0) file.println("Run,Car,Time,Speed");
-      file.printf("%u,%s,%.4f,%.2f\n", ++totalRuns, currentCar.c_str(),
-                  elapsed_s, speed_ms * 2.23694);
+      if (file.size() == 0) file.println("Run,Car,Weight(g),Time(s),Speed(mph),Scale(mph),Momentum,KE(J)");
+      file.printf("%u,%s,%.1f,%.4f,%.2f,%.1f,%.4f,%.4f\n", ++totalRuns, currentCar.c_str(),
+                  currentWeight, elapsed_s, speed_ms * 2.23694,
+                  speed_ms * 2.23694 * (double)cfg.scale_factor,
+                  momentum, ke);
       file.close();
     }
 

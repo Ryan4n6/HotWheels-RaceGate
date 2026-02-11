@@ -1,3 +1,9 @@
+#ifndef HTML_CONFIG_H
+#define HTML_CONFIG_H
+
+#include <Arduino.h>
+
+const char CONFIG_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -760,3 +766,7 @@
   </script>
 </body>
 </html>
+
+)rawliteral";
+
+#endif // HTML_CONFIG_H

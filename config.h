@@ -5,7 +5,10 @@
 
 #define CONFIG_FILE "/config.json"
 #define CONFIG_VERSION 1
-#define FIRMWARE_VERSION "2.1.1"
+#define FIRMWARE_VERSION "2.2.0"
+#define WEB_UI_VERSION  "2.2.0"
+#define BUILD_DATE      __DATE__
+#define BUILD_TIME      __TIME__
 
 // Global log output — all Serial.printf calls should use LOG.printf instead
 // This captures output for the web serial monitor (/console)

@@ -30,12 +30,12 @@ public:
   char buffer[SERIAL_LOG_SIZE];
   volatile size_t head = 0;    // Write position
   volatile size_t count = 0;   // Total bytes in buffer
-  HardwareSerial* hw;
+  Print* hw;
 
   SerialTee() : hw(&Serial) {}
 
   void begin(unsigned long baud) {
-    hw->begin(baud);
+    Serial.begin(baud);  // Call begin() on Serial directly (works for both HardwareSerial and HWCDC)
     memset(buffer, 0, SERIAL_LOG_SIZE);
     head = 0;
     count = 0;

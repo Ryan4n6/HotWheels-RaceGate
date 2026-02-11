@@ -39,12 +39,12 @@
 #include "web_server.h"
 
 // ============================================================================
-// HARDCODED FALLBACK - Get you online tonight, captive portal can come later
-// If the config has WiFi creds, those are used. If they're empty/fail,
-// these hardcoded values kick in as a guaranteed fallback.
+// FALLBACK WIFI - Used if configured WiFi fails.
+// Set your own fallback credentials here, or leave blank to skip fallback.
+// WARNING: Do NOT commit real credentials to version control!
 // ============================================================================
-#define FALLBACK_WIFI_SSID "Massfeller-IOT"
-#define FALLBACK_WIFI_PASS "Timpforw1"
+#define FALLBACK_WIFI_SSID ""
+#define FALLBACK_WIFI_PASS ""
 
 // DNS server for captive portal in setup mode
 DNSServer dnsServer;
@@ -186,8 +186,8 @@ void setup() {
         connected = connectWiFi(cfg.wifi_ssid, cfg.wifi_pass, cfg.hostname);
       }
 
-      // Try 2: Hardcoded fallback (guaranteed to work tonight)
-      if (!connected) {
+      // Try 2: Hardcoded fallback (if defined)
+      if (!connected && strlen(FALLBACK_WIFI_SSID) > 0) {
         LOG.println("[BOOT] Config WiFi failed - trying hardcoded fallback...");
         connected = connectWiFi(FALLBACK_WIFI_SSID, FALLBACK_WIFI_PASS, cfg.hostname);
       }

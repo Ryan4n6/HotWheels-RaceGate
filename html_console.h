@@ -1,3 +1,9 @@
+#ifndef HTML_CONSOLE_H
+#define HTML_CONSOLE_H
+
+#include <Arduino.h>
+
+const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -520,3 +526,7 @@
   </script>
 </body>
 </html>
+
+)rawliteral";
+
+#endif // HTML_CONSOLE_H

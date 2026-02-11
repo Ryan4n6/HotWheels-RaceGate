@@ -48,19 +48,21 @@ static void breatheLED() {
 // MAIN LOOP
 // ============================================================================
 void startGateLoop() {
-  // Ping finish gate every 2 seconds
-  if (millis() - lastPingTime > 2000) {
+  // Check peer connectivity timeout
+  if (peerConnected && millis() - lastPeerSeen > 10000) {
+    peerConnected = false;
+    LOG.println("[START] Peer disconnected - reducing ping rate");
+  }
+
+  // Ping finish gate - back off to 10s when disconnected
+  unsigned long pingInterval = peerConnected ? 2000 : 10000;
+  if (millis() - lastPingTime > pingInterval) {
     sendToPeer(MSG_PING, nowUs(), 0);
     lastPingTime = millis();
   }
 
   // NOTE: The FINISH gate owns clock sync (it initiates SYNC_REQ every 10s).
   // The start gate just responds to SYNC_REQ with MSG_OFFSET.
-
-  // Check peer connectivity timeout
-  if (peerConnected && millis() - lastPeerSeen > 10000) {
-    peerConnected = false;
-  }
 
   // Non-blocking reset after FINISHED state
   if (waitingToReset && millis() - finishedAt > 2000) {
