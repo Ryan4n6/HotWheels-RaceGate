@@ -8,7 +8,8 @@ All notable changes to The M.A.S.S. Trap (Motion Analysis & Speed System) will b
 The project has been renamed from "Hot Wheels Race Gate" to **The M.A.S.S. Trap** (Motion Analysis & Speed System). The name carries three meanings: "speed trap" from law enforcement, "mass" from physics, and "Massfeller" -- the family name. The entire UI has been redesigned with a police shield/badge authority aesthetic using navy + gold colors.
 
 ### Added
-- **Custom 16MB Partition Table** (`partitions.csv`) -- Fixes the v2.3.0 compile blocker where firmware (1.53MB) exceeded the default 1.25MB partition. New layout: 3MB per app slot (with OTA) + ~10MB LittleFS for data and audio files. Arduino IDE auto-detects the CSV when Flash Size is set to 16MB.
+- **PlatformIO Support** -- Full `platformio.ini` configuration for the pioarduino platform (Arduino Core 3.x / ESP-IDF 5.x). One-command build, flash, OTA, and LittleFS upload. All board settings (flash size, PSRAM, partition table) are defined in config — no manual dropdown hunting.
+- **Custom 16MB Partition Table** (`partitions.csv`) -- Fixes the v2.3.0 compile blocker where firmware (1.53MB) exceeded the default 1.25MB partition. New layout: 3MB per app slot (with OTA) + ~9.9MB LittleFS for data and audio files + 64KB coredump partition for crash diagnostics. PlatformIO handles this automatically; Arduino IDE auto-detects the CSV when Flash Size is set to 16MB.
 - **Full System Snapshot** -- One-click backup/restore of the entire device state:
   - `GET /api/system/backup` returns a JSON envelope with config, garage, and history
   - `POST /api/system/restore` restores all three files and reboots
@@ -67,15 +68,21 @@ The project has been renamed from "Hot Wheels Race Gate" to **The M.A.S.S. Trap*
 - **Version bump** -- Firmware and Web UI: 2.3.0 -> 2.4.0
 - **All PROGMEM headers rebuilt** -- `html_index.h`, `html_config.h`, `html_console.h`, `html_start_status.h`, `html_speedtrap_status.h`
 
+### Changed (Repo Structure)
+- **Flattened repository** -- All source files moved from `MASS_Trap/` subfolder to repo root. Clone and build directly — no nested directories.
+- **Git tags for releases** -- Version history tracked via git tags (e.g., `v2.4.0`) and GitHub Releases instead of version folders.
+- **Improved .gitignore** -- Added PlatformIO directories, `*.env` for secrets.
+
 ### Technical Notes
+- **PlatformIO is the recommended build system.** `platformio.ini` pins all board settings (`board_build.flash_size = 16MB`, `qio_opi` memory type, partition table) — eliminates the class of Arduino IDE misconfiguration bugs where wrong dropdown selections cause flash detection failures.
 - All new hardware features (audio, LiDAR, speed trap) are **off by default** and guarded by config flags. Existing two-gate setups work identically to v2.3.0 with no configuration changes needed.
-- Custom partition table is auto-detected by Arduino IDE when placed in the sketch folder. Set Flash Size to 16MB in IDE settings.
+- Custom partition table includes a 64KB coredump partition for crash diagnostics.
 - Changing partitions erases LittleFS -- use system snapshot to backup before upgrading from a different partition layout.
 - LiDAR sensor uses UART (HardwareSerial) instead of I2C -- no external library required. TF-Luna 9-byte frame protocol with checksum validation and signal strength filtering.
 - Audio uses ESP32 built-in I2S driver (`driver/i2s.h`) -- no external library required.
 - Only 2 external libraries needed: `WebSockets` and `ArduinoJson` (was 3 in early development -- removed `Adafruit_VL53L0X` dependency).
 - Config JSON uses `"lidar"` key (backwards-compatible: reads old `"tof"` key if present).
-- Resource budget: PROGMEM ~340KB (of 3MB), LittleFS ~250KB with audio (of 10MB), heap ~130KB free (of 320KB).
+- Resource budget: PROGMEM ~340KB (of 3MB), LittleFS ~250KB with audio (of ~9.9MB), heap ~130KB free (of 320KB).
 
 ---
 

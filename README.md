@@ -103,7 +103,7 @@ The system hosts its own web app (no internet required), turning any phone, tabl
 - **Unified firmware** -- single codebase runs as start gate, finish gate, or speed trap
 - **Role-appropriate UI** -- finish gate serves full dashboard; start gate and speed trap serve lightweight status pages
 - **Embedded web pages** -- HTML/CSS/JS compiled into firmware via PROGMEM (no LittleFS upload needed for web UI)
-- **Custom 16MB partition** -- 3MB app (with OTA) + 10MB LittleFS for data and audio files
+- **Custom 16MB partition** -- 3MB app (with OTA) + ~9.9MB LittleFS for data/audio + 64KB coredump
 - **Graceful degradation** -- audio, LiDAR, and speed trap are optional; existing gates work without them
 
 ---
@@ -120,18 +120,25 @@ The system hosts its own web app (no internet required), turning any phone, tabl
 
 The "Interceptor" requires a custom memory map to fit the audio assets and logs.
 
-- Place `partitions.csv` in the sketch root
-- Select **"Huge APP (3MB No OTA/1MB SPIFFS)"** in Arduino IDE (the `.csv` file overrides this to provide **~10MB** for the filesystem)
+The `partitions.csv` in the project root defines: **3MB app (with OTA) + ~9.9MB LittleFS + 64KB coredump**.
+
+- **PlatformIO:** Handled automatically via `platformio.ini`
+- **Arduino IDE:** Place `partitions.csv` in the sketch folder; select Flash Size **16MB (128Mb)**
 
 ### 3. Prerequisites
 
-1. **Arduino IDE 2.x** (or PlatformIO)
-2. **ESP32 Board Package** -- Add `https://espressif.github.io/arduino-esp32/package_esp32_index.json` to Board Manager URLs
+**PlatformIO (Recommended)**
+1. Install [PlatformIO Core](https://platformio.org/install/cli) (Python 3.10+)
+2. Clone this repo and run `pio run` — all dependencies install automatically
+
+**Arduino IDE**
+1. **Arduino IDE 2.x**
+2. **ESP32 Board Package** — Add `https://espressif.github.io/arduino-esp32/package_esp32_index.json` to Board Manager URLs
 3. **Required Libraries** (install via Library Manager):
    - `WebSockets` by Markus Sattler
    - `ArduinoJson` by Benoit Blanchon
 
-> No external library needed for the TF-Luna LiDAR -- it uses the built-in HardwareSerial UART driver.
+> No external library needed for the TF-Luna LiDAR — it uses the built-in HardwareSerial UART driver.
 
 ### 4. Wiring
 
@@ -172,24 +179,38 @@ Sensor spacing: ~10cm apart on track
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/Ryan4n6/HotWheels-RaceGate.git
+   git clone https://github.com/Ryan4n6/MASS-Trap.git
+   cd MASS-Trap
    ```
-2. Open `HotWheels_RaceGate.ino` in Arduino IDE
-3. Upload Firmware
-4. After flashing, connect to WiFi SSID: `MASSTrap-Setup-XXXX`
-5. Configure role, WiFi, pins via the captive portal at `http://192.168.4.1`
-6. Access the Command Center at `http://masstrap.local`
-7. **Respect the laws of physics.**
+2. **PlatformIO (Recommended):**
+   ```bash
+   pio run -t upload          # Build + flash via USB
+   pio run -t uploadfs        # Upload LittleFS data files (audio, etc.)
+   pio run -t monitor         # Serial monitor
+   ```
+   **Arduino IDE:**
+   Open `MASS_Trap.ino`, set board to ESP32S3 Dev Module, Flash Size 16MB, PSRAM OPI, then Upload.
+
+3. After flashing, connect to WiFi SSID: `MASSTrap-Setup-XXXX`
+4. Configure role, WiFi, pins via the captive portal at `http://192.168.4.1`
+5. Access the Command Center at `http://masstrap.local`
+6. **Respect the laws of physics.**
 
 ### OTA Updates (After Initial Flash)
 
 Once configured, you never need a USB cable again:
 
-1. In Arduino IDE, go to **Tools -> Port** and select the network port (e.g., `masstrap.local`)
-2. Click **Upload** -- firmware flashes over WiFi
-3. Web pages update automatically (they're embedded in the firmware)
+**PlatformIO:**
+```bash
+pio run -e ota -t upload     # Flash over WiFi
+```
 
-The OTA password defaults to `admin` -- change it in the config page for security.
+**Arduino IDE:**
+Go to **Tools → Port**, select the network port (`masstrap.local`), and click Upload.
+
+Web pages update automatically — they're embedded in the firmware.
+
+The OTA password defaults to `admin` — change it in the config page for security.
 
 ---
 
@@ -230,38 +251,31 @@ The OTA password defaults to `admin` -- change it in the config page for securit
 ## Project Structure
 
 ```
-HotWheels_RaceGate/
-├── HotWheels_RaceGate.ino    # Main entry point, WiFi, OTA, boot logic
-├── partitions.csv             # Custom 16MB partition table (3MB app + 10MB LittleFS)
-├── config.h                   # Configuration struct, version constants, PROJECT_NAME
-├── config.cpp                 # Config load/save/validate, JSON serialization
-├── web_server.h               # Web server + SerialTee ring buffer class
-├── web_server.cpp             # HTTP routes, WebSocket, API handlers
-├── espnow_comm.h              # ESP-NOW message types and protocol (12 message types)
-├── espnow_comm.cpp            # ESP-NOW init, send, receive, clock sync, discovery
-├── finish_gate.h              # Finish gate declarations
-├── finish_gate.cpp            # Finish gate logic, timing, race results, speed data
-├── start_gate.h               # Start gate declarations
-├── start_gate.cpp             # Start gate logic, trigger, LiDAR auto-arm
-├── speed_trap.h               # Speed trap declarations
-├── speed_trap.cpp             # Dual ISR velocity measurement, ESP-NOW send
-├── lidar_sensor.h             # LiDAR sensor declarations (TF-Luna)
-├── lidar_sensor.cpp           # TF-Luna UART init, frame parsing, presence state machine
-├── audio_manager.h            # Audio playback declarations
-├── audio_manager.cpp          # I2S init, WAV loading, non-blocking DMA playback
-├── wled_integration.h         # WLED HTTP API declarations
-├── wled_integration.cpp       # WLED effect control, auto-sleep
-├── html_index.h               # Dashboard HTML (PROGMEM embedded)
-├── html_config.h              # Config page HTML (PROGMEM embedded)
-├── html_console.h             # Console page HTML (PROGMEM embedded)
-├── html_start_status.h        # Start gate status page (PROGMEM embedded)
-├── html_speedtrap_status.h    # Speed trap status page (PROGMEM embedded)
-├── html_chartjs.h             # Chart.js v4.4.7 library (PROGMEM embedded)
-├── data/                      # Source HTML files (edit these, then rebuild headers)
+MASS-Trap/
+├── platformio.ini             # PlatformIO build configuration (recommended)
+├── partitions.csv             # Custom 16MB partition table (3MB OTA + 9.9MB LittleFS + 64KB coredump)
+├── MASS_Trap.ino              # Main entry point: WiFi, OTA, boot logic
+├── config.h / .cpp            # Configuration struct, persistence, JSON serialization
+├── web_server.h / .cpp        # HTTP routes, WebSocket, API handlers, SerialTee ring buffer
+├── espnow_comm.h / .cpp       # ESP-NOW protocol: 12 message types, discovery, clock sync
+├── finish_gate.h / .cpp       # Finish gate: timing, race results, physics calculations
+├── start_gate.h / .cpp        # Start gate: IR trigger, LiDAR auto-arm
+├── speed_trap.h / .cpp        # Speed trap: dual ISR velocity measurement, ESP-NOW send
+├── lidar_sensor.h / .cpp      # TF-Luna UART: frame parsing, presence state machine
+├── audio_manager.h / .cpp     # MAX98357A I2S: WAV loading, non-blocking DMA playback
+├── wled_integration.h / .cpp  # WLED HTTP API: effect control, auto-sleep
+├── html_index.h               # Dashboard HTML (PROGMEM)
+├── html_config.h              # Config page HTML (PROGMEM)
+├── html_console.h             # Console page HTML (PROGMEM)
+├── html_start_status.h        # Start gate status page (PROGMEM)
+├── html_speedtrap_status.h    # Speed trap status page (PROGMEM)
+├── html_chartjs.h             # Chart.js v4.4.7 (PROGMEM)
+├── data/                      # LittleFS source files (uploaded via pio run -t uploadfs)
 │   ├── index.html             # Command Center dashboard source
 │   ├── config.html            # Config page source
 │   ├── console.html           # Console page source
-│   └── speedtrap_status.html  # Speed trap status page source
+│   ├── start_status.html      # Start gate status source
+│   └── speedtrap_status.html  # Speed trap status source
 ├── README.md
 ├── CHANGELOG.md
 └── .gitignore
