@@ -13,6 +13,9 @@ extern String currentCar;
 extern float currentWeight;
 extern uint32_t totalRuns;
 
+// Speed trap data (received from speed trap node via ESP-NOW)
+extern double midTrackSpeed_mps;  // 0 if no speed trap data available
+
 void finishGateSetup();
 void finishGateLoop();
 void onFinishGateESPNow(const ESPMessage& msg, uint64_t receiveTime);

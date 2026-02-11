@@ -15,6 +15,8 @@
 #define MSG_DISARM_CMD  7
 #define MSG_DISCOVER    8
 #define MSG_DISCOVER_ACK 9
+#define MSG_SPEED_DATA  10  // Speed trap → finish: mid-track velocity (offset = speed_mps * 10000)
+#define MSG_SPEED_ACK   11  // Finish → speed trap: acknowledge receipt
 
 // Race states shared by both roles
 enum RaceState { IDLE, ARMED, RACING, FINISHED };
@@ -65,10 +67,11 @@ void sendDiscoveryBroadcast();
 // Send a discovery acknowledgement to a specific MAC
 void sendDiscoveryAck(const uint8_t* targetMac);
 
-// Called from finish_gate or start_gate when ESP-NOW message arrives
+// Called from finish_gate, start_gate, or speed_trap when ESP-NOW message arrives
 // These are implemented in their respective .cpp files
 extern void onFinishGateESPNow(const ESPMessage& msg, uint64_t receiveTime);
 extern void onStartGateESPNow(const ESPMessage& msg, uint64_t receiveTime);
+extern void onSpeedTrapESPNow(const ESPMessage& msg, uint64_t receiveTime);
 
 // Run periodic discovery (call from loop)
 void discoveryLoop();

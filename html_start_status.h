@@ -12,8 +12,8 @@ static const char START_STATUS_HTML[] PROGMEM = R"rawliteral(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="fw-version" content="2.2.0">
-  <title>Start Gate - Hot Wheels</title>
+  <meta name="fw-version" content="2.4.0">
+  <title>Start Gate - M.A.S.S. Trap</title>
   <style>
     :root {
       --hw-orange: #FF4400;
@@ -116,7 +116,7 @@ static const char START_STATUS_HTML[] PROGMEM = R"rawliteral(
   <div class="container">
     <div class="header">
       <h1>START GATE</h1>
-      <p>HOT WHEELS RACE SYSTEM</p>
+      <p>M.A.S.S. TRAP SYSTEM</p>
     </div>
 
     <div class="nav-links">

@@ -10,14 +10,31 @@ void setDefaults(DeviceConfig& c) {
 
   memset(c.wifi_ssid, 0, sizeof(c.wifi_ssid));
   memset(c.wifi_pass, 0, sizeof(c.wifi_pass));
-  strncpy(c.hostname, "hotwheels", sizeof(c.hostname) - 1);
+  strncpy(c.hostname, "masstrap", sizeof(c.hostname) - 1);
   strncpy(c.network_mode, "wifi", sizeof(c.network_mode) - 1);
 
   strncpy(c.role, "finish", sizeof(c.role) - 1);
   c.device_id = 1;
 
   c.sensor_pin = 4;
+  c.sensor_pin_2 = 5;    // Speed trap second sensor
   c.led_pin = 2;
+
+  // Audio (MAX98357A I2S) — disabled by default
+  c.audio_enabled = false;
+  c.i2s_bclk_pin = 15;
+  c.i2s_lrc_pin = 16;
+  c.i2s_dout_pin = 17;
+  c.audio_volume = 10;
+
+  // LiDAR Sensor (TF-Luna UART) — disabled by default
+  c.lidar_enabled = false;
+  c.lidar_rx_pin = 39;
+  c.lidar_tx_pin = 38;
+  c.lidar_threshold_mm = 50;
+
+  // Speed Trap
+  c.sensor_spacing_m = 0.10f;
 
   memset(c.peer_mac, 0, 6);
 
@@ -107,8 +124,8 @@ bool validateConfig(const DeviceConfig& c) {
     return false;
   }
   if (strcmp(c.role, "start") != 0 && strcmp(c.role, "finish") != 0 &&
-      strcmp(c.role, "display") != 0 && strcmp(c.role, "judge") != 0 &&
-      strcmp(c.role, "lights") != 0) {
+      strcmp(c.role, "speedtrap") != 0 && strcmp(c.role, "display") != 0 &&
+      strcmp(c.role, "judge") != 0 && strcmp(c.role, "lights") != 0) {
     LOG.printf("[CONFIG] Invalid role: %s\n", c.role);
     return false;
   }
@@ -116,7 +133,7 @@ bool validateConfig(const DeviceConfig& c) {
 }
 
 String configToJson() {
-  StaticJsonDocument<1024> doc;
+  StaticJsonDocument<1536> doc;
 
   doc["configured"] = cfg.configured;
   doc["version"] = cfg.version;
@@ -133,7 +150,21 @@ String configToJson() {
 
   JsonObject pins = doc.createNestedObject("pins");
   pins["sensor_pin"] = cfg.sensor_pin;
+  pins["sensor_pin_2"] = cfg.sensor_pin_2;
   pins["led_pin"] = cfg.led_pin;
+
+  JsonObject audio = doc.createNestedObject("audio");
+  audio["enabled"] = cfg.audio_enabled;
+  audio["bclk_pin"] = cfg.i2s_bclk_pin;
+  audio["lrc_pin"] = cfg.i2s_lrc_pin;
+  audio["dout_pin"] = cfg.i2s_dout_pin;
+  audio["volume"] = cfg.audio_volume;
+
+  JsonObject lidar = doc.createNestedObject("lidar");
+  lidar["enabled"] = cfg.lidar_enabled;
+  lidar["rx_pin"] = cfg.lidar_rx_pin;
+  lidar["tx_pin"] = cfg.lidar_tx_pin;
+  lidar["threshold_mm"] = cfg.lidar_threshold_mm;
 
   JsonObject peer = doc.createNestedObject("peer");
   peer["mac"] = formatMac(cfg.peer_mac);
@@ -141,6 +172,7 @@ String configToJson() {
   JsonObject track = doc.createNestedObject("track");
   track["length_m"] = cfg.track_length_m;
   track["scale_factor"] = cfg.scale_factor;
+  track["sensor_spacing_m"] = cfg.sensor_spacing_m;
 
   JsonObject integrations = doc.createNestedObject("integrations");
   integrations["google_sheets_url"] = cfg.google_sheets_url;
@@ -160,7 +192,7 @@ String configToJson() {
 }
 
 bool configFromJson(const String& json) {
-  StaticJsonDocument<1024> doc;
+  StaticJsonDocument<1536> doc;
   DeserializationError err = deserializeJson(doc, json);
   if (err) {
     LOG.printf("[CONFIG] JSON parse error: %s\n", err.c_str());
@@ -174,7 +206,7 @@ bool configFromJson(const String& json) {
   if (network) {
     strncpy(cfg.wifi_ssid, network["wifi_ssid"] | "", sizeof(cfg.wifi_ssid) - 1);
     strncpy(cfg.wifi_pass, network["wifi_pass"] | "", sizeof(cfg.wifi_pass) - 1);
-    strncpy(cfg.hostname, network["hostname"] | "hotwheels", sizeof(cfg.hostname) - 1);
+    strncpy(cfg.hostname, network["hostname"] | "masstrap", sizeof(cfg.hostname) - 1);
     strncpy(cfg.network_mode, network["mode"] | "wifi", sizeof(cfg.network_mode) - 1);
   }
 
@@ -187,7 +219,26 @@ bool configFromJson(const String& json) {
   JsonObject pins = doc["pins"];
   if (pins) {
     cfg.sensor_pin = pins["sensor_pin"] | 4;
+    cfg.sensor_pin_2 = pins["sensor_pin_2"] | 5;
     cfg.led_pin = pins["led_pin"] | 2;
+  }
+
+  JsonObject audio = doc["audio"];
+  if (audio) {
+    cfg.audio_enabled = audio["enabled"] | false;
+    cfg.i2s_bclk_pin = audio["bclk_pin"] | 15;
+    cfg.i2s_lrc_pin = audio["lrc_pin"] | 16;
+    cfg.i2s_dout_pin = audio["dout_pin"] | 17;
+    cfg.audio_volume = audio["volume"] | 10;
+  }
+
+  JsonObject lidar = doc["lidar"];
+  if (!lidar) lidar = doc["tof"]; // Backwards-compatible with old config files
+  if (lidar) {
+    cfg.lidar_enabled = lidar["enabled"] | false;
+    cfg.lidar_rx_pin = lidar["rx_pin"] | lidar["sda_pin"] | 39;
+    cfg.lidar_tx_pin = lidar["tx_pin"] | lidar["scl_pin"] | 38;
+    cfg.lidar_threshold_mm = lidar["threshold_mm"] | 50;
   }
 
   JsonObject peer = doc["peer"];
@@ -200,6 +251,7 @@ bool configFromJson(const String& json) {
   if (track) {
     cfg.track_length_m = track["length_m"] | 2.0f;
     cfg.scale_factor = track["scale_factor"] | 64;
+    cfg.sensor_spacing_m = track["sensor_spacing_m"] | 0.10f;
   }
 
   JsonObject integrations = doc["integrations"];

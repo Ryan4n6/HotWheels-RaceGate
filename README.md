@@ -1,158 +1,211 @@
-# Hot Wheels Race Gate - Physics Lab
+# The M.A.S.S. Trap
 
-A real-time race timing and physics measurement system for Hot Wheels (and other diecast) tracks, built on ESP32/ESP32-S3 microcontrollers. Designed as an educational STEM tool for science fairs, classrooms, and backyard racing.
+### **M**otion **A**nalysis & **S**peed **S**ystem
 
-Two IR break-beam sensors (start gate + finish gate) communicate over ESP-NOW to deliver microsecond-precision timing, real-time speed calculations, and physics data — all viewable on a live web dashboard from any device on your network.
+> *"Respect the Laws of Physics."*
+
+**The M.A.S.S. Trap** is a forensic-grade physics laboratory disguised as a Hot Wheels track speedometer. It utilizes commercial LiDAR and enterprise IoT hardware to enforce the laws of **Mass**, **Momentum**, and **Kinetic Energy** on 1:64 scale traffic.
+
+---
+
+## The Case File (Lore)
+
+This project was engineered by a former **Police Detective** and **Digital Forensics Instructor** to bridge the gap between law enforcement precision and childhood wonder.
+
+* **The Name:** A nod to the creator's past life enforcing speed limits -- and his family name, **Mass**feller. It is a literal "Speed Trap" for Hot Wheels.
+* **The Legacy:** Inspired by a grandfather who raced **Formula Vee** in the 70s/80s. In Formula Vee, raw horsepower didn't win races; **efficiency** and **momentum conservation** did.
+* **The Mission:** To teach the next generation that **Science is Cool**, **Math is Power**, and while you can't break the laws of physics... you can certainly measure them.
+
+---
+
+## "Interceptor" Architecture (Hardware)
+
+Unlike civilian-grade Arduino projects, The M.A.S.S. Trap runs on the **Interceptor Spec** -- a modified, high-performance stack designed for real-time telemetry, heavy data logging, and audio synthesis.
+
+| Component | Spec | Role |
+| --- | --- | --- |
+| **The Engine** | **ESP32-S3 (N16R8)** | Modified 16MB Flash / 8MB PSRAM. Dual-core 240MHz "Interceptor" Class. |
+| **The LiDAR** | **Benewake TF-Luna** | **UART Solid-State LiDAR.** Performs "Tech Inspection" staging and auto-arms the trap when a vehicle is detected. |
+| **The Siren** | **MAX98357A I2S** | Digital Audio Amp. Broadcasts race audio effects -- arm chime, go tone, finish fanfare, new record alert. |
+| **The Trap** | **Dual IR Break-beam** | Measures mid-track velocity delta to calculate drag coefficients. |
+| **The Comms** | **ESP-NOW** | Encrypted, ultra-low latency (<1ms) tactical link between Start and Finish gates. |
+
+---
+
+## Command Center (The Dashboard)
+
+The system hosts its own web app (no internet required), turning any phone, tablet, or laptop into the **M.A.S.S. Trap Command Center**.
+
+* **Tacticool UI:** A dark mode interface styled with a police shield badge (Navy + Gold color scheme).
+* **Real-Time Telemetry:** Instant display of Scale MPH, Actual MPH, Finish Time (ms), Momentum, KE, G-Force.
+* **Suspect Tracking:**
+  * **"Staged":** LiDAR confirms vehicle presence at the start gate.
+  * **"Clocked":** Speed trap sensors capture mid-track velocity.
+  * **"Booked":** Finish gate logs the final time and physics data.
+* **The "Lead Sled" Leaderboard:** Tracks new records with an animated podium ceremony.
+* **Mechanic's Log:** A digital notebook to correlate car modifications (graphite, weight) with performance gains.
+* **Chart.js Visualization:** Speed vs Run and KE vs Weight scatter plots, auto-updating after each race.
+* **Ghost Car Comparison:** Personal best delta display with new record/slower indicators.
+* **Physics Explainer:** Live formula cards showing actual race values.
+* **Speed Profile:** Start/mid/finish velocity comparison when speed trap data is available.
+
+---
 
 ## Features
 
-### Race Timing
+### Race Timing & Physics
 - **Microsecond-precision timing** via hardware interrupts on IR break-beam sensors
-- **ESP-NOW peer-to-peer communication** between start and finish gates (sub-millisecond latency)
+- **ESP-NOW peer-to-peer communication** between gates (sub-millisecond latency)
 - **Clock synchronization** between devices for accurate cross-gate timing
-- **Automatic race detection** — arm the system, release the car, results appear instantly
+- **Automatic race detection** -- arm the system, release the car, results appear instantly
+- **Real-time physics calculations:** elapsed time, speed (mph), scale speed, momentum (kg*m/s), kinetic energy (Joules), G-force
+- **Mid-track velocity profiling** via optional speed trap node (demonstrates acceleration/deceleration)
 
-### Physics Calculations (Real-Time)
-- Elapsed time (seconds)
-- Real speed (mph)
-- Scale speed (configurable ratio, default 1:64)
-- Momentum (kg*m/s)
-- Kinetic energy (Joules)
+### LiDAR Staging (Benewake TF-Luna)
+- **Automatic car staging** -- solid-state LiDAR detects car at start gate
+- **Auto-arm** -- car present > 1 second triggers automatic system arming
+- **Dashboard indicator** -- live "LIDAR TARGET ACQUIRED" status on Command Center
+- **Configurable threshold** -- adjustable detection distance via web UI
+- **UART interface** -- 115200 baud, 9-byte frames with checksum validation
+- **Signal strength filtering** -- rejects low-confidence readings
+- **Fully optional** -- disabled by default, zero overhead when off
 
-### Web Dashboard
-- **Live updating** via WebSocket — no page refresh needed
-- **Race state banner** — IDLE / ARMED / RACING / FINISHED with animations
-- **Car Garage** — persistent database of cars with name, color, weight, and per-car stats (runs, best time, best speed)
-- **Race History** — last 100 races with full physics data
-- **CSV Export** — download race data for spreadsheets
-- **Google Sheets Integration** — auto-upload results after each race
-- **Version badge** — firmware and UI version displayed on every page
+### Audio System (MAX98357A I2S)
+- **Non-blocking WAV playback** via ESP32 I2S DMA ring buffer
+- **Race event sounds** -- arm chime, countdown, go tone, finish fanfare, new record alert
+- **Web-based upload** -- drag-and-drop WAV files to device via config page
+- **Volume control** -- adjustable 0-21 levels via web UI
+- **Fully optional** -- disabled by default, zero overhead when off
+
+### Speed Trap Node (3rd ESP32)
+- **Mid-track velocity measurement** -- dual IR sensors ~10cm apart
+- **Microsecond ISR timing** -- hardware interrupt on both sensors
+- **ESP-NOW integration** -- sends velocity data to finish gate automatically
+- **Dedicated status page** -- shows last speed, peer status, sensor config
 
 ### Device Configuration
-- **Web-based setup** — captive portal on first boot, no code editing required
-- **WiFi or Standalone mode** — connect to your router, or create its own network
-- **Pin configuration** — choose sensor and LED GPIOs via the web UI
-- **Peer discovery** — automatically find other race gate devices on the network
-- **WLED integration** — control LED strips for race state visual effects (idle, armed, racing, finished)
-- **OTA updates** — flash new firmware over WiFi, no USB cable needed
-- **Backup/Restore** — download and upload configuration as JSON
+- **Web-based setup** -- captive portal on first boot, no code editing required
+- **WiFi or Standalone mode** -- connect to your router, or create its own network
+- **Pin configuration** -- all GPIO assignments configurable via web UI
+- **Peer discovery** -- automatically find other M.A.S.S. Trap devices on the network
+- **WLED integration** -- LED strip effects for race states (idle, armed, racing, finished)
+- **OTA updates** -- flash new firmware over WiFi, no USB cable needed
+- **Full system snapshot** -- one-click backup/restore of config + garage + history
+- **Clone mode** -- restore snapshot to a new device (strips network identity)
 
 ### Debug Console
-- **Web-based serial monitor** — view device logs over WiFi at `/console`
-- **Ring buffer capture** — 8KB of recent serial output, auto-refreshing
-- **File browser** — inspect and manage files on the device filesystem
-- **Device info** — IP, uptime, free memory, peer status at a glance
+- **Web-based serial monitor** -- view device logs over WiFi at `/console`
+- **Ring buffer capture** -- 8KB of recent serial output, auto-refreshing
+- **File browser** -- inspect, edit, and manage files on the device filesystem
+- **Device info** -- IP, uptime, free memory, peer status at a glance
 
 ### Architecture
-- **Unified firmware** — single codebase runs as start gate OR finish gate (configured via web UI)
-- **Role-appropriate UI** — finish gate serves the full dashboard; start gate serves a lightweight status page
-- **Embedded web pages** — HTML/CSS/JS compiled into firmware via PROGMEM (no LittleFS upload needed for web UI)
-- **Persistent data** — garage, history, and config survive OTA firmware updates (stored in LittleFS)
-- **ESP32 and ESP32-S3** compatible
+- **Unified firmware** -- single codebase runs as start gate, finish gate, or speed trap
+- **Role-appropriate UI** -- finish gate serves full dashboard; start gate and speed trap serve lightweight status pages
+- **Embedded web pages** -- HTML/CSS/JS compiled into firmware via PROGMEM (no LittleFS upload needed for web UI)
+- **Custom 16MB partition** -- 3MB app (with OTA) + 10MB LittleFS for data and audio files
+- **Graceful degradation** -- audio, LiDAR, and speed trap are optional; existing gates work without them
 
-## Hardware Requirements
+---
 
-| Component | Quantity | Notes |
-|-----------|----------|-------|
-| ESP32 or ESP32-S3 dev board | 2 | One for start gate, one for finish gate |
-| IR break-beam sensor | 2 | 5V transmitter + receiver pairs |
-| Hot Wheels track | 1 | Any configuration |
-| USB cable | 1 | For initial flash only (OTA after that) |
-| Power supply | 2 | USB power for each ESP32 |
+## Deployment Protocols
 
-### Optional
-| Component | Notes |
-|-----------|-------|
-| WLED-compatible LED strip | For race state lighting effects |
-| Kitchen/gram scale | To weigh cars for physics calculations |
+### 1. Hardware Prep
 
-### Wiring
+- **Target Board:** ESP32-S3 Dev Module (Enable `USB CDC On Boot`)
+- **Flash Size:** Select **16MB (128Mb)**
+- **PSRAM:** Select **OPI PSRAM**
 
-```
-IR Sensor Signal → GPIO 4 (default, configurable)
-IR Sensor VCC    → 5V / 3.3V (check your sensor)
-IR Sensor GND    → GND
-Status LED       → GPIO 2 (default, built-in LED)
-```
+### 2. Partitioning (Critical)
 
-## Installation
+The "Interceptor" requires a custom memory map to fit the audio assets and logs.
 
-### Prerequisites
+- Place `partitions.csv` in the sketch root
+- Select **"Huge APP (3MB No OTA/1MB SPIFFS)"** in Arduino IDE (the `.csv` file overrides this to provide **~10MB** for the filesystem)
+
+### 3. Prerequisites
+
 1. **Arduino IDE 2.x** (or PlatformIO)
-2. **ESP32 Board Package** — Add `https://espressif.github.io/arduino-esp32/package_esp32_index.json` to Board Manager URLs
+2. **ESP32 Board Package** -- Add `https://espressif.github.io/arduino-esp32/package_esp32_index.json` to Board Manager URLs
 3. **Required Libraries** (install via Library Manager):
    - `WebSockets` by Markus Sattler
    - `ArduinoJson` by Benoit Blanchon
 
-### Flash Firmware
+> No external library needed for the TF-Luna LiDAR -- it uses the built-in HardwareSerial UART driver.
+
+### 4. Wiring
+
+**IR Sensor (Start / Finish Gate)**
+```
+IR Sensor Signal  ->  GPIO 4 (default, configurable)
+IR Sensor VCC     ->  5V / 3.3V (check your sensor)
+IR Sensor GND     ->  GND
+Status LED        ->  GPIO 48 (NeoPixel on ESP32-S3 DevKit)
+```
+
+**Benewake TF-Luna LiDAR (optional)**
+```
+VCC  ->  5V
+GND  ->  GND
+TX   ->  ESP32 GPIO 39 (RX) (default, configurable)
+RX   ->  ESP32 GPIO 38 (TX) (default, configurable)
+```
+*Note: The TF-Luna runs in UART mode at 115200 baud.*
+
+**MAX98357A I2S Amplifier (optional)**
+```
+BCLK  ->  GPIO 15 (default, configurable)
+LRC   ->  GPIO 16 (default, configurable)
+DIN   ->  GPIO 17 (default, configurable)
+VIN   ->  5V
+GND   ->  GND
+```
+
+**Speed Trap Node (dual IR sensors)**
+```
+Sensor 1 Signal  ->  GPIO 4 (default, configurable)
+Sensor 2 Signal  ->  GPIO 5 (default, configurable)
+Sensor spacing: ~10cm apart on track
+```
+
+### 5. Flash & Race
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/HotWheels_RaceGate.git
+   git clone https://github.com/Ryan4n6/HotWheels-RaceGate.git
    ```
-
 2. Open `HotWheels_RaceGate.ino` in Arduino IDE
-
-3. Select your board:
-   - **Board:** `ESP32S3 Dev Module` (or `ESP32 Dev Module`)
-   - **Partition Scheme:** `Default 4MB with spiffs` (or larger)
-   - **Upload Speed:** `921600`
-
-4. Click **Upload**
-
-5. **No LittleFS upload needed** — web pages are embedded in the firmware
-
-### First Boot Setup
-
-1. After flashing, the device creates a WiFi network: `HotWheels-Setup-XXXX`
-2. Connect to it from your phone/laptop
-3. A captive portal opens automatically (or navigate to `http://192.168.4.1`)
-4. Configure:
-   - **Network tab:** Select your WiFi network and enter the password
-   - **Device tab:** Choose role (Start Gate or Finish Gate)
-   - **Peer tab:** Note this device's MAC address; enter the partner's MAC
-   - **Track tab:** Set track length in meters
-5. Click **SAVE CONFIGURATION** — device reboots and connects to your WiFi
-
-6. Repeat for the second device (opposite role)
-
-7. Access the dashboard at `http://hotwheels.local` (or the device's IP address)
+3. Upload Firmware
+4. After flashing, connect to WiFi SSID: `MASSTrap-Setup-XXXX`
+5. Configure role, WiFi, pins via the captive portal at `http://192.168.4.1`
+6. Access the Command Center at `http://masstrap.local`
+7. **Respect the laws of physics.**
 
 ### OTA Updates (After Initial Flash)
 
 Once configured, you never need a USB cable again:
 
-1. In Arduino IDE, go to **Tools → Port** and select the network port (e.g., `hotwheels.local`)
-2. Click **Upload** — firmware flashes over WiFi
+1. In Arduino IDE, go to **Tools -> Port** and select the network port (e.g., `masstrap.local`)
+2. Click **Upload** -- firmware flashes over WiFi
 3. Web pages update automatically (they're embedded in the firmware)
 
-The OTA password defaults to `admin` — change it in the config page for security.
+The OTA password defaults to `admin` -- change it in the config page for security.
 
-## Usage
+---
 
-### Racing
-
-1. Open `http://hotwheels.local` on any device (phone, tablet, laptop)
-2. **Add cars** to the Garage with name, color, and weight
-3. **Select a car** by tapping it in the garage
-4. Click **ARM SYSTEM**
-5. Place car at the start gate
-6. Release the car — timing starts automatically when the beam breaks
-7. Results appear instantly on the dashboard
-
-### Web Pages
+## Web Pages
 
 | URL | Page | Description |
 |-----|------|-------------|
-| `/` | Dashboard | Live race data, garage, history (finish gate) or status page (start gate) |
-| `/config` | Configuration | WiFi, pins, peer, track, WLED, OTA settings |
+| `/` | Command Center | Live race data, garage, history (finish gate) or status page (start/speed trap) |
+| `/config` | Configuration | WiFi, pins, peer, track, audio, LiDAR, WLED, OTA settings |
 | `/console` | Debug Console | Serial log viewer, file browser, device info |
 
-### API Endpoints
+## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/info` | GET | Device info (role, IP, uptime, heap) |
+| `/api/info` | GET | Device info (role, IP, uptime, heap, peer status) |
 | `/api/version` | GET | Firmware version, build date, board type |
 | `/api/config` | GET/POST | Read or write device configuration |
 | `/api/garage` | GET/POST | Read or write car garage data |
@@ -162,47 +215,57 @@ The OTA password defaults to `admin` — change it in the config page for securi
 | `/api/discover` | GET | Discover peer devices on network |
 | `/api/log` | GET/DELETE | Read or clear serial log buffer |
 | `/api/files` | GET/POST/DELETE | File browser (list, read, write, delete) |
-| `/api/backup` | GET | Download full config backup as JSON |
-| `/api/restore` | POST | Restore config from backup JSON |
-| `/api/reset` | POST | Factory reset (deletes config, reboots) |
+| `/api/system/backup` | GET | Full system snapshot (config + garage + history) |
+| `/api/system/restore` | POST | Restore system snapshot (with optional clone mode) |
+| `/api/lidar/status` | GET | Live LiDAR readout (state, distance, threshold) |
+| `/api/audio/list` | GET | List audio files on device |
+| `/api/audio/upload` | POST | Upload WAV file to device |
+| `/api/audio/test` | POST | Play a test sound |
 | `/api/wled/info` | GET | Proxy: get WLED controller info |
 | `/api/wled/effects` | GET | Proxy: list WLED effects |
+| `/api/backup` | GET | Legacy single-config backup |
+| `/api/restore` | POST | Legacy single-config restore |
+| `/api/reset` | POST | Factory reset (deletes config, reboots) |
 
 ## Project Structure
 
 ```
 HotWheels_RaceGate/
-├── HotWheels_RaceGate.ino   # Main entry point, WiFi, OTA, boot logic
-├── config.h                  # Configuration struct, version constants
-├── config.cpp                # Config load/save/validate, JSON serialization
-├── web_server.h              # Web server + SerialTee ring buffer class
-├── web_server.cpp            # HTTP routes, WebSocket, API handlers
-├── espnow_comm.h             # ESP-NOW message types and protocol
-├── espnow_comm.cpp           # ESP-NOW init, send, receive, clock sync
-├── finish_gate.h             # Finish gate declarations
-├── finish_gate.cpp           # Finish gate logic, timing, race results
-├── start_gate.h              # Start gate declarations
-├── start_gate.cpp            # Start gate logic, trigger detection
-├── wled_integration.h        # WLED HTTP API declarations
-├── wled_integration.cpp      # WLED effect control
-├── html_index.h              # Dashboard HTML (PROGMEM embedded)
-├── html_config.h             # Config page HTML (PROGMEM embedded)
-├── html_console.h            # Console page HTML (PROGMEM embedded)
-├── html_start_status.h       # Start gate status page (PROGMEM embedded)
-├── data/                     # Source HTML files (edit these, then rebuild headers)
-│   ├── index.html            # Dashboard source
-│   ├── config.html           # Config page source
-│   └── console.html          # Console page source
+├── HotWheels_RaceGate.ino    # Main entry point, WiFi, OTA, boot logic
+├── partitions.csv             # Custom 16MB partition table (3MB app + 10MB LittleFS)
+├── config.h                   # Configuration struct, version constants, PROJECT_NAME
+├── config.cpp                 # Config load/save/validate, JSON serialization
+├── web_server.h               # Web server + SerialTee ring buffer class
+├── web_server.cpp             # HTTP routes, WebSocket, API handlers
+├── espnow_comm.h              # ESP-NOW message types and protocol (12 message types)
+├── espnow_comm.cpp            # ESP-NOW init, send, receive, clock sync, discovery
+├── finish_gate.h              # Finish gate declarations
+├── finish_gate.cpp            # Finish gate logic, timing, race results, speed data
+├── start_gate.h               # Start gate declarations
+├── start_gate.cpp             # Start gate logic, trigger, LiDAR auto-arm
+├── speed_trap.h               # Speed trap declarations
+├── speed_trap.cpp             # Dual ISR velocity measurement, ESP-NOW send
+├── lidar_sensor.h             # LiDAR sensor declarations (TF-Luna)
+├── lidar_sensor.cpp           # TF-Luna UART init, frame parsing, presence state machine
+├── audio_manager.h            # Audio playback declarations
+├── audio_manager.cpp          # I2S init, WAV loading, non-blocking DMA playback
+├── wled_integration.h         # WLED HTTP API declarations
+├── wled_integration.cpp       # WLED effect control, auto-sleep
+├── html_index.h               # Dashboard HTML (PROGMEM embedded)
+├── html_config.h              # Config page HTML (PROGMEM embedded)
+├── html_console.h             # Console page HTML (PROGMEM embedded)
+├── html_start_status.h        # Start gate status page (PROGMEM embedded)
+├── html_speedtrap_status.h    # Speed trap status page (PROGMEM embedded)
+├── html_chartjs.h             # Chart.js v4.4.7 library (PROGMEM embedded)
+├── data/                      # Source HTML files (edit these, then rebuild headers)
+│   ├── index.html             # Command Center dashboard source
+│   ├── config.html            # Config page source
+│   ├── console.html           # Console page source
+│   └── speedtrap_status.html  # Speed trap status page source
+├── README.md
+├── CHANGELOG.md
 └── .gitignore
 ```
-
-### How Web Pages Work
-
-The HTML files in `data/` are the **source files** you edit. They get wrapped into C header files (`html_*.h`) as PROGMEM string literals and compiled directly into the firmware binary. This means:
-
-- **OTA updates deliver code AND web UI** in one shot
-- **No LittleFS upload needed** for HTML files
-- **Runtime data** (config, garage, history) still lives in LittleFS and persists across updates
 
 ## Data Persistence
 
@@ -210,67 +273,52 @@ The HTML files in `data/` are the **source files** you edit. They get wrapped in
 |------|---------|---------------|---------|
 | Web pages | PROGMEM (firmware) | Updated with firmware | Dashboard, config, console UI |
 | `/config.json` | LittleFS | Yes | Device configuration |
-| `/garage.json` | LittleFS | Yes | Car database |
+| `/garage.json` | LittleFS | Yes | Car database with mechanic's notes |
 | `/history.json` | LittleFS | Yes | Race history (last 100) |
 | `/runs.csv` | LittleFS | Yes | Race log with full physics data |
-
-## Security Notes
-
-- **Change the default OTA password** (`admin`) in the config page before deploying
-- **WiFi credentials** are stored in `/config.json` on the device filesystem
-- The fallback WiFi defines in `HotWheels_RaceGate.ino` are blank by default — set them for your network if desired, but **never commit real credentials**
-- The web interface has no authentication — it's designed for local network use
+| `/*.wav` | LittleFS | Yes | Audio effect files |
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| Can't find device | Check `http://hotwheels.local` or find the IP in your router's DHCP table |
+| Can't find device | Check `http://masstrap.local` or find the IP in your router's DHCP table |
 | Peer not connecting | Verify MAC addresses match on both devices (check Peer tab in config) |
 | Timing seems wrong | Run clock sync from dashboard, check track length setting |
 | OTA upload fails | Verify OTA password matches, ensure device is on same network |
-| Web page not loading | The HTML is embedded in firmware — just reflash via OTA |
-| Setup mode won't exit | Ensure you selected a WiFi network and the password is correct |
+| Firmware too large | Ensure Flash Size is set to 16MB -- the custom partitions.csv gives 3MB per app slot |
+| No LiDAR readings | Enable LiDAR in config, verify UART pins (TX/RX), check 5V power to TF-Luna |
+| No audio output | Enable audio in config, verify I2S pins, upload WAV files |
+| Speed trap no data | Verify speed trap node is connected (check peer status), check sensor spacing |
 
 ## Roadmap
 
-### In Progress
-- [ ] **Hub Scoreboard Device** — Waveshare ESP32 display as the central data authority with SD card storage
-- [ ] **NFC Car Tagging** — Tap an NFC tag on each car to auto-select it before racing (non-destructive garage field addition)
-
 ### Planned
-- [ ] **Testing Playlists** — Pre-defined science fair test protocols (e.g., "Weight vs Speed", "Angle vs Distance") with step-by-step prompts on screen
-- [ ] **GitHub Version Check** — Compare running firmware against latest release, notify when updates are available
-- [ ] **Multi-Lane Support** — Multiple finish sensors for parallel lane timing
-- [ ] **Tournament Bracket Mode** — Head-to-head elimination bracket with automatic advancement
-- [ ] **Audio Announcements** — Race countdown, results readout via connected speaker
-- [ ] **Single Source of Truth Architecture** — All databases migrate to hub device; gate nodes become pure sensors
+- [ ] **Hub Scoreboard Device** -- Waveshare ESP32 display as the central data authority with SD card storage
+- [ ] **NFC Car Tagging** -- Tap an NFC tag on each car to auto-select it before racing
+- [ ] **Testing Playlists** -- Pre-defined science fair test protocols (e.g., "Weight vs Speed", "Angle vs Distance")
+- [ ] **GitHub Version Check** -- Compare running firmware against latest release, notify when updates available
+- [ ] **Multi-Lane Support** -- Multiple finish sensors for parallel lane timing
+- [ ] **Tournament Bracket Mode** -- Head-to-head elimination bracket with automatic advancement
+
+### Completed (v2.4.0)
+- [x] **M.A.S.S. Trap Rebrand** -- Full project rebrand with police shield/badge themed Command Center
+- [x] **Custom 16MB Partition Table** -- 3MB app (with OTA) + 10MB LittleFS for audio and data
+- [x] **Full System Snapshot** -- One-click backup/restore of config + garage + history with clone mode
+- [x] **TF-Luna LiDAR** -- UART solid-state LiDAR for car staging detection and auto-arm
+- [x] **Audio System** -- MAX98357A I2S amplifier with non-blocking WAV playback via DMA
+- [x] **Speed Trap Node** -- 3rd ESP32 role with dual IR sensors for mid-track velocity measurement
+- [x] **Leaderboard Podium Overlay** -- Animated ranking display after each race
+- [x] **Mechanic's Log** -- Per-car notes with timestamps for tracking modifications
+- [x] **Speed Profile** -- Start/mid/finish velocity comparison when speed trap data available
 
 ### Completed (v2.3.0)
-- [x] **Chart.js Data Visualization** — Speed vs Run Number and KE vs Weight scatter plots, auto-updating after each race
-- [x] **Ghost Car Comparison** — Personal best delta display (±time) with new record/slower visual indicators
-- [x] **Physics Explainer Panel** — Collapsible formula display with live race values (v=d/t, p=mv, KE=½mv², G-force)
-- [x] **LED Visualizer Bar** — CSS animations mirroring WLED states (breathe/pulse/chase/rainbow)
-- [x] **API Authentication** — X-API-Key header protection on destructive endpoints (reuses OTA password)
-- [x] **WLED Auto-Sleep** — 5-minute inactivity timer turns off WLED, wakes on next race activity
-- [x] **WLED Timeout Reduction** — Race-path HTTP timeout reduced from 500ms to 100ms
-- [x] **XSS Protection** — User input (car names) rendered with textContent instead of innerHTML
+- [x] Chart.js Data Visualization, Ghost Car Comparison, Physics Explainer Panel
+- [x] LED Visualizer Bar, API Authentication, WLED Auto-Sleep, XSS Protection
 
 ### Completed (v2.2.0)
-- [x] Unified firmware (start + finish from one codebase)
-- [x] Web-based captive portal configuration
-- [x] ESP-NOW communication with clock synchronization
-- [x] Embedded web UI (PROGMEM, no LittleFS upload needed)
-- [x] Version tracking across firmware and web UI
-- [x] `/api/version` endpoint for future update checking
-- [x] Role-appropriate web pages (full dashboard vs status page)
-- [x] Smart peer connection backoff (reduces radio spam when alone)
-- [x] Full physics data in CSV log (including Joules)
-- [x] WLED integration for visual race effects
-- [x] Google Sheets auto-upload
-- [x] OTA firmware updates
-- [x] Backup/restore configuration
-- [x] Web-based serial console with file browser
+- [x] Unified firmware, Captive portal config, ESP-NOW, Embedded web UI
+- [x] WLED integration, Google Sheets, OTA, Backup/restore, Web console
 
 ## Changelog
 
@@ -278,10 +326,16 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
 ## License
 
-MIT License — use it, modify it, teach with it.
+MIT License -- use it, modify it, teach with it.
 
-## Credits
+---
 
-Built for the science fair by a family of racers, engineers, and curious kids.
+### Dedication
+
+*Built for my sons. May you always find the thrill in the data.*
+
+*In memory of the Formula Vee days. We are still racing, Dad.*
+
+---
 
 Firmware assistance by Claude (Anthropic).

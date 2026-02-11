@@ -4,11 +4,13 @@
 #include <Arduino.h>
 
 #define CONFIG_FILE "/config.json"
-#define CONFIG_VERSION 1
-#define FIRMWARE_VERSION "2.3.0"
-#define WEB_UI_VERSION  "2.3.0"
+#define CONFIG_VERSION 2
+#define FIRMWARE_VERSION "2.4.0"
+#define WEB_UI_VERSION  "2.4.0"
 #define BUILD_DATE      __DATE__
 #define BUILD_TIME      __TIME__
+#define PROJECT_NAME    "M.A.S.S. Trap"
+#define PROJECT_FULL    "Motion Analysis & Speed System"
 
 // Global log output — all Serial.printf calls should use LOG.printf instead
 // This captures output for the web serial monitor (/console)
@@ -33,12 +35,29 @@ struct DeviceConfig {
   char network_mode[16]; // "wifi" or "standalone"
 
   // Device
-  char role[16]; // "start", "finish", "display", "judge", "lights"
+  char role[16]; // "start", "finish", "speedtrap", "display", "judge", "lights"
   uint8_t device_id;
 
   // Pins
   uint8_t sensor_pin;
+  uint8_t sensor_pin_2;  // Second sensor (speed trap dual-IR)
   uint8_t led_pin;
+
+  // Audio (MAX98357A I2S)
+  bool audio_enabled;
+  uint8_t i2s_bclk_pin;
+  uint8_t i2s_lrc_pin;
+  uint8_t i2s_dout_pin;
+  uint8_t audio_volume;  // 0-21
+
+  // LiDAR Sensor (Benewake TF-Luna, UART)
+  bool lidar_enabled;
+  uint8_t lidar_rx_pin;
+  uint8_t lidar_tx_pin;
+  uint16_t lidar_threshold_mm;
+
+  // Speed Trap
+  float sensor_spacing_m; // Distance between speed trap sensors
 
   // Peer
   uint8_t peer_mac[6];

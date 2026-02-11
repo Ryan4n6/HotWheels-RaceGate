@@ -1,96 +1,114 @@
 #ifndef HTML_INDEX_H
 #define HTML_INDEX_H
 #include <Arduino.h>
-// Dashboard page - embedded in firmware for OTA-friendly updates
+// M.A.S.S. Trap Command Center dashboard - embedded in firmware
 static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="fw-version" content="2.3.0">
-  <title>Hot Wheels Physics Lab</title>
+  <meta name="fw-version" content="2.4.0">
+  <title>M.A.S.S. Trap Command Center</title>
   <style>
     /* ===== VARIABLES ===== */
     :root {
-      --hw-orange: #FF4400;
-      --hw-blue: #007ACC;
-      --hw-yellow: #FFCC00;
-      --hw-green: #28a745;
-      --hw-red: #dc3545;
-      --bg: #1a1a1a;
-      --card: #ffffff;
-      --text: #333;
+      --mass-navy: #1a1a2e;
+      --mass-gold: #d4af37;
+      --mass-blue: #4a90d9;
+      --mass-green: #28a745;
+      --mass-red: #dc3545;
+      --mass-dark: #0f0f1e;
+      --mass-card: #16213e;
+      --mass-card-border: #2a2a4a;
+      --mass-text: #e0e0e0;
+      --mass-muted: #8888aa;
     }
 
     /* ===== RESET & BASE ===== */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, var(--hw-orange) 0%, #ff8800 100%);
+      background: var(--mass-navy);
       min-height: 100vh;
       padding: 15px;
-      color: var(--text);
+      color: var(--mass-text);
     }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
+    .container { max-width: 1200px; margin: 0 auto; }
 
     /* ===== HEADER ===== */
     .header {
       text-align: center;
-      color: white;
       margin-bottom: 20px;
-      text-shadow: 3px 3px 0px #000;
+      padding: 20px 0;
+    }
+
+    .header-shield {
+      display: inline-block;
+      width: 60px; height: 70px;
+      background: var(--mass-gold);
+      clip-path: polygon(50% 0%, 100% 15%, 100% 65%, 50% 100%, 0% 65%, 0% 15%);
+      margin-bottom: 10px;
+      position: relative;
+    }
+    .header-shield::after {
+      content: 'M';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--mass-navy);
     }
 
     .header h1 {
-      font-size: 3rem;
+      font-size: 2.8rem;
       font-weight: 900;
-      font-style: italic;
-      letter-spacing: -2px;
+      letter-spacing: 4px;
+      color: var(--mass-gold);
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
       margin: 0;
     }
 
-    .header p {
+    .header .subtitle {
+      font-size: 0.9rem;
+      letter-spacing: 6px;
+      color: var(--mass-muted);
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .header .tagline {
       font-weight: bold;
-      color: var(--hw-yellow);
-      margin-top: 5px;
-      font-size: 1.2rem;
+      color: var(--mass-blue);
+      margin-top: 8px;
+      font-size: 1.1rem;
+      letter-spacing: 2px;
     }
 
     /* ===== SETTINGS LINK ===== */
     .settings-link {
       position: fixed;
       top: 10px;
-      left: 10px;
       background: rgba(0,0,0,0.8);
-      color: white;
+      color: var(--mass-gold);
       padding: 8px 12px;
       border-radius: 8px;
       text-decoration: none;
       font-size: 1.2rem;
       z-index: 1000;
-      border: 2px solid var(--hw-blue);
+      border: 2px solid var(--mass-card-border);
     }
-    .settings-link:hover {
-      background: var(--hw-blue);
-    }
+    .settings-link:hover { background: var(--mass-card); }
 
     /* Version Badge */
     .version-badge {
       position: fixed;
-      bottom: 8px;
-      right: 8px;
+      bottom: 8px; right: 8px;
       background: rgba(0,0,0,0.7);
-      color: #888;
+      color: var(--mass-muted);
       padding: 4px 10px;
       border-radius: 6px;
       font-size: 0.7rem;
@@ -101,68 +119,54 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     /* ===== CONNECTION STATUS ===== */
     .connection-status {
       position: fixed;
-      top: 10px;
-      right: 10px;
+      top: 10px; right: 10px;
       background: rgba(0,0,0,0.8);
       color: white;
       padding: 10px 15px;
       border-radius: 8px;
       font-size: 0.9rem;
       z-index: 1000;
-      border: 2px solid var(--hw-yellow);
+      border: 2px solid var(--mass-card-border);
     }
-
-    .connection-status.connected {
-      border-color: var(--hw-green);
-    }
-
-    .connection-status.disconnected {
-      border-color: var(--hw-red);
-    }
+    .connection-status.connected { border-color: var(--mass-green); color: var(--mass-green); }
+    .connection-status.disconnected { border-color: var(--mass-red); color: var(--mass-red); }
 
     /* ===== STATE BANNER ===== */
     .state-banner {
-      background: #000;
-      color: var(--hw-yellow);
+      background: var(--mass-dark);
+      color: var(--mass-muted);
       padding: 20px;
       border-radius: 10px;
       text-align: center;
       font-size: 2rem;
       font-weight: 900;
-      border: 4px solid var(--hw-blue);
+      border: 3px solid var(--mass-card-border);
       margin-bottom: 20px;
       text-transform: uppercase;
-      letter-spacing: 2px;
-      box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+      letter-spacing: 4px;
       transition: all 0.3s;
     }
-
+    .state-banner.idle { border-color: var(--mass-gold); color: var(--mass-gold); }
     .state-banner.armed {
-      background: var(--hw-green);
-      color: white;
+      background: #1a3a1a;
+      border-color: var(--mass-green);
+      color: var(--mass-green);
       animation: pulse 1s infinite;
     }
-
     .state-banner.racing {
-      background: var(--hw-red);
-      color: white;
+      background: #3a1a1a;
+      border-color: var(--mass-red);
+      color: var(--mass-red);
       animation: flash 0.5s infinite;
     }
-
     .state-banner.finished {
-      background: white;
-      color: var(--hw-orange);
+      background: var(--mass-dark);
+      border-color: var(--mass-gold);
+      color: var(--mass-gold);
     }
 
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.02); }
-    }
-
-    @keyframes flash {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+    @keyframes flash { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
 
     /* ===== CARDS & GRID ===== */
     .grid {
@@ -173,31 +177,33 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
 
     .card {
-      background: var(--card);
+      background: var(--mass-card);
       border-radius: 12px;
       padding: 20px;
-      box-shadow: 0 6px 0 rgba(0,0,0,0.1);
-      border-bottom: 4px solid var(--hw-blue);
+      border: 1px solid var(--mass-card-border);
+      border-bottom: 3px solid var(--mass-blue);
     }
 
     .card-label {
       font-size: 0.7rem;
       text-transform: uppercase;
-      color: #888;
+      color: var(--mass-muted);
       font-weight: 800;
       margin-bottom: 8px;
+      letter-spacing: 1px;
     }
 
     .card-value {
       font-size: 2.5rem;
-      color: var(--hw-blue);
+      color: var(--mass-blue);
       font-weight: 900;
       line-height: 1;
+      font-family: 'Courier New', monospace;
     }
 
     .card-unit {
       font-size: 1rem;
-      color: #666;
+      color: var(--mass-muted);
       font-weight: normal;
       margin-left: 4px;
     }
@@ -211,40 +217,36 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       font-weight: 900;
       cursor: pointer;
       text-transform: uppercase;
-      box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+      letter-spacing: 1px;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.3);
       transition: all 0.1s;
       width: 100%;
       margin-bottom: 10px;
     }
+    .btn:active { transform: translateY(4px); box-shadow: none; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--mass-blue); color: white; }
+    .btn-success { background: var(--mass-green); color: white; }
+    .btn-warning { background: var(--mass-gold); color: var(--mass-navy); }
+    .btn-danger { background: var(--mass-red); color: white; }
 
-    .btn:active {
-      transform: translateY(4px);
-      box-shadow: none;
+    /* ===== LIDAR STAGED INDICATOR ===== */
+    .lidar-indicator {
+      display: none;
+      text-align: center;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      font-weight: 900;
+      font-size: 0.85rem;
+      letter-spacing: 2px;
     }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .btn-primary {
-      background: var(--hw-blue);
-      color: white;
-    }
-
-    .btn-success {
-      background: var(--hw-green);
-      color: white;
-    }
-
-    .btn-warning {
-      background: var(--hw-yellow);
-      color: black;
-    }
-
-    .btn-danger {
-      background: var(--hw-red);
-      color: white;
+    .lidar-indicator.staged {
+      display: block;
+      background: #1a3a1a;
+      border: 2px solid var(--mass-green);
+      color: var(--mass-green);
+      animation: pulse 1.5s infinite;
     }
 
     /* ===== GARAGE ===== */
@@ -256,55 +258,40 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
 
     .garage-car {
-      background: white;
-      border: 3px solid #ddd;
+      background: var(--mass-card);
+      border: 2px solid var(--mass-card-border);
       border-radius: 10px;
       padding: 15px;
       cursor: pointer;
       transition: all 0.2s;
       position: relative;
     }
-
     .garage-car:hover {
-      border-color: var(--hw-blue);
+      border-color: var(--mass-blue);
       transform: translateY(-4px);
-      box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.4);
     }
-
     .garage-car.active {
-      border-color: var(--hw-green);
-      background: #f0fff4;
-      border-width: 4px;
+      border-color: var(--mass-gold);
+      background: #1e2a45;
+      border-width: 3px;
     }
-
-    .garage-car h3 {
-      font-size: 1.2rem;
-      margin-bottom: 8px;
-      color: var(--hw-blue);
-    }
-
-    .garage-car p {
-      font-size: 0.9rem;
-      color: #666;
-      margin: 4px 0;
-    }
-
+    .garage-car h3 { font-size: 1.1rem; margin-bottom: 8px; color: var(--mass-gold); }
+    .garage-car p { font-size: 0.9rem; color: var(--mass-muted); margin: 4px 0; }
     .garage-stats {
       margin-top: 10px;
       padding-top: 10px;
-      border-top: 1px solid #eee;
+      border-top: 1px solid var(--mass-card-border);
       display: flex;
       justify-content: space-between;
       font-size: 0.8rem;
-      color: #888;
+      color: var(--mass-muted);
     }
-
     .delete-btn, .edit-btn {
       position: absolute;
       top: 8px;
       color: white;
-      width: 24px;
-      height: 24px;
+      width: 24px; height: 24px;
       border-radius: 50%;
       border: none;
       font-size: 14px;
@@ -313,126 +300,160 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       align-items: center;
       justify-content: center;
     }
-    .delete-btn {
-      right: 8px;
-      background: var(--hw-red);
-    }
-    .edit-btn {
-      right: 36px;
-      background: var(--hw-blue);
-    }
+    .delete-btn { right: 8px; background: var(--mass-red); }
+    .edit-btn { right: 36px; background: var(--mass-blue); }
 
     /* ===== INPUTS ===== */
     input, select {
       width: 100%;
       padding: 12px;
-      border: 2px solid #ddd;
+      border: 2px solid var(--mass-card-border);
       border-radius: 6px;
       font-size: 1rem;
       margin-bottom: 10px;
       font-family: inherit;
+      background: var(--mass-dark);
+      color: var(--mass-text);
     }
-
-    input:focus, select:focus {
-      outline: none;
-      border-color: var(--hw-blue);
-    }
+    input:focus, select:focus { outline: none; border-color: var(--mass-gold); }
 
     /* ===== SECTION BOX ===== */
     .section {
-      background: white;
-      border: 4px solid var(--hw-blue);
+      background: var(--mass-card);
+      border: 2px solid var(--mass-card-border);
       border-radius: 12px;
       padding: 25px;
       margin-bottom: 20px;
       position: relative;
     }
-
     .section-title {
       position: absolute;
-      top: -18px;
-      left: 20px;
-      background: var(--hw-blue);
-      color: white;
-      padding: 8px 20px;
+      top: -16px; left: 20px;
+      background: var(--mass-gold);
+      color: var(--mass-navy);
+      padding: 6px 18px;
       border-radius: 20px;
       font-weight: 900;
-      font-size: 1rem;
+      font-size: 0.85rem;
       text-transform: uppercase;
-    }
-
-    /* ===== HISTORY TABLE ===== */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    thead {
-      background: var(--hw-blue);
-      color: white;
-    }
-
-    th, td {
-      padding: 12px;
-      text-align: left;
-    }
-
-    tbody tr:nth-child(even) {
-      background: #f8f9fa;
-    }
-
-    tbody tr:hover {
-      background: #e9ecef;
+      letter-spacing: 1px;
     }
 
     /* ===== LED VISUALIZER BAR ===== */
     .led-visualizer {
-      height: 12px;
+      height: 8px;
       width: 100%;
-      border-radius: 6px;
+      border-radius: 4px;
       margin-bottom: 15px;
       background: #333;
       box-shadow: 0 0 10px rgba(0,0,0,0.5) inset;
       transition: all 0.3s;
     }
     .led-visualizer.idle {
-      background: #28a745;
-      box-shadow: 0 0 15px #28a745;
+      background: var(--mass-gold);
+      box-shadow: 0 0 15px var(--mass-gold);
       animation: breathe 3s infinite ease-in-out;
     }
     .led-visualizer.armed {
-      background: #ff0000;
-      box-shadow: 0 0 20px #ff0000;
+      background: var(--mass-green);
+      box-shadow: 0 0 20px var(--mass-green);
       animation: pulse-fast 0.5s infinite;
     }
     .led-visualizer.racing {
-      background: linear-gradient(90deg, transparent 0%, #ffcc00 50%, transparent 100%);
+      background: linear-gradient(90deg, transparent 0%, var(--mass-red) 50%, transparent 100%);
       background-size: 200% 100%;
       animation: chase 0.5s infinite linear;
     }
     .led-visualizer.finished {
-      background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
+      background: linear-gradient(90deg, var(--mass-gold), var(--mass-blue), var(--mass-gold));
       background-size: 400% 100%;
       animation: rainbow-flow 2s infinite linear;
-      box-shadow: 0 0 20px rgba(255,255,255,0.5);
+      box-shadow: 0 0 20px rgba(212,175,55,0.5);
     }
     @keyframes breathe { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
     @keyframes pulse-fast { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     @keyframes chase { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     @keyframes rainbow-flow { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 
-    /* ===== GHOST CAR COMPARISON ===== */
+    /* ===== SPEED PROFILE (mid-track) ===== */
+    .speed-profile {
+      display: none;
+      padding: 10px 0;
+    }
+    .speed-profile.visible { display: block; }
+    .speed-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .speed-bar-label {
+      width: 80px;
+      font-size: 0.75rem;
+      color: var(--mass-muted);
+      text-align: right;
+      text-transform: uppercase;
+    }
+    .speed-bar-fill {
+      flex: 1;
+      height: 20px;
+      background: var(--mass-dark);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .speed-bar-fill div {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s;
+    }
+
+    /* ===== GHOST CAR ===== */
     #ghostSection { display: none; }
-    #ghostSection.new-record { border-color: var(--hw-green); }
-    #ghostSection.new-record .section-title { background: var(--hw-green); }
-    #ghostSection.slower { border-color: var(--hw-red); }
-    #ghostSection.slower .section-title { background: var(--hw-red); }
+    #ghostSection.new-record { border-color: var(--mass-green); }
+    #ghostSection.new-record .section-title { background: var(--mass-green); color: white; }
+    #ghostSection.slower { border-color: var(--mass-red); }
+    #ghostSection.slower .section-title { background: var(--mass-red); color: white; }
+
+    /* ===== LEADERBOARD OVERLAY ===== */
+    .leaderboard-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+    }
+    .leaderboard-overlay.show { display: flex; animation: fadeIn 0.3s; }
+    .leaderboard-card {
+      background: var(--mass-card);
+      border: 3px solid var(--mass-gold);
+      border-radius: 16px;
+      padding: 30px 40px;
+      text-align: center;
+      max-width: 400px;
+      animation: slideUp 0.5s;
+    }
+    .leaderboard-rank {
+      font-size: 4rem;
+      font-weight: 900;
+      color: var(--mass-gold);
+      line-height: 1;
+    }
+    .leaderboard-text {
+      font-size: 1.2rem;
+      color: var(--mass-text);
+      margin: 10px 0;
+    }
+    .leaderboard-detail {
+      font-size: 0.9rem;
+      color: var(--mass-muted);
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
     /* ===== CHARTS ===== */
-    #chartsSection canvas { max-width: 100%; background: white; border-radius: 8px; }
+    #chartsSection canvas { max-width: 100%; background: var(--mass-dark); border-radius: 8px; padding: 5px; }
 
     /* ===== PHYSICS EXPLAINER ===== */
     .formula-grid {
@@ -442,126 +463,106 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       padding-top: 15px;
     }
     .formula-card {
-      background: #f8f9fa;
+      background: var(--mass-dark);
       border-radius: 10px;
       padding: 20px;
       text-align: center;
-      border: 2px solid #e9ecef;
+      border: 1px solid var(--mass-card-border);
     }
-    .formula-title {
-      font-weight: 900;
-      text-transform: uppercase;
-      color: var(--hw-blue);
-      font-size: 0.85rem;
-      margin-bottom: 10px;
-    }
-    .formula-eq {
-      font-size: 1.8rem;
-      font-weight: 900;
-      color: var(--hw-orange);
-      font-family: 'Georgia', serif;
-      margin-bottom: 8px;
-    }
-    .formula-desc {
-      font-size: 0.8rem;
-      color: #888;
-      margin-bottom: 12px;
-    }
+    .formula-title { font-weight: 900; text-transform: uppercase; color: var(--mass-blue); font-size: 0.85rem; margin-bottom: 10px; }
+    .formula-eq { font-size: 1.8rem; font-weight: 900; color: var(--mass-gold); font-family: 'Georgia', serif; margin-bottom: 8px; }
+    .formula-desc { font-size: 0.8rem; color: var(--mass-muted); margin-bottom: 12px; }
     .formula-values {
-      background: white;
+      background: var(--mass-card);
       border-radius: 6px;
       padding: 10px;
       font-family: monospace;
       font-size: 0.9rem;
-      color: var(--hw-green);
+      color: var(--mass-green);
       font-weight: bold;
       min-height: 2.5em;
     }
 
+    /* ===== TABLE ===== */
+    table { width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; }
+    thead { background: var(--mass-dark); color: var(--mass-gold); }
+    th, td { padding: 12px; text-align: left; }
+    tbody tr { border-bottom: 1px solid var(--mass-card-border); }
+    tbody tr:hover { background: rgba(74,144,217,0.1); }
+
+    /* ===== MECHANIC LOG ===== */
+    .mech-notes { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--mass-card-border); }
+    .mech-note { font-size: 0.75rem; color: var(--mass-muted); margin: 2px 0; }
+    .mech-note-input {
+      width: calc(100% - 60px);
+      padding: 4px 6px;
+      font-size: 0.75rem;
+      display: inline-block;
+      margin-top: 4px;
+    }
+    .mech-add-btn {
+      width: 50px;
+      padding: 4px;
+      font-size: 0.7rem;
+      display: inline-block;
+    }
+
     /* ===== RESPONSIVE ===== */
     @media (max-width: 768px) {
-      .header h1 {
-        font-size: 2rem;
-      }
-
-      .grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .garage-grid {
-        grid-template-columns: 1fr;
-      }
-
-      #chartsSection .grid {
-        grid-template-columns: 1fr;
-      }
-
-      .formula-grid {
-        grid-template-columns: 1fr;
-      }
+      .header h1 { font-size: 2rem; letter-spacing: 2px; }
+      .grid { grid-template-columns: repeat(2, 1fr); }
+      .garage-grid { grid-template-columns: 1fr; }
+      #chartsSection .grid { grid-template-columns: 1fr; }
+      .formula-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <!-- Settings & Console Links -->
-    <a href="/config" class="settings-link" title="Device Settings">&#x2699;</a>
-    <a href="/console" class="settings-link" title="Debug Console" style="left:52px; border-color:var(--hw-green);">&#x1F4DF;</a>
+    <a href="/config" class="settings-link" title="Device Settings" style="left:10px;">&#x2699;</a>
+    <a href="/console" class="settings-link" title="Debug Console" style="left:52px; border-color:var(--mass-green);">&#x1F4DF;</a>
 
     <!-- Connection Status -->
-    <div id="connection" class="connection-status disconnected">
-      Disconnected
-    </div>
+    <div id="connection" class="connection-status disconnected">Disconnected</div>
 
     <!-- Header -->
     <div class="header">
-      <h1>HOT WHEELS PHYSICS LAB</h1>
-      <p>REAL-TIME RACE TIMING SYSTEM</p>
+      <div class="header-shield"></div>
+      <h1>M.A.S.S. TRAP</h1>
+      <div class="subtitle">Motion Analysis &amp; Speed System</div>
+      <div class="tagline">COMMAND CENTER</div>
     </div>
 
     <!-- State Banner -->
-    <div id="stateBanner" class="state-banner">
-      INITIALIZING...
-    </div>
+    <div id="stateBanner" class="state-banner">INITIALIZING...</div>
 
-    <!-- LED Visualizer Bar (mirrors WLED state) -->
+    <!-- LED Visualizer Bar -->
     <div id="ledBar" class="led-visualizer"></div>
+
+    <!-- LiDAR Sensor Indicator -->
+    <div id="lidarIndicator" class="lidar-indicator"></div>
 
     <!-- Quick Actions -->
     <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
-      <button id="btnArm" class="btn btn-success" onclick="armRace()">
-        ARM SYSTEM
-      </button>
-      <button id="btnReset" class="btn btn-warning" onclick="resetRace()">
-        RESET
-      </button>
-      <button id="btnSync" class="btn btn-primary" onclick="syncClock()">
-        SYNC CLOCK
-      </button>
+      <button id="btnArm" class="btn btn-success" onclick="armRace()">ARM SYSTEM</button>
+      <button id="btnReset" class="btn btn-warning" onclick="resetRace()">RESET</button>
+      <button id="btnSync" class="btn btn-primary" onclick="syncClock()">SYNC CLOCK</button>
     </div>
 
     <!-- Live Stats -->
     <div class="grid">
       <div class="card">
         <div class="card-label">Time</div>
-        <div>
-          <span id="statTime" class="card-value">--</span>
-          <span class="card-unit">s</span>
-        </div>
+        <div><span id="statTime" class="card-value">--</span><span class="card-unit">s</span></div>
       </div>
       <div class="card">
         <div class="card-label">Real Speed</div>
-        <div>
-          <span id="statSpeed" class="card-value">--</span>
-          <span class="card-unit">mph</span>
-        </div>
+        <div><span id="statSpeed" class="card-value">--</span><span class="card-unit">mph</span></div>
       </div>
-      <div class="card" style="border-bottom-color: var(--hw-orange);">
+      <div class="card" style="border-bottom-color: var(--mass-gold);">
         <div class="card-label" id="scaleLabel">Scale Speed (1:64)</div>
-        <div>
-          <span id="statScale" class="card-value" style="color: var(--hw-orange);">--</span>
-          <span class="card-unit">mph</span>
-        </div>
+        <div><span id="statScale" class="card-value" style="color: var(--mass-gold);">--</span><span class="card-unit">mph</span></div>
       </div>
     </div>
 
@@ -569,38 +570,47 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <div class="grid">
       <div class="card">
         <div class="card-label">Momentum</div>
-        <div>
-          <span id="statMomentum" class="card-value">--</span>
-          <span class="card-unit">kg*m/s</span>
-        </div>
+        <div><span id="statMomentum" class="card-value">--</span><span class="card-unit">kg*m/s</span></div>
       </div>
       <div class="card">
         <div class="card-label">Kinetic Energy</div>
-        <div>
-          <span id="statKE" class="card-value">--</span>
-          <span class="card-unit">J</span>
-        </div>
+        <div><span id="statKE" class="card-value">--</span><span class="card-unit">J</span></div>
       </div>
       <div class="card">
         <div class="card-label">Total Runs</div>
-        <div>
-          <span id="statRuns" class="card-value">0</span>
+        <div><span id="statRuns" class="card-value">0</span></div>
+      </div>
+    </div>
+
+    <!-- Speed Profile (mid-track data from speed trap) -->
+    <div id="speedProfileSection" class="section speed-profile">
+      <div class="section-title">SPEED PROFILE</div>
+      <div style="padding-top:8px;">
+        <div class="speed-bar">
+          <div class="speed-bar-label">Finish</div>
+          <div class="speed-bar-fill"><div id="speedBarFinish" style="width:0; background:var(--mass-gold);"></div></div>
+          <span id="speedValFinish" style="font-family:monospace; font-size:0.85rem; width:70px;">-- mph</span>
+        </div>
+        <div class="speed-bar">
+          <div class="speed-bar-label">Mid-Track</div>
+          <div class="speed-bar-fill"><div id="speedBarMid" style="width:0; background:var(--mass-blue);"></div></div>
+          <span id="speedValMid" style="font-family:monospace; font-size:0.85rem; width:70px;">-- mph</span>
         </div>
       </div>
     </div>
 
-    <!-- Ghost Car Comparison (appears after race finishes) -->
+    <!-- Ghost Car Comparison -->
     <div id="ghostSection" class="section">
       <div class="section-title">VS PERSONAL BEST</div>
       <div style="text-align:center; padding:15px;">
         <div id="ghostDelta" style="font-size:3rem; font-weight:900; line-height:1.2;"></div>
-        <div id="ghostLabel" style="font-size:1rem; color:#666; margin-top:8px;"></div>
+        <div id="ghostLabel" style="font-size:1rem; color:var(--mass-muted); margin-top:8px;"></div>
       </div>
     </div>
 
     <!-- Science Fair Charts -->
     <div class="section" id="chartsSection">
-      <div class="section-title">SCIENCE DATA</div>
+      <div class="section-title">EVIDENCE LAB</div>
       <div class="grid" style="grid-template-columns: 1fr 1fr; margin-top:10px;">
         <div><canvas id="speedChart" height="250"></canvas></div>
         <div><canvas id="keChart" height="250"></canvas></div>
@@ -609,8 +619,8 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
     <!-- Physics Explainer -->
     <div class="section" id="physicsExplainer">
-      <div class="section-title">HOW THE MATH WORKS</div>
-      <div id="explainerToggle" onclick="toggleExplainer()" style="text-align:center; cursor:pointer; padding:8px; color:var(--hw-blue); font-weight:bold;">
+      <div class="section-title">FORENSIC ANALYSIS</div>
+      <div id="explainerToggle" onclick="toggleExplainer()" style="text-align:center; cursor:pointer; padding:8px; color:var(--mass-gold); font-weight:bold;">
         Show Formulas &#x25BC;
       </div>
       <div id="explainerContent" style="display:none;">
@@ -646,48 +656,31 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <!-- Garage -->
     <div class="section">
       <div class="section-title">THE GARAGE</div>
-
       <div class="grid" style="grid-template-columns: 2fr 1fr 1fr;">
-        <input type="text" id="carName" placeholder="Car Name (e.g. Twin Mill)">
+        <input type="text" id="carName" placeholder="Suspect Vehicle (e.g. Twin Mill)">
         <input type="text" id="carColor" placeholder="Color">
-        <input type="number" id="carWeight" placeholder="Weight (g)" step="0.1">
+        <input type="number" id="carWeight" placeholder="Mass (g)" step="0.1">
       </div>
-
-      <button id="addCarBtn" class="btn btn-warning" onclick="addCar()">
-        ADD TO GARAGE
-      </button>
-
-      <div id="currentCar" style="text-align: center; margin: 15px 0; font-size: 1.2rem; font-weight: bold;">
-        No car selected
+      <button id="addCarBtn" class="btn btn-warning" onclick="addCar()">ADD TO GARAGE</button>
+      <div id="currentCar" style="text-align:center; margin:15px 0; font-size:1.2rem; font-weight:bold; color:var(--mass-muted);">
+        No suspect vehicle selected
       </div>
-
-      <div id="garageGrid" class="garage-grid">
-        <!-- Cars will be rendered here -->
-      </div>
-
-      <!-- Garage Management Buttons -->
+      <div id="garageGrid" class="garage-grid"></div>
       <div id="garageStatus" style="text-align:center; margin:8px 0; font-size:0.85rem; font-weight:bold; min-height:1.2em;"></div>
       <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
-        <button class="btn btn-success" onclick="manualSaveGarage()">
-          SAVE GARAGE
-        </button>
-        <button class="btn btn-primary" onclick="exportGarage()">
-          EXPORT GARAGE
-        </button>
+        <button class="btn btn-success" onclick="manualSaveGarage()">SAVE GARAGE</button>
+        <button class="btn btn-primary" onclick="exportGarage()">EXPORT</button>
         <label class="btn btn-warning" style="text-align:center; cursor:pointer;">
-          IMPORT GARAGE
+          IMPORT
           <input type="file" accept=".json" onchange="importGarage(event)" style="display:none;">
         </label>
-        <button class="btn btn-danger" onclick="clearGarage()">
-          CLEAR GARAGE
-        </button>
+        <button class="btn btn-danger" onclick="clearGarage()">CLEAR</button>
       </div>
     </div>
 
     <!-- Settings -->
     <div class="section">
-      <div class="section-title">SETTINGS</div>
-
+      <div class="section-title">OPERATIONS</div>
       <div class="grid">
         <div>
           <div class="card-label">Track Length (meters)</div>
@@ -696,49 +689,41 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <div>
           <div class="card-label">Google Sheets URL (optional)</div>
           <input type="text" id="sheetsUrl" placeholder="https://script.google.com/..." onchange="saveSheetsUrl()">
-          <div id="sheetsStatus" style="font-size:0.8rem; margin-top:4px; color:#888;"></div>
+          <div id="sheetsStatus" style="font-size:0.8rem; margin-top:4px; color:var(--mass-muted);"></div>
         </div>
       </div>
-
       <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
-        <button class="btn btn-primary" onclick="exportCSV()">
-          DOWNLOAD CSV
-        </button>
-        <button class="btn btn-success" onclick="testSheetsUpload()">
-          TEST SHEETS
-        </button>
-        <button class="btn btn-danger" onclick="clearHistory()">
-          CLEAR HISTORY
-        </button>
+        <button class="btn btn-primary" onclick="exportCSV()">DOWNLOAD CSV</button>
+        <button class="btn btn-success" onclick="testSheetsUpload()">TEST SHEETS</button>
+        <button class="btn btn-danger" onclick="clearHistory()">CLEAR HISTORY</button>
       </div>
     </div>
 
     <!-- History -->
     <div class="section">
-      <div class="section-title">RACE HISTORY</div>
+      <div class="section-title">CASE FILE</div>
       <div style="overflow-x: auto;">
         <table>
           <thead>
             <tr>
-              <th>Run</th>
-              <th>Car</th>
-              <th>Weight</th>
-              <th>Time</th>
-              <th>Real MPH</th>
-              <th>Scale MPH</th>
-              <th>Momentum</th>
-              <th>Joules</th>
+              <th>Run</th><th>Suspect</th><th>Mass</th><th>Time</th>
+              <th>Real MPH</th><th>Scale MPH</th><th>Momentum</th><th>KE</th>
             </tr>
           </thead>
           <tbody id="historyTable">
-            <tr>
-              <td colspan="8" style="text-align: center; color: #999;">
-                No races yet - start racing!
-              </td>
-            </tr>
+            <tr><td colspan="8" style="text-align:center; color:var(--mass-muted);">No evidence recorded yet</td></tr>
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Overlay -->
+  <div id="leaderboardOverlay" class="leaderboard-overlay" onclick="this.classList.remove('show');">
+    <div class="leaderboard-card" onclick="event.stopPropagation();">
+      <div id="lbRank" class="leaderboard-rank">#1</div>
+      <div id="lbText" class="leaderboard-text"></div>
+      <div id="lbDetail" class="leaderboard-detail"></div>
     </div>
   </div>
 
@@ -750,108 +735,86 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     // ========================================================================
     let ws = null;
     let wsReconnectTimer = null;
-    let currentScaleFactor = 64; // Updated from ESP32 state
-    let configSheetsUrl = ''; // Updated from ESP32 state
+    let currentScaleFactor = 64;
+    let configSheetsUrl = '';
 
-    // XSS-safe car display helper
     function setCurrentCarDisplay(car) {
       const el = document.getElementById('currentCar');
-      el.textContent = ''; // Clear
-      el.appendChild(document.createTextNode('Currently Racing: '));
+      el.textContent = '';
+      el.appendChild(document.createTextNode('Active Suspect: '));
       const span = document.createElement('span');
-      span.style.color = 'var(--hw-green)';
-      span.textContent = car.name; // Safe: textContent escapes HTML
+      span.style.color = 'var(--mass-gold)';
+      span.textContent = car.name;
       el.appendChild(span);
       el.appendChild(document.createTextNode(' (' + car.weight + 'g)'));
     }
 
     function connectWebSocket() {
-      const wsUrl = `ws://${window.location.hostname}:81`;
+      const wsUrl = 'ws://' + window.location.hostname + ':81';
       ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        updateConnectionStatus(true);
-        clearTimeout(wsReconnectTimer);
-      };
-
-      ws.onclose = () => {
-        updateConnectionStatus(false);
-        wsReconnectTimer = setTimeout(connectWebSocket, 2000);
-      };
-
+      ws.onopen = () => { updateConnectionStatus(true); clearTimeout(wsReconnectTimer); };
+      ws.onclose = () => { updateConnectionStatus(false); wsReconnectTimer = setTimeout(connectWebSocket, 2000); };
       ws.onerror = () => {};
-
       ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          handleStateUpdate(data);
-        } catch (e) {
-          console.error('Parse error:', e);
-        }
+        try { handleStateUpdate(JSON.parse(event.data)); } catch (e) { console.error('Parse error:', e); }
       };
     }
 
     function updateConnectionStatus(connected) {
       const el = document.getElementById('connection');
-      if (connected) {
-        el.className = 'connection-status connected';
-        el.textContent = 'Connected';
-      } else {
-        el.className = 'connection-status disconnected';
-        el.textContent = 'Disconnected';
-      }
+      el.className = 'connection-status ' + (connected ? 'connected' : 'disconnected');
+      el.textContent = connected ? 'LINKED' : 'OFFLINE';
     }
 
     function send(data) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(data));
-      } else {
-        alert('Not connected to race system!');
-      }
+      if (ws && ws.readyState === WebSocket.OPEN) { ws.send(JSON.stringify(data)); }
+      else { alert('Not connected to M.A.S.S. Trap!'); }
     }
 
     // ========================================================================
     // STATE HANDLING
     // ========================================================================
     function handleStateUpdate(data) {
-      // Update Chrome tab title with device role
       if (data.role) {
         const roleName = data.role.charAt(0).toUpperCase() + data.role.slice(1);
-        document.title = roleName + ' Gate - Hot Wheels Physics Lab';
+        document.title = roleName + ' - M.A.S.S. Trap Command Center';
       }
-
-      // Update scale factor from ESP32 config
       if (data.scaleFactor) {
         currentScaleFactor = data.scaleFactor;
         document.getElementById('scaleLabel').textContent = 'Scale Speed (1:' + currentScaleFactor + ')';
       }
-
-      // Update Google Sheets URL from config if not manually set
       if (data.google_sheets_url && !document.getElementById('sheetsUrl').value) {
         document.getElementById('sheetsUrl').value = data.google_sheets_url;
         configSheetsUrl = data.google_sheets_url;
       }
-
-      // Update track length from ESP32
       if (data.trackLength) {
         document.getElementById('trackLength').value = data.trackLength;
       }
 
-      // Update banner
-      const banner = document.getElementById('stateBanner');
-      banner.className = 'state-banner ' + data.state.toLowerCase();
-      banner.textContent = data.state;
-
-      // Update LED visualizer bar (mirrors WLED state)
-      const ledBar = document.getElementById('ledBar');
-      ledBar.className = 'led-visualizer ' + data.state.toLowerCase();
-
-      // Hide ghost section when not FINISHED
-      if (data.state !== 'FINISHED') {
-        document.getElementById('ghostSection').style.display = 'none';
+      // LiDAR indicator
+      if (data.lidar) {
+        const lidarEl = document.getElementById('lidarIndicator');
+        if (data.lidar.state === 'staged') {
+          lidarEl.className = 'lidar-indicator staged';
+          lidarEl.textContent = 'LIDAR TARGET ACQUIRED (' + data.lidar.distance_mm + 'mm)';
+        } else {
+          lidarEl.className = 'lidar-indicator';
+        }
       }
 
-      // Update stats
+      // State banner
+      const banner = document.getElementById('stateBanner');
+      banner.className = 'state-banner ' + data.state.toLowerCase();
+      const bannerText = { IDLE: 'AWAITING SUSPECTS', ARMED: 'TRAP SET', RACING: 'IN PURSUIT', FINISHED: 'SUSPECT CLOCKED' };
+      banner.textContent = bannerText[data.state] || data.state;
+
+      // LED visualizer
+      document.getElementById('ledBar').className = 'led-visualizer ' + data.state.toLowerCase();
+
+      // Hide ghost when not finished
+      if (data.state !== 'FINISHED') { document.getElementById('ghostSection').style.display = 'none'; }
+
+      // Stats
       document.getElementById('statTime').textContent = data.time ? data.time.toFixed(3) : '--';
       document.getElementById('statSpeed').textContent = data.speed_mph ? data.speed_mph.toFixed(1) : '--';
       document.getElementById('statScale').textContent = data.scale_mph ? data.scale_mph.toFixed(0) : '--';
@@ -859,23 +822,25 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       document.getElementById('statKE').textContent = data.ke ? data.ke.toFixed(4) : '--';
       document.getElementById('statRuns').textContent = data.totalRuns || 0;
 
-      // If race finished, update garage stats and upload
-      // Check data.time !== undefined (not just truthy) because 0 is a valid timing error
+      // Speed profile (mid-track from speed trap node)
+      if (data.midTrack_mph && data.speed_mph) {
+        updateSpeedProfile(data.speed_mph, data.midTrack_mph);
+      }
+
+      // Race finished
       if (data.state === 'FINISHED' && data.time !== undefined) {
-        showGhostComparison(data);   // BEFORE updateGarageStats (reads old best)
+        showGhostComparison(data);
         updateGarageStats(data);
         addToHistory(data);
         addRaceToCharts(data);
         updateExplainerValues(data);
+        showLeaderboardOverlay(data);
 
-        // Auto-upload to Google Sheets if configured AND time is valid (> 0)
         const sheetsUrl = document.getElementById('sheetsUrl').value || configSheetsUrl;
-        if (sheetsUrl && data.time > 0) {
-          uploadToSheets(data, sheetsUrl);
-        }
+        if (sheetsUrl && data.time > 0) { uploadToSheets(data, sheetsUrl); }
       }
 
-      // Update button states
+      // Button states
       const btnArm = document.getElementById('btnArm');
       if (data.state === 'IDLE') {
         btnArm.disabled = false;
@@ -887,31 +852,59 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
 
     // ========================================================================
+    // SPEED PROFILE
+    // ========================================================================
+    function updateSpeedProfile(finishMph, midMph) {
+      const section = document.getElementById('speedProfileSection');
+      section.classList.add('visible');
+      const maxMph = Math.max(finishMph, midMph) * 1.2;
+      document.getElementById('speedBarFinish').style.width = (finishMph / maxMph * 100) + '%';
+      document.getElementById('speedBarMid').style.width = (midMph / maxMph * 100) + '%';
+      document.getElementById('speedValFinish').textContent = finishMph.toFixed(1) + ' mph';
+      document.getElementById('speedValMid').textContent = midMph.toFixed(1) + ' mph';
+    }
+
+    // ========================================================================
+    // LEADERBOARD OVERLAY
+    // ========================================================================
+    function showLeaderboardOverlay(data) {
+      if (!data.time || data.time <= 0) return;
+      // Find rank among all cars
+      let allBests = garage.filter(c => c.stats && c.stats.bestTime != null && isFinite(c.stats.bestTime))
+                          .map(c => ({ name: c.name, time: c.stats.bestTime }));
+      allBests.sort((a, b) => a.time - b.time);
+      const rank = allBests.findIndex(b => b.name === (activeCar ? activeCar.name : '')) + 1;
+      if (rank <= 0 || allBests.length < 2) return;
+
+      const overlay = document.getElementById('leaderboardOverlay');
+      const rankText = rank === 1 ? '#1' : '#' + rank;
+      document.getElementById('lbRank').textContent = rankText;
+      document.getElementById('lbRank').style.color = rank === 1 ? 'var(--mass-gold)' : rank <= 3 ? 'var(--mass-blue)' : 'var(--mass-muted)';
+
+      let msg = '';
+      if (rank === 1) msg = 'FASTEST SUSPECT ON RECORD!';
+      else if (rank <= 3) msg = 'TOP 3 FINISH!';
+      else msg = 'RANKED ' + rankText + ' OF ' + allBests.length;
+      document.getElementById('lbText').textContent = msg;
+      document.getElementById('lbDetail').textContent = data.time.toFixed(3) + 's | ' + (data.scale_mph || 0).toFixed(0) + ' scale mph';
+
+      overlay.classList.add('show');
+      setTimeout(() => { overlay.classList.remove('show'); }, 4000);
+    }
+
+    // ========================================================================
     // RACE CONTROL
     // ========================================================================
-    function armRace() {
-      send({ cmd: 'arm' });
-    }
-
-    function resetRace() {
-      send({ cmd: 'reset' });
-    }
-
-    function syncClock() {
-      send({ cmd: 'syncClock' });
-      alert('Clock sync requested!');
-    }
-
+    function armRace() { send({ cmd: 'arm' }); }
+    function resetRace() { send({ cmd: 'reset' }); }
+    function syncClock() { send({ cmd: 'syncClock' }); alert('Clock sync requested!'); }
     function updateTrackLength() {
       const length = parseFloat(document.getElementById('trackLength').value);
-      if (length > 0 && length < 100) {
-        send({ cmd: 'setTrack', length: length });
-      }
+      if (length > 0 && length < 100) { send({ cmd: 'setTrack', length: length }); }
     }
 
     // ========================================================================
-    // GARAGE MANAGEMENT - Persistent on ESP32 filesystem via /api/garage
-    // Also mirrors to localStorage as a fast local cache
+    // GARAGE MANAGEMENT
     // ========================================================================
     let garage = [];
     let activeCar = JSON.parse(localStorage.getItem('hw_active_car') || 'null');
@@ -921,45 +914,25 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       try {
         const resp = await fetch('/api/garage');
         const data = await resp.json();
-        if (Array.isArray(data) && data.length > 0) {
-          garage = data;
-        } else {
-          // Fallback: check localStorage for migration from old version
+        if (Array.isArray(data) && data.length > 0) { garage = data; }
+        else {
           const local = JSON.parse(localStorage.getItem('hw_garage') || '[]');
-          if (local.length > 0) {
-            garage = local;
-            await saveGarageToESP(); // Migrate to ESP32
-            console.log('Migrated garage from localStorage to ESP32');
-          }
+          if (local.length > 0) { garage = local; await saveGarageToESP(); }
         }
       } catch (e) {
-        // Offline fallback
         garage = JSON.parse(localStorage.getItem('hw_garage') || '[]');
-        console.log('Using localStorage fallback for garage');
       }
       renderGarage();
     }
 
     async function saveGarageToESP() {
-      // Always save to localStorage first (instant, reliable)
       localStorage.setItem('hw_garage', JSON.stringify(garage));
-      // Then save to ESP32 with retry
       let saved = false;
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          const resp = await fetch('/api/garage', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(garage)
-          });
-          if (resp.ok) {
-            saved = true;
-            break;
-          }
-          console.warn('Garage save attempt ' + (attempt+1) + ' failed: HTTP ' + resp.status);
-        } catch (e) {
-          console.warn('Garage save attempt ' + (attempt+1) + ' error:', e);
-        }
+          const resp = await fetch('/api/garage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(garage) });
+          if (resp.ok) { saved = true; break; }
+        } catch (e) {}
       }
       return saved;
     }
@@ -974,14 +947,14 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       const el = document.getElementById('garageStatus');
       if (!el) return;
       el.textContent = msg;
-      el.style.color = success ? '#28a745' : '#dc3545';
+      el.style.color = success ? 'var(--mass-green)' : 'var(--mass-red)';
       setTimeout(() => { el.textContent = ''; }, 3000);
     }
 
     async function manualSaveGarage() {
       showGarageStatus('Saving...', true);
       const ok = await saveGarageToESP();
-      showGarageStatus(ok ? 'Garage saved to ESP32!' : 'Failed to save - check connection', ok);
+      showGarageStatus(ok ? 'Garage saved to ESP32!' : 'Failed to save', ok);
     }
 
     async function clearGarage() {
@@ -992,10 +965,10 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       activeCar = null;
       localStorage.removeItem('hw_active_car');
       localStorage.removeItem('hw_garage');
-      document.getElementById('currentCar').textContent = 'No car selected';
+      document.getElementById('currentCar').textContent = 'No suspect vehicle selected';
       renderGarage();
       const ok = await saveGarageToESP();
-      showGarageStatus(ok ? 'Garage cleared and reset!' : 'Cleared locally but ESP32 save failed', ok);
+      showGarageStatus(ok ? 'Garage cleared!' : 'Cleared locally but ESP32 save failed', ok);
     }
 
     function exportGarage() {
@@ -1004,7 +977,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'hotwheels_garage_' + Date.now() + '.json';
+      a.download = 'masstrap_garage_' + Date.now() + '.json';
       a.click();
       window.URL.revokeObjectURL(url);
       showGarageStatus('Garage exported!', true);
@@ -1017,47 +990,28 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       reader.onload = async function(e) {
         try {
           const imported = JSON.parse(e.target.result);
-          if (!Array.isArray(imported)) {
-            alert('Invalid garage file - expected an array of cars');
-            return;
-          }
-          // Validate each car has required fields
+          if (!Array.isArray(imported)) { alert('Invalid garage file'); return; }
           for (const car of imported) {
-            if (!car.name || !car.weight) {
-              alert('Invalid car data - each car needs name and weight');
-              return;
-            }
-            // Ensure stats object exists
+            if (!car.name || !car.weight) { alert('Invalid car data'); return; }
             if (!car.stats) car.stats = { runs: 0, bestTime: null, bestSpeed: 0 };
             if (!car.id) car.id = Date.now() + Math.random();
           }
-          // Merge or replace?
           if (garage.length > 0) {
-            const choice = confirm('You have ' + garage.length + ' cars. OK to REPLACE all, Cancel to MERGE (add new cars only).');
-            if (choice) {
-              garage = imported;
-            } else {
-              // Merge: add only cars with names not already in garage
+            const choice = confirm('Replace all? Cancel to merge.');
+            if (choice) { garage = imported; }
+            else {
               let added = 0;
               for (const car of imported) {
-                if (!garage.some(g => g.name.toLowerCase() === car.name.toLowerCase())) {
-                  garage.push(car);
-                  added++;
-                }
+                if (!garage.some(g => g.name.toLowerCase() === car.name.toLowerCase())) { garage.push(car); added++; }
               }
               showGarageStatus('Merged ' + added + ' new cars', true);
             }
-          } else {
-            garage = imported;
-          }
+          } else { garage = imported; }
           await saveGarage();
           showGarageStatus('Imported ' + imported.length + ' cars!', true);
-        } catch (err) {
-          alert('Failed to parse garage file: ' + err.message);
-        }
+        } catch (err) { alert('Failed to parse: ' + err.message); }
       };
       reader.readAsText(file);
-      // Reset file input so same file can be re-imported
       event.target.value = '';
     }
 
@@ -1065,23 +1019,13 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       const name = document.getElementById('carName').value.trim();
       const color = document.getElementById('carColor').value.trim();
       const weight = parseFloat(document.getElementById('carWeight').value);
+      if (!name || name.length < 1 || name.length > 30) { alert('Name must be 1-30 characters!'); return; }
+      if (!weight || weight < 1 || weight > 200) { alert('Mass must be 1-200 grams!'); return; }
 
-      if (!name || name.length < 1 || name.length > 30) {
-        alert('Car name must be 1-30 characters!');
-        return;
-      }
-
-      if (!weight || weight < 1 || weight > 200) {
-        alert('Weight must be between 1-200 grams!');
-        return;
-      }
-
-      // If editing, update existing car
       if (editingCarIndex >= 0) {
         garage[editingCarIndex].name = name;
         garage[editingCarIndex].color = color || 'N/A';
         garage[editingCarIndex].weight = weight;
-        // Update activeCar if we're editing the active one
         if (activeCar && activeCar.id === garage[editingCarIndex].id) {
           activeCar = garage[editingCarIndex];
           localStorage.setItem('hw_active_car', JSON.stringify(activeCar));
@@ -1091,20 +1035,12 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         editingCarIndex = -1;
         document.getElementById('addCarBtn').textContent = 'ADD TO GARAGE';
       } else {
-        // Adding new car - check for duplicates
         if (garage.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-          alert('Car already exists! Click the pencil icon to edit it.');
-          return;
+          alert('Car already exists! Click pencil to edit.'); return;
         }
-        garage.push({
-          id: Date.now(),
-          name: name,
-          color: color || 'N/A',
-          weight: weight,
-          stats: { runs: 0, bestTime: null, bestSpeed: 0 }
-        });
+        garage.push({ id: Date.now(), name: name, color: color || 'N/A', weight: weight,
+          stats: { runs: 0, bestTime: null, bestSpeed: 0 }, notes: [] });
       }
-
       await saveGarage();
       document.getElementById('carName').value = '';
       document.getElementById('carColor').value = '';
@@ -1138,24 +1074,37 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         if (activeCar && activeCar.id === deletedId) {
           activeCar = null;
           localStorage.removeItem('hw_active_car');
-          document.getElementById('currentCar').textContent = 'No car selected';
+          document.getElementById('currentCar').textContent = 'No suspect vehicle selected';
         }
         if (editingCarIndex === index) editingCarIndex = -1;
         await saveGarage();
       }
     }
 
+    // Mechanic's Log: add note to car
+    async function addNote(index) {
+      const input = document.getElementById('noteInput_' + index);
+      if (!input || !input.value.trim()) return;
+      if (!garage[index].notes) garage[index].notes = [];
+      garage[index].notes.push({ text: input.value.trim(), ts: Date.now() });
+      if (garage[index].notes.length > 20) garage[index].notes = garage[index].notes.slice(-20);
+      input.value = '';
+      await saveGarage();
+    }
+
     function renderGarage() {
       const grid = document.getElementById('garageGrid');
       if (garage.length === 0) {
-        grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #999;">No cars in garage - add one above!</p>';
+        grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:var(--mass-muted);">No suspects in garage</p>';
         return;
       }
       grid.innerHTML = garage.map((car, i) => {
-        // Ensure stats object exists (may be missing from old/imported data)
         if (!car.stats) car.stats = { runs: 0, bestTime: null, bestSpeed: 0 };
-        // Infinity becomes null in JSON round-trip — treat both as "no best time"
         const hasBest = car.stats.bestTime != null && car.stats.bestTime !== Infinity && isFinite(car.stats.bestTime);
+        const notes = car.notes || [];
+        const notesHtml = notes.slice(-3).map(n =>
+          '<div class="mech-note">' + new Date(n.ts).toLocaleDateString() + ': ' + n.text + '</div>'
+        ).join('');
         return '<div class="garage-car ' + (activeCar && activeCar.id === car.id ? 'active' : '') + '" onclick="selectCar(' + i + ')">' +
           '<button class="delete-btn" onclick="deleteCar(' + i + ', event)" title="Delete">x</button>' +
           '<button class="edit-btn" onclick="editCar(' + i + ', event)" title="Edit">&#9998;</button>' +
@@ -1165,6 +1114,11 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
           '<div class="garage-stats">' +
             '<span>Runs: ' + (car.stats.runs || 0) + '</span>' +
             '<span>Best: ' + (hasBest ? car.stats.bestTime.toFixed(3) : '--') + 's</span>' +
+          '</div>' +
+          '<div class="mech-notes">' +
+            notesHtml +
+            '<input type="text" id="noteInput_' + i + '" class="mech-note-input" placeholder="Add note..." onclick="event.stopPropagation();" onkeydown="if(event.key===\'Enter\')addNote(' + i + ')">' +
+            '<button class="btn btn-primary mech-add-btn" onclick="event.stopPropagation(); addNote(' + i + ');">+</button>' +
           '</div>' +
         '</div>';
       }).join('');
@@ -1176,7 +1130,6 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       if (carIndex === -1) return;
       if (!garage[carIndex].stats) garage[carIndex].stats = { runs: 0, bestTime: null, bestSpeed: 0 };
       garage[carIndex].stats.runs++;
-      // Use null instead of Infinity for "no best" (Infinity becomes null in JSON)
       const prevBest = garage[carIndex].stats.bestTime;
       if (prevBest == null || raceData.time < prevBest) garage[carIndex].stats.bestTime = raceData.time;
       if (raceData.speed_mph > (garage[carIndex].stats.bestSpeed || 0)) garage[carIndex].stats.bestSpeed = raceData.speed_mph;
@@ -1184,7 +1137,7 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
 
     // ========================================================================
-    // HISTORY MANAGEMENT - Persistent on ESP32 filesystem via /api/history
+    // HISTORY MANAGEMENT
     // ========================================================================
     let history = [];
 
@@ -1192,20 +1145,13 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       try {
         const resp = await fetch('/api/history');
         const data = await resp.json();
-        if (Array.isArray(data) && data.length > 0) {
-          history = data;
-        } else {
-          // Migrate from localStorage if available
+        if (Array.isArray(data) && data.length > 0) { history = data; }
+        else {
           const local = JSON.parse(localStorage.getItem('hw_history') || '[]');
-          if (local.length > 0) {
-            history = local;
-            await saveHistoryToESP();
-            console.log('Migrated history from localStorage to ESP32');
-          }
+          if (local.length > 0) { history = local; await saveHistoryToESP(); }
         }
       } catch (e) {
         history = JSON.parse(localStorage.getItem('hw_history') || '[]');
-        console.log('Using localStorage fallback for history');
       }
       renderHistory();
     }
@@ -1213,18 +1159,12 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     async function saveHistoryToESP() {
       localStorage.setItem('hw_history', JSON.stringify(history));
       try {
-        await fetch('/api/history', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(history)
-        });
-      } catch (e) {
-        console.error('Failed to save history to ESP32:', e);
-      }
+        await fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(history) });
+      } catch (e) {}
     }
 
     function addToHistory(raceData) {
-      history.unshift({
+      const entry = {
         timestamp: Date.now(),
         run: raceData.totalRuns,
         car: raceData.car,
@@ -1234,7 +1174,9 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
         scale_mph: raceData.scale_mph,
         momentum: raceData.momentum,
         ke: raceData.ke
-      });
+      };
+      if (raceData.midTrack_mph) entry.midTrack_mph = raceData.midTrack_mph;
+      history.unshift(entry);
       if (history.length > 100) history = history.slice(0, 100);
       saveHistoryToESP();
       renderHistory();
@@ -1243,17 +1185,17 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     function renderHistory() {
       const tbody = document.getElementById('historyTable');
       if (history.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">No races yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--mass-muted);">No evidence recorded yet</td></tr>';
         return;
       }
       tbody.innerHTML = history.slice(0, 20).map(h =>
         '<tr>' +
           '<td>#' + h.run + '</td>' +
-          '<td><strong>' + h.car + '</strong></td>' +
+          '<td><strong style="color:var(--mass-gold);">' + h.car + '</strong></td>' +
           '<td>' + h.weight + 'g</td>' +
-          '<td>' + h.time.toFixed(3) + 's</td>' +
-          '<td>' + h.speed_mph.toFixed(1) + ' mph</td>' +
-          '<td><strong style="color: var(--hw-orange);">' + h.scale_mph.toFixed(0) + ' mph</strong></td>' +
+          '<td style="font-family:monospace;">' + h.time.toFixed(3) + 's</td>' +
+          '<td>' + h.speed_mph.toFixed(1) + '</td>' +
+          '<td><strong style="color:var(--mass-gold);">' + h.scale_mph.toFixed(0) + '</strong></td>' +
           '<td>' + h.momentum.toFixed(3) + '</td>' +
           '<td>' + (h.ke != null ? h.ke.toFixed(4) : '--') + '</td>' +
         '</tr>'
@@ -1261,19 +1203,15 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
 
     function clearHistory() {
-      const c = prompt('Type DELETE to clear all history:');
-      if (c === 'DELETE') {
-        history = [];
-        saveHistoryToESP();
-        renderHistory();
-      }
+      const c = prompt('Type DELETE to clear all evidence:');
+      if (c === 'DELETE') { history = []; saveHistoryToESP(); renderHistory(); }
     }
 
     // ========================================================================
     // DATA EXPORT
     // ========================================================================
     function exportCSV() {
-      if (history.length === 0) { alert('No data to export!'); return; }
+      if (history.length === 0) { alert('No data!'); return; }
       let csv = 'Run,Timestamp,Car,Weight(g),Time(s),Speed(mph),Scale(mph),Momentum,KE\n';
       history.forEach(h => {
         csv += h.run + ',' + new Date(h.timestamp).toISOString() + ',' + h.car + ',' + h.weight + ',' + h.time + ',' + h.speed_mph + ',' + h.scale_mph + ',' + h.momentum + ',' + h.ke + '\n';
@@ -1282,71 +1220,39 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'hotwheels_' + Date.now() + '.csv';
+      a.download = 'masstrap_data_' + Date.now() + '.csv';
       a.click();
       window.URL.revokeObjectURL(url);
     }
 
     function uploadToSheets(data, url) {
       const status = document.getElementById('sheetsStatus');
-      status.textContent = 'Uploading to Sheets...';
-      status.style.color = '#007ACC';
-
+      status.textContent = 'Uploading...';
+      status.style.color = 'var(--mass-blue)';
       fetch(url, {
-        method: 'POST',
-        mode: 'no-cors',
+        method: 'POST', mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          timestamp: new Date().toISOString(),
-          car: data.car,
-          weight: data.weight,
-          time: data.time,
-          speed_mph: data.speed_mph,
-          scale_mph: data.scale_mph,
-          momentum: data.momentum,
-          ke: data.ke
-        })
+        body: JSON.stringify({ timestamp: new Date().toISOString(), car: data.car, weight: data.weight,
+          time: data.time, speed_mph: data.speed_mph, scale_mph: data.scale_mph, momentum: data.momentum, ke: data.ke })
       }).then(() => {
-        // no-cors means we can't read the response, but if fetch didn't throw, it sent
-        status.textContent = 'Sent to Sheets!';
-        status.style.color = '#28a745';
+        status.textContent = 'Sent!'; status.style.color = 'var(--mass-green)';
         setTimeout(() => { status.textContent = ''; }, 3000);
-      }).catch(err => {
-        status.textContent = 'Upload failed: ' + err.message;
-        status.style.color = '#dc3545';
-        console.error('Sheets upload failed:', err);
-      });
+      }).catch(err => { status.textContent = 'Failed'; status.style.color = 'var(--mass-red)'; });
     }
 
-    // Save Sheets URL to ESP32 config when changed on dashboard
-    // Uses a lightweight endpoint that updates config without rebooting
     function saveSheetsUrl() {
       const url = document.getElementById('sheetsUrl').value.trim();
       configSheetsUrl = url;
-      // Also tell the ESP32 via WebSocket so it updates in memory
       send({ cmd: 'setSheetsUrl', url: url });
       const status = document.getElementById('sheetsStatus');
-      status.textContent = 'URL saved';
-      status.style.color = '#28a745';
+      status.textContent = 'URL saved'; status.style.color = 'var(--mass-green)';
       setTimeout(() => { status.textContent = ''; }, 2000);
     }
 
-    // Test Google Sheets connection with dummy data
     function testSheetsUpload() {
       const url = document.getElementById('sheetsUrl').value.trim() || configSheetsUrl;
-      if (!url) {
-        alert('Enter a Google Sheets URL first!');
-        return;
-      }
-      uploadToSheets({
-        car: 'TEST CAR',
-        weight: 35,
-        time: 1.234,
-        speed_mph: 1.62,
-        scale_mph: 103.7,
-        momentum: 0.057,
-        ke: 0.023
-      }, url);
+      if (!url) { alert('Enter a Google Sheets URL first!'); return; }
+      uploadToSheets({ car: 'TEST', weight: 35, time: 1.234, speed_mph: 1.62, scale_mph: 103.7, momentum: 0.057, ke: 0.023 }, url);
     }
 
     // ========================================================================
@@ -1356,148 +1262,88 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
       const section = document.getElementById('ghostSection');
       const deltaEl = document.getElementById('ghostDelta');
       const labelEl = document.getElementById('ghostLabel');
-
       if (!activeCar) { section.style.display = 'none'; return; }
-
       const carIndex = garage.findIndex(c => c.id === activeCar.id);
       if (carIndex === -1 || !garage[carIndex].stats) { section.style.display = 'none'; return; }
-
       const prevBest = garage[carIndex].stats.bestTime;
-
       if (prevBest == null || !isFinite(prevBest)) {
-        // First run for this car
         section.style.display = 'block';
         section.className = 'section new-record';
         deltaEl.textContent = 'FIRST RUN!';
-        deltaEl.style.color = 'var(--hw-green)';
+        deltaEl.style.color = 'var(--mass-green)';
         labelEl.textContent = raceData.time.toFixed(3) + 's is the benchmark for ' + activeCar.name;
         return;
       }
-
       const delta = raceData.time - prevBest;
       section.style.display = 'block';
-
       if (delta < 0) {
         section.className = 'section new-record';
         deltaEl.textContent = delta.toFixed(3) + 's';
-        deltaEl.style.color = 'var(--hw-green)';
-        labelEl.textContent = 'NEW PERSONAL BEST! Previous: ' + prevBest.toFixed(3) + 's';
+        deltaEl.style.color = 'var(--mass-green)';
+        labelEl.textContent = 'NEW RECORD! Previous: ' + prevBest.toFixed(3) + 's';
       } else if (delta === 0) {
         section.className = 'section new-record';
         deltaEl.textContent = 'TIED!';
-        deltaEl.style.color = 'var(--hw-yellow)';
-        labelEl.textContent = 'Matched personal best: ' + prevBest.toFixed(3) + 's';
+        deltaEl.style.color = 'var(--mass-gold)';
+        labelEl.textContent = 'Matched record: ' + prevBest.toFixed(3) + 's';
       } else {
         section.className = 'section slower';
         deltaEl.textContent = '+' + delta.toFixed(3) + 's';
-        deltaEl.style.color = 'var(--hw-red)';
-        labelEl.textContent = 'Personal best: ' + prevBest.toFixed(3) + 's';
+        deltaEl.style.color = 'var(--mass-red)';
+        labelEl.textContent = 'Record: ' + prevBest.toFixed(3) + 's';
       }
     }
 
     // ========================================================================
-    // CHART.JS SCIENCE FAIR CHARTS
+    // CHART.JS
     // ========================================================================
     let speedChart = null;
     let keChart = null;
 
     function initCharts() {
-      if (typeof Chart === 'undefined') return; // Chart.js not loaded yet
+      if (typeof Chart === 'undefined') return;
+      Chart.defaults.color = '#8888aa';
+      Chart.defaults.borderColor = '#2a2a4a';
 
-      const speedCtx = document.getElementById('speedChart').getContext('2d');
-      speedChart = new Chart(speedCtx, {
+      speedChart = new Chart(document.getElementById('speedChart').getContext('2d'), {
         type: 'line',
-        data: {
-          labels: [],
-          datasets: [{
-            label: 'Speed (mph)',
-            data: [],
-            borderColor: '#007ACC',
-            backgroundColor: 'rgba(0,122,204,0.1)',
-            borderWidth: 2,
-            pointBackgroundColor: '#FF4400',
-            pointRadius: 4,
-            tension: 0.1,
-            fill: true
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            title: { display: true, text: 'Speed vs Run Number', font: { size: 14, weight: 'bold' } },
-            legend: { display: false }
-          },
-          scales: {
-            x: { title: { display: true, text: 'Run #' } },
-            y: { title: { display: true, text: 'Speed (mph)' }, beginAtZero: true }
-          }
-        }
+        data: { labels: [], datasets: [{ label: 'Speed (mph)', data: [],
+          borderColor: '#4a90d9', backgroundColor: 'rgba(74,144,217,0.1)',
+          borderWidth: 2, pointBackgroundColor: '#d4af37', pointRadius: 4, tension: 0.1, fill: true }] },
+        options: { responsive: true,
+          plugins: { title: { display: true, text: 'Speed vs Run', font: { size: 14, weight: 'bold' }, color: '#d4af37' }, legend: { display: false } },
+          scales: { x: { title: { display: true, text: 'Run #' } }, y: { title: { display: true, text: 'Speed (mph)' }, beginAtZero: true } } }
       });
 
-      const keCtx = document.getElementById('keChart').getContext('2d');
-      keChart = new Chart(keCtx, {
+      keChart = new Chart(document.getElementById('keChart').getContext('2d'), {
         type: 'scatter',
-        data: {
-          datasets: [{
-            label: 'KE vs Weight',
-            data: [],
-            backgroundColor: '#FF4400',
-            pointRadius: 6,
-            pointHoverRadius: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            title: { display: true, text: 'Kinetic Energy vs Weight', font: { size: 14, weight: 'bold' } },
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: function(ctx) {
-                  return ctx.raw.car + ': ' + ctx.raw.y.toFixed(4) + 'J @ ' + ctx.raw.x + 'g';
-                }
-              }
-            }
-          },
-          scales: {
-            x: { title: { display: true, text: 'Weight (g)' } },
-            y: { title: { display: true, text: 'Kinetic Energy (J)' }, beginAtZero: true }
-          }
-        }
+        data: { datasets: [{ label: 'KE vs Mass', data: [],
+          backgroundColor: '#d4af37', pointRadius: 6, pointHoverRadius: 8 }] },
+        options: { responsive: true,
+          plugins: { title: { display: true, text: 'Kinetic Energy vs Mass', font: { size: 14, weight: 'bold' }, color: '#d4af37' }, legend: { display: false },
+            tooltip: { callbacks: { label: function(ctx) { return ctx.raw.car + ': ' + ctx.raw.y.toFixed(4) + 'J @ ' + ctx.raw.x + 'g'; } } } },
+          scales: { x: { title: { display: true, text: 'Mass (g)' } }, y: { title: { display: true, text: 'Kinetic Energy (J)' }, beginAtZero: true } } }
       });
 
-      // Populate from existing history
       updateChartsFromHistory();
     }
 
     function updateChartsFromHistory() {
       if (!speedChart || !keChart) return;
-
-      const chronological = [...history].reverse();
-      speedChart.data.labels = chronological.map((h, i) => '#' + (h.run || i + 1));
-      speedChart.data.datasets[0].data = chronological.map(h => h.speed_mph);
+      const c = [...history].reverse();
+      speedChart.data.labels = c.map((h, i) => '#' + (h.run || i + 1));
+      speedChart.data.datasets[0].data = c.map(h => h.speed_mph);
       speedChart.update();
-
-      keChart.data.datasets[0].data = chronological.map(h => ({
-        x: h.weight,
-        y: h.ke,
-        car: h.car
-      }));
+      keChart.data.datasets[0].data = c.map(h => ({ x: h.weight, y: h.ke, car: h.car }));
       keChart.update();
     }
 
     function addRaceToCharts(raceData) {
       if (!speedChart || !keChart) return;
-
       speedChart.data.labels.push('#' + (raceData.totalRuns || speedChart.data.labels.length + 1));
       speedChart.data.datasets[0].data.push(raceData.speed_mph);
       speedChart.update();
-
-      keChart.data.datasets[0].data.push({
-        x: raceData.weight,
-        y: raceData.ke,
-        car: raceData.car
-      });
+      keChart.data.datasets[0].data.push({ x: raceData.weight, y: raceData.ke, car: raceData.car });
       keChart.update();
     }
 
@@ -1505,32 +1351,25 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     // PHYSICS EXPLAINER
     // ========================================================================
     let explainerOpen = false;
-
     function toggleExplainer() {
       explainerOpen = !explainerOpen;
       document.getElementById('explainerContent').style.display = explainerOpen ? 'block' : 'none';
-      document.getElementById('explainerToggle').innerHTML =
-        (explainerOpen ? 'Hide Formulas &#x25B2;' : 'Show Formulas &#x25BC;');
+      document.getElementById('explainerToggle').innerHTML = (explainerOpen ? 'Hide Formulas &#x25B2;' : 'Show Formulas &#x25BC;');
     }
 
     function updateExplainerValues(data) {
       if (!data.time || data.time <= 0) return;
-
       const d = parseFloat(document.getElementById('trackLength').value) || 2.0;
       const t = data.time;
       const v_ms = d / t;
       const m_kg = (data.weight || 35) / 1000.0;
       const gForce = (v_ms / t) / 9.8;
-
       document.getElementById('formulaSpeed').innerHTML =
         'v = ' + d.toFixed(2) + 'm &divide; ' + t.toFixed(3) + 's = <strong>' + v_ms.toFixed(2) + ' m/s</strong> (' + (v_ms * 2.23694).toFixed(1) + ' mph)';
-
       document.getElementById('formulaMomentum').innerHTML =
         'p = ' + m_kg.toFixed(3) + 'kg &times; ' + v_ms.toFixed(2) + 'm/s = <strong>' + (m_kg * v_ms).toFixed(4) + ' kg&middot;m/s</strong>';
-
       document.getElementById('formulaKE').innerHTML =
         'KE = 0.5 &times; ' + m_kg.toFixed(3) + 'kg &times; ' + v_ms.toFixed(2) + '&sup2; = <strong>' + (0.5 * m_kg * v_ms * v_ms).toFixed(4) + ' J</strong>';
-
       document.getElementById('formulaGForce').innerHTML =
         'a = ' + v_ms.toFixed(2) + 'm/s &divide; ' + t.toFixed(3) + 's &divide; 9.8 = <strong>' + gForce.toFixed(2) + ' G</strong>';
     }
@@ -1538,42 +1377,35 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
     // ========================================================================
     // INITIALIZATION
     // ========================================================================
-    // Fetch and display firmware version
     async function loadVersion() {
       try {
         const resp = await fetch('/api/version');
         const v = await resp.json();
         document.getElementById('versionBadge').textContent = 'FW v' + v.firmware + ' | UI v' + v.web_ui;
       } catch (e) {
-        // Fallback: read from meta tag
         const meta = document.querySelector('meta[name="fw-version"]');
         if (meta) document.getElementById('versionBadge').textContent = 'v' + meta.content;
       }
     }
 
     window.onload = async () => {
-      await loadGarageFromESP();   // Load from ESP32 (falls back to localStorage)
-      await loadHistoryFromESP();  // Load from ESP32 (falls back to localStorage)
-      initCharts();                // Initialize charts after history is loaded
+      await loadGarageFromESP();
+      await loadHistoryFromESP();
+      initCharts();
       connectWebSocket();
       loadVersion();
-      if (activeCar) {
-        setCurrentCarDisplay(activeCar);
-      }
+      if (activeCar) { setCurrentCarDisplay(activeCar); }
     };
 
-    // Safety net: sync to localStorage before page unload (ESP32 save is async
-    // and may not complete, but localStorage is synchronous and instant)
     window.addEventListener('beforeunload', () => {
       localStorage.setItem('hw_garage', JSON.stringify(garage));
       localStorage.setItem('hw_history', JSON.stringify(history));
-      // Also fire a synchronous XHR to save garage (best-effort)
       try {
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/garage', false); // synchronous
+        xhr.open('POST', '/api/garage', false);
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.send(JSON.stringify(garage));
-      } catch (e) { /* best effort */ }
+      } catch (e) {}
     });
   </script>
   <script src="/chart.min.js"></script>

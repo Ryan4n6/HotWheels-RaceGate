@@ -1,7 +1,8 @@
 /*
- * HOT WHEELS RACE GATE - Unified Firmware v2.1
+ * M.A.S.S. TRAP — Motion Analysis & Speed System
+ * Unified Firmware v2.4.0
  *
- * Single binary that runs as either START GATE or FINISH GATE.
+ * Single binary that runs as START GATE, FINISH GATE, or SPEED TRAP.
  * Configure via web portal on first boot (captive portal).
  *
  * WiFi connection uses the EXACT same proven pattern from the original
@@ -14,9 +15,12 @@
  *   - WLED integration for race state visual effects
  *   - Google Sheets data logging
  *   - OTA firmware updates
- *   - Backup/restore configuration
+ *   - Full system snapshot (backup/restore config + garage + history)
+ *   - Audio effects via MAX98357A I2S amplifier
+ *   - LiDAR sensor (TF-Luna) for car presence detection & auto-arm
+ *   - Speed trap node with dual IR sensors for mid-track velocity
  *
- * Hardware: ESP32 / ESP32-S3
+ * Hardware: ESP32-S3-WROOM-1 N16R8 (16MB Flash / 8MB PSRAM)
  * Libraries: WebSockets, ArduinoJson (install via Library Manager)
  */
 
@@ -35,7 +39,10 @@
 #include "espnow_comm.h"
 #include "finish_gate.h"
 #include "start_gate.h"
+#include "speed_trap.h"
 #include "wled_integration.h"
+#include "audio_manager.h"
+#include "lidar_sensor.h"
 #include "web_server.h"
 
 // ============================================================================
@@ -117,8 +124,10 @@ void setup() {
   logOutput = &serialTee;  // Redirect LOG macro to captured output
   delay(500);
   LOG.println("\n\n========================================");
-  LOG.println("  HOT WHEELS RACE GATE v" FIRMWARE_VERSION);
+  LOG.println("  " PROJECT_NAME " v" FIRMWARE_VERSION);
+  LOG.println("  " PROJECT_FULL);
   LOG.println("========================================");
+  LOG.println("[BOOT] Initializing Motion Analysis & Speed System...");
 
   // Initialize filesystem
   if (!LittleFS.begin(true)) {
@@ -140,7 +149,7 @@ void setup() {
     // Create AP with unique SSID using last 2 bytes of the hardware MAC
     char suffix[5];
     getMacSuffix(suffix, sizeof(suffix));
-    String apName = "HotWheels-Setup-" + String(suffix);
+    String apName = "MASSTrap-Setup-" + String(suffix);
 
     WiFi.mode(WIFI_AP);
     WiFi.softAP(apName.c_str());
@@ -224,6 +233,22 @@ void setup() {
     ArduinoOTA.begin();
     LOG.println("[BOOT] OTA ready");
 
+    // Audio system (optional — guarded by config flag)
+    if (cfg.audio_enabled) {
+      audioSetup();
+      LOG.println("[BOOT] Audio system initialized");
+    } else {
+      LOG.println("[BOOT] Audio disabled (enable in config)");
+    }
+
+    // LiDAR sensor (optional — guarded by config flag)
+    if (cfg.lidar_enabled) {
+      lidarSetup();
+      LOG.println("[BOOT] LiDAR sensor initialized");
+    } else {
+      LOG.println("[BOOT] LiDAR sensor disabled (enable in config)");
+    }
+
     // Role-specific setup
     if (strcmp(cfg.role, "finish") == 0) {
       finishGateSetup();
@@ -231,15 +256,20 @@ void setup() {
     else if (strcmp(cfg.role, "start") == 0) {
       startGateSetup();
     }
+    else if (strcmp(cfg.role, "speedtrap") == 0) {
+      speedTrapSetup();
+    }
     else {
       LOG.printf("[BOOT] Role '%s' not yet implemented\n", cfg.role);
     }
 
-    // Set initial WLED state
-    setWLEDState("idle");
+    // Set initial WLED state (finish gate only controls WLED)
+    if (strcmp(cfg.role, "finish") == 0) {
+      setWLEDState("idle");
+    }
 
     LOG.println("========================================");
-    LOG.println("  SYSTEM READY");
+    LOG.println("  ALL SYSTEMS OPERATIONAL");
     LOG.println("========================================");
   }
 }
@@ -270,11 +300,24 @@ void loop() {
   // Discovery broadcasts
   discoveryLoop();
 
+  // Audio loop (non-blocking DMA feed — guarded by config flag)
+  if (cfg.audio_enabled) {
+    audioLoop();
+  }
+
+  // LiDAR sensor polling (guarded by config flag)
+  if (cfg.lidar_enabled) {
+    lidarLoop();
+  }
+
   // Role-specific loop
   if (strcmp(cfg.role, "finish") == 0) {
     finishGateLoop();
   }
   else if (strcmp(cfg.role, "start") == 0) {
     startGateLoop();
+  }
+  else if (strcmp(cfg.role, "speedtrap") == 0) {
+    speedTrapLoop();
   }
 }

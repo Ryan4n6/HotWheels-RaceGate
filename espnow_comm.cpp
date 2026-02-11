@@ -100,6 +100,8 @@ static void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int
     onFinishGateESPNow(msg, receiveTime);
   } else if (strcmp(cfg.role, "start") == 0) {
     onStartGateESPNow(msg, receiveTime);
+  } else if (strcmp(cfg.role, "speedtrap") == 0) {
+    onSpeedTrapESPNow(msg, receiveTime);
   }
 }
 

@@ -1,6 +1,7 @@
 #include "finish_gate.h"
 #include "config.h"
 #include "wled_integration.h"
+#include "audio_manager.h"
 #include <LittleFS.h>
 
 // Forward declaration from web_server
@@ -12,6 +13,7 @@ volatile uint64_t finishTime_us = 0;
 String currentCar = "Unknown";
 float currentWeight = 35.0;
 uint32_t totalRuns = 0;
+double midTrackSpeed_mps = 0; // From speed trap node via ESP-NOW
 
 static unsigned long lastPingTime = 0;
 static unsigned long lastSyncTime = 0;
@@ -138,8 +140,14 @@ void finishGateLoop() {
     // Trigger WLED finished effect (ONLY finish gate controls WLED)
     setWLEDState("finished");
 
+    // Play finish sound effect
+    playSound("finish.wav");
+
     // Broadcast results to WebSocket clients IMMEDIATELY - no delay!
     broadcastState();
+
+    // Reset mid-track speed for next race
+    midTrackSpeed_mps = 0;
 
     // Start the non-blocking 5-second reset timer
     waitingToReset = true;
@@ -197,6 +205,16 @@ void onFinishGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
       clockOffset_us = (int64_t)msg.timestamp - (int64_t)receiveTime;
       LOG.printf("[FINISH] Clock sync: offset=%lld us (%.1f ms)\n",
                     clockOffset_us, clockOffset_us / 1000.0);
+      break;
+
+    case MSG_SPEED_DATA:
+      // Speed trap node sent mid-track velocity
+      // Encoded as speed_mps * 10000 in the offset field
+      midTrackSpeed_mps = msg.offset / 10000.0;
+      LOG.printf("[FINISH] Speed trap data: %.3f m/s (%.1f mph)\n",
+                    midTrackSpeed_mps, midTrackSpeed_mps * 2.23694);
+      // Acknowledge receipt
+      sendToPeer(MSG_SPEED_ACK, nowUs(), 0);
       break;
   }
 }

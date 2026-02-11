@@ -1,15 +1,15 @@
 #ifndef HTML_CONFIG_H
 #define HTML_CONFIG_H
 #include <Arduino.h>
-// Configuration page - embedded in firmware for OTA-friendly updates
+// M.A.S.S. Trap configuration page - embedded in firmware
 static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="fw-version" content="2.3.0">
-  <title>Hot Wheels Race Gate - Setup</title>
+  <meta name="fw-version" content="2.4.0">
+  <title>M.A.S.S. Trap - Configuration</title>
   <style>
     :root {
       --hw-orange: #FF4400;
@@ -206,7 +206,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
 <body>
   <div class="container">
     <div class="header">
-      <h1>HOT WHEELS RACE GATE</h1>
+      <h1>M.A.S.S. TRAP CONFIGURATION</h1>
       <p>DEVICE CONFIGURATION</p>
       <div style="margin-top:8px;">
         <a href="/" style="color:var(--hw-yellow); text-decoration:none; margin-right:15px; font-weight:700;">Dashboard</a>
@@ -243,7 +243,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
       </div>
 
       <label>Hostname</label>
-      <input type="text" id="hostname" placeholder="hotwheels" value="hotwheels">
+      <input type="text" id="hostname" placeholder="masstrap" value="masstrap">
       <div class="hint">Access device at http://[hostname].local</div>
 
       <label>Network Mode</label>
@@ -332,7 +332,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
 
       <button class="btn btn-primary btn-sm" onclick="discoverDevices()">Scan for Devices</button>
       <div id="deviceList" class="device-list">
-        <div class="hint">Click "Scan for Devices" to find nearby race gate devices</div>
+        <div class="hint">Click "Scan for Devices" to find nearby M.A.S.S. Trap devices</div>
       </div>
     </div>
 
@@ -565,7 +565,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
         network: {
           wifi_ssid: document.getElementById('wifiSSID').value.trim(),
           wifi_pass: document.getElementById('wifiPass').value,
-          hostname: document.getElementById('hostname').value.trim() || 'hotwheels',
+          hostname: document.getElementById('hostname').value.trim() || 'masstrap',
           mode: networkMode
         },
         device: {
@@ -610,7 +610,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
           showStatus('Config saved! Device rebooting...', 'success');
           // Try to reconnect after reboot
           setTimeout(() => {
-            const host = config.network.hostname || 'hotwheels';
+            const host = config.network.hostname || 'masstrap';
             showStatus('Trying to reach http://' + host + '.local ...', '');
             setTimeout(() => {
               window.location.href = 'http://' + host + '.local/';
@@ -715,7 +715,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
           if (cfg.network) {
             document.getElementById('wifiSSID').value = cfg.network.wifi_ssid || '';
             document.getElementById('wifiPass').value = cfg.network.wifi_pass || '';
-            document.getElementById('hostname').value = cfg.network.hostname || 'hotwheels';
+            document.getElementById('hostname').value = cfg.network.hostname || 'masstrap';
             document.getElementById('networkMode').value = cfg.network.mode || 'wifi';
           }
           if (cfg.device) {
@@ -774,4 +774,5 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
 </body>
 </html>
 )rawliteral";
+
 #endif

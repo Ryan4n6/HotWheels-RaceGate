@@ -3,11 +3,14 @@
 #include "espnow_comm.h"
 #include "finish_gate.h"
 #include "wled_integration.h"
+#include "audio_manager.h"
+#include "lidar_sensor.h"
 #include "html_index.h"
 #include "html_config.h"
 #include "html_console.h"
 #include "html_start_status.h"
 #include "html_chartjs.h"
+#include "html_speedtrap_status.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <WiFi.h>
@@ -119,7 +122,7 @@ static void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t 
 // BROADCAST STATE
 // ============================================================================
 void broadcastState() {
-  StaticJsonDocument<512> doc;
+  StaticJsonDocument<768> doc;
 
   const char* stateStr;
   switch (raceState) {
@@ -139,6 +142,21 @@ void broadcastState() {
   doc["totalRuns"] = totalRuns;
   doc["role"] = cfg.role;
   doc["google_sheets_url"] = cfg.google_sheets_url;
+
+  // Speed trap mid-track velocity (if available)
+  if (midTrackSpeed_mps > 0) {
+    doc["midTrack_mph"] = midTrackSpeed_mps * 2.23694;
+    doc["midTrack_scale_mph"] = midTrackSpeed_mps * 2.23694 * (double)cfg.scale_factor;
+  }
+
+  // LiDAR sensor data (if enabled)
+  if (cfg.lidar_enabled) {
+    JsonObject lidar = doc.createNestedObject("lidar");
+    LidarState ls = getLidarState();
+    lidar["state"] = (ls == LIDAR_NO_CAR) ? "empty" :
+                     (ls == LIDAR_CAR_STAGED) ? "staged" : "launched";
+    lidar["distance_mm"] = getDistanceMM();
+  }
 
   if (raceState == FINISHED && startTime_us > 0 && finishTime_us > 0) {
     // Use SIGNED math to detect underflows instead of wrapping to huge values
@@ -264,8 +282,124 @@ static void handleApiMac() {
 
 static void handleApiBackup() {
   String json = configToJson();
-  server.sendHeader("Content-Disposition", "attachment; filename=hotwheels-config.json");
+  server.sendHeader("Content-Disposition", "attachment; filename=masstrap-config.json");
   server.send(200, "application/json", json);
+}
+
+// ============================================================================
+// SYSTEM SNAPSHOT API - Full backup/restore of config + garage + history
+// ============================================================================
+static void handleApiSystemBackup() {
+  // Read all three data files from LittleFS
+  String configJson = configToJson();
+
+  String garageJson = "[]";
+  if (LittleFS.exists("/garage.json")) {
+    File f = LittleFS.open("/garage.json", "r");
+    garageJson = f.readString();
+    f.close();
+  }
+
+  String historyJson = "[]";
+  if (LittleFS.exists("/history.json")) {
+    File f = LittleFS.open("/history.json", "r");
+    historyJson = f.readString();
+    f.close();
+  }
+
+  // Build the unified snapshot envelope
+  DynamicJsonDocument doc(16384);
+  doc["snapshot_version"] = 1;
+  doc["firmware_version"] = FIRMWARE_VERSION;
+  doc["hostname"] = cfg.hostname;
+  doc["role"] = cfg.role;
+
+  // Parse config into nested object
+  DynamicJsonDocument configDoc(1536);
+  deserializeJson(configDoc, configJson);
+  doc["config"] = configDoc.as<JsonObject>();
+
+  // Parse garage into nested array
+  DynamicJsonDocument garageDoc(4096);
+  deserializeJson(garageDoc, garageJson);
+  doc["garage"] = garageDoc.as<JsonArray>();
+
+  // Parse history into nested array
+  DynamicJsonDocument historyDoc(8192);
+  deserializeJson(historyDoc, historyJson);
+  doc["history"] = historyDoc.as<JsonArray>();
+
+  String output;
+  serializeJsonPretty(doc, output);
+
+  server.sendHeader("Content-Disposition", "attachment; filename=masstrap-system-backup.json");
+  server.send(200, "application/json", output);
+  LOG.printf("[WEB] System snapshot exported (%d bytes)\n", output.length());
+}
+
+static void handleApiSystemRestore() {
+  if (!requireAuth()) return;
+
+  String body = server.arg("plain");
+  if (body.length() == 0) {
+    server.send(400, "application/json", "{\"error\":\"Empty body\"}");
+    return;
+  }
+
+  DynamicJsonDocument doc(16384);
+  DeserializationError err = deserializeJson(doc, body);
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+
+  if (!doc.containsKey("snapshot_version") || !doc.containsKey("config")) {
+    server.send(400, "application/json", "{\"error\":\"Not a valid system snapshot\"}");
+    return;
+  }
+
+  bool skipNetwork = server.hasArg("skip_network") && server.arg("skip_network") == "true";
+
+  // 1. Restore config
+  JsonObject configObj = doc["config"];
+  if (!configObj.isNull()) {
+    if (skipNetwork) {
+      // Clone mode: keep this device's network identity
+      configObj["network"]["wifi_ssid"] = cfg.wifi_ssid;
+      configObj["network"]["wifi_pass"] = cfg.wifi_pass;
+      configObj["network"]["hostname"] = cfg.hostname;
+    }
+    String configStr;
+    serializeJson(configObj, configStr);
+    File f = LittleFS.open(CONFIG_FILE, "w");
+    if (f) { f.print(configStr); f.close(); }
+  }
+
+  // 2. Restore garage
+  JsonArray garageArr = doc["garage"];
+  if (!garageArr.isNull()) {
+    String garageStr;
+    serializeJson(garageArr, garageStr);
+    File f = LittleFS.open("/garage.json", "w");
+    if (f) { f.print(garageStr); f.close(); }
+  }
+
+  // 3. Restore history
+  JsonArray historyArr = doc["history"];
+  if (!historyArr.isNull()) {
+    String historyStr;
+    serializeJson(historyArr, historyStr);
+    File f = LittleFS.open("/history.json", "w");
+    if (f) { f.print(historyStr); f.close(); }
+  }
+
+  LOG.printf("[WEB] System snapshot restored (skip_network=%s). Rebooting...\n",
+                skipNetwork ? "true" : "false");
+
+  server.send(200, "application/json",
+    "{\"status\":\"ok\",\"message\":\"System snapshot restored. Rebooting...\"}");
+  delay(500);
+  ESP.restart();
 }
 
 static void handleApiRestore() {
@@ -311,7 +445,8 @@ static void handleApiReset() {
 }
 
 static void handleApiInfo() {
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<384> doc;
+  doc["project"] = PROJECT_NAME;
   doc["firmware"] = FIRMWARE_VERSION;
   doc["role"] = cfg.role;
   doc["hostname"] = cfg.hostname;
@@ -320,6 +455,8 @@ static void handleApiInfo() {
   doc["wifi_rssi"] = WiFi.RSSI();
   doc["peer_connected"] = peerConnected;
   doc["ip"] = WiFi.localIP().toString();
+  doc["audio_enabled"] = cfg.audio_enabled;
+  doc["lidar_enabled"] = cfg.lidar_enabled;
 
   String output;
   serializeJson(doc, output);
@@ -419,6 +556,68 @@ static void handleApiHistory() {
     f.close();
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   }
+}
+
+// ============================================================================
+// AUDIO API - List sounds, test playback, upload WAV files
+// ============================================================================
+static void handleApiAudioList() {
+  if (!cfg.audio_enabled) {
+    server.send(200, "application/json", "{\"enabled\":false,\"files\":[]}");
+    return;
+  }
+  String json = "{\"enabled\":true,\"playing\":" + String(isPlaying() ? "true" : "false") +
+                ",\"volume\":" + String(cfg.audio_volume) +
+                ",\"files\":" + getAudioFileList() + "}";
+  server.send(200, "application/json", json);
+}
+
+static void handleApiAudioTest() {
+  if (!cfg.audio_enabled) {
+    server.send(400, "application/json", "{\"error\":\"Audio not enabled\"}");
+    return;
+  }
+  String body = server.arg("plain");
+  StaticJsonDocument<128> doc;
+  deserializeJson(doc, body);
+  const char* file = doc["file"] | "finish.wav";
+  playSound(file);
+  server.send(200, "application/json", "{\"status\":\"ok\",\"playing\":\"" + String(file) + "\"}");
+}
+
+static void handleApiAudioStop() {
+  stopSound();
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+static void handleApiAudioVolume() {
+  String body = server.arg("plain");
+  StaticJsonDocument<64> doc;
+  deserializeJson(doc, body);
+  uint8_t vol = doc["volume"] | cfg.audio_volume;
+  if (vol > 21) vol = 21;
+  cfg.audio_volume = vol;
+  setVolume(vol);
+  saveConfig();
+  server.send(200, "application/json", "{\"status\":\"ok\",\"volume\":" + String(vol) + "}");
+}
+
+// ============================================================================
+// LIDAR SENSOR API - Live readout for config page
+// ============================================================================
+static void handleApiLidarStatus() {
+  StaticJsonDocument<128> doc;
+  doc["enabled"] = cfg.lidar_enabled;
+  if (cfg.lidar_enabled) {
+    LidarState ls = getLidarState();
+    doc["state"] = (ls == LIDAR_NO_CAR) ? "empty" :
+                   (ls == LIDAR_CAR_STAGED) ? "staged" : "launched";
+    doc["distance_mm"] = getDistanceMM();
+    doc["threshold_mm"] = cfg.lidar_threshold_mm;
+  }
+  String output;
+  serializeJson(doc, output);
+  server.send(200, "application/json", output);
 }
 
 // ============================================================================
@@ -537,6 +736,8 @@ void initWebServer() {
   server.on("/", HTTP_GET, []() {
     if (strcmp(cfg.role, "start") == 0) {
       server.send_P(200, "text/html", START_STATUS_HTML);
+    } else if (strcmp(cfg.role, "speedtrap") == 0) {
+      server.send_P(200, "text/html", SPEEDTRAP_STATUS_HTML);
     } else {
       server.send_P(200, "text/html", INDEX_HTML);
     }
@@ -559,6 +760,8 @@ void initWebServer() {
   server.on("/api/mac", HTTP_GET, handleApiMac);
   server.on("/api/backup", HTTP_GET, handleApiBackup);
   server.on("/api/restore", HTTP_POST, handleApiRestore);
+  server.on("/api/system/backup", HTTP_GET, handleApiSystemBackup);
+  server.on("/api/system/restore", HTTP_POST, handleApiSystemRestore);
   server.on("/api/reset", HTTP_POST, handleApiReset);
   server.on("/api/info", HTTP_GET, handleApiInfo);
   server.on("/api/version", HTTP_GET, handleApiVersion);
@@ -567,6 +770,15 @@ void initWebServer() {
   server.on("/api/garage", HTTP_POST, handleApiGarage);
   server.on("/api/history", HTTP_GET, handleApiHistory);
   server.on("/api/history", HTTP_POST, handleApiHistory);
+
+  // Audio API
+  server.on("/api/audio/list", HTTP_GET, handleApiAudioList);
+  server.on("/api/audio/test", HTTP_POST, handleApiAudioTest);
+  server.on("/api/audio/stop", HTTP_POST, handleApiAudioStop);
+  server.on("/api/audio/volume", HTTP_POST, handleApiAudioVolume);
+
+  // LiDAR sensor API
+  server.on("/api/lidar/status", HTTP_GET, handleApiLidarStatus);
 
   // Serial log & filesystem
   server.on("/api/log", HTTP_GET, handleApiLog);

@@ -1,5 +1,7 @@
 #include "start_gate.h"
 #include "config.h"
+#include "audio_manager.h"
+#include "lidar_sensor.h"
 // NOTE: Start gate does NOT include wled_integration.h
 // Only the finish gate controls WLED to avoid HTTP conflicts.
 
@@ -74,6 +76,16 @@ void startGateLoop() {
   switch (raceState) {
     case IDLE:
       breatheLED();
+      // LiDAR auto-arm: if car has been staged for >1 second, auto-arm
+      if (lidarAutoArmReady()) {
+        raceState = ARMED;
+        triggerDetected = false;
+        triggerTime_us = 0;
+        attachInterrupt(digitalPinToInterrupt(cfg.sensor_pin), startTriggerISR, FALLING);
+        sendToPeer(MSG_ARM_CMD, nowUs(), 0);
+        playSound("armed.wav");
+        LOG.println("[START] AUTO-ARMED via LiDAR sensor");
+      }
       break;
 
     case ARMED:
@@ -90,6 +102,9 @@ void startGateLoop() {
         // The finish gate will convert this to its timebase using clockOffset.
         LOG.printf("[START] TRIGGERED at %llu us\n", triggerTime_us);
         sendToPeer(MSG_START, triggerTime_us, 0);
+
+        // Play "go" sound on start gate speaker
+        playSound("go.wav");
 
         // Detach interrupt to prevent re-trigger
         detachInterrupt(digitalPinToInterrupt(cfg.sensor_pin));
@@ -154,6 +169,8 @@ void onStartGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
         triggerTime_us = 0;
         // Attach interrupt to detect beam break
         attachInterrupt(digitalPinToInterrupt(cfg.sensor_pin), startTriggerISR, FALLING);
+        // Play armed chime on start gate speaker
+        playSound("armed.wav");
         LOG.println("[START] ARMED - waiting for trigger");
       }
       break;

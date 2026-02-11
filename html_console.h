@@ -1,15 +1,15 @@
 #ifndef HTML_CONSOLE_H
 #define HTML_CONSOLE_H
 #include <Arduino.h>
-// Debug console page - embedded in firmware for OTA-friendly updates
+// M.A.S.S. Trap debug console page - embedded in firmware
 static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="fw-version" content="2.3.0">
-  <title>Debug Console - Hot Wheels</title>
+  <meta name="fw-version" content="2.4.0">
+  <title>M.A.S.S. Trap - Debug Console</title>
   <style>
     :root {
       --hw-orange: #FF4400;
@@ -196,7 +196,7 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
 <body>
   <div class="container">
     <div class="header">
-      <h1>DEBUG CONSOLE</h1>
+      <h1>M.A.S.S. TRAP - DEBUG CONSOLE</h1>
       <div class="header-links">
         <a href="/">Dashboard</a>
         <a href="/config">Config</a>
@@ -295,7 +295,7 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
         // Tab title
         if (info.role) {
           const rn = info.role.charAt(0).toUpperCase() + info.role.slice(1);
-          document.title = rn + ' Gate - Debug Console';
+          document.title = rn + ' - M.A.S.S. Trap Console';
         }
 
         document.getElementById('infoRole').textContent = (info.role || 'unknown').toUpperCase();
@@ -389,7 +389,7 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'hotwheels_serial_' + Date.now() + '.log';
+      a.download = 'masstrap_serial_' + Date.now() + '.log';
       a.click();
       window.URL.revokeObjectURL(url);
     }
@@ -544,4 +544,5 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
 </body>
 </html>
 )rawliteral";
+
 #endif

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M.A.S.S. Trap - Speed Trap Node</title>
+  <style>
+    :root { --gold: #d4af37; --blue: #4a90d9; --green: #28a745; --red: #dc3545; --navy: #1a1a2e; --card: #16213e; --border: #2a2a4a; --text: #e0e0e0; --muted: #8888aa; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--navy); color: var(--text); min-height: 100vh; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 25px; }
+    .header h1 { color: var(--gold); font-size: 1.8rem; letter-spacing: 3px; font-weight: 900; }
+    .header p { color: var(--muted); font-size: 0.85rem; letter-spacing: 2px; margin-top: 4px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 15px; }
+    .card-title { font-size: 0.75rem; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 1px; margin-bottom: 10px; }
+    .big-value { font-size: 3rem; font-weight: 900; font-family: 'Courier New', monospace; color: var(--gold); line-height: 1; }
+    .unit { font-size: 1rem; color: var(--muted); margin-left: 4px; }
+    .status-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+    .status-dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .status-dot.err { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .status-dot.wait { background: var(--gold); animation: blink 1s infinite; }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .info-row:last-child { border: none; }
+    .info-label { color: var(--muted); }
+    .info-value { color: var(--text); font-weight: 700; font-family: monospace; }
+    .nav-links { text-align: center; margin-top: 20px; }
+    .nav-links a { color: var(--gold); text-decoration: none; margin: 0 10px; font-weight: 700; font-size: 0.9rem; }
+    .nav-links a:hover { color: var(--blue); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>SPEED TRAP NODE</h1>
+      <p>M.A.S.S. Trap - Velocity Sensor</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Last Measured Speed</div>
+      <div><span id="lastSpeed" class="big-value">--</span><span class="unit">mph</span></div>
+      <div style="margin-top:8px; color:var(--muted); font-size:0.85rem;">
+        <span id="lastSpeedMs">-- m/s</span> | Scale: <span id="lastSpeedScale" style="color:var(--gold);">-- mph</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">System Status</div>
+      <div class="info-row">
+        <span class="info-label">Peer Connection</span>
+        <span class="info-value" id="peerStatus"><span class="status-dot wait"></span>Checking...</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Sensor 1 (GPIO)</span>
+        <span class="info-value" id="sensor1Pin">--</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Sensor 2 (GPIO)</span>
+        <span class="info-value" id="sensor2Pin">--</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Sensor Spacing</span>
+        <span class="info-value" id="sensorSpacing">-- m</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">IP Address</span>
+        <span class="info-value" id="ipAddr">--</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Free Heap</span>
+        <span class="info-value" id="freeHeap">--</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Uptime</span>
+        <span class="info-value" id="uptime">--</span>
+      </div>
+    </div>
+
+    <div class="nav-links">
+      <a href="/config">Configuration</a>
+      <a href="/console">Console</a>
+    </div>
+  </div>
+
+  <script>
+    async function refresh() {
+      try {
+        const resp = await fetch('/api/info');
+        const info = await resp.json();
+        document.getElementById('ipAddr').textContent = info.ip || 'N/A';
+        document.getElementById('freeHeap').textContent = info.free_heap ? (info.free_heap / 1024).toFixed(1) + ' KB' : '--';
+        const s = info.uptime_s || 0;
+        const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+        document.getElementById('uptime').textContent = h + 'h ' + m + 'm ' + (s%60) + 's';
+        const peerEl = document.getElementById('peerStatus');
+        if (info.peer_connected) {
+          peerEl.innerHTML = '<span class="status-dot ok"></span>Connected';
+        } else {
+          peerEl.innerHTML = '<span class="status-dot err"></span>Disconnected';
+        }
+      } catch(e) {}
+
+      try {
+        const resp = await fetch('/api/config');
+        const cfg = await resp.json();
+        const pins = cfg.pins || {};
+        document.getElementById('sensor1Pin').textContent = 'GPIO ' + (pins.sensor_pin || '--');
+        document.getElementById('sensor2Pin').textContent = 'GPIO ' + (pins.sensor_pin_2 || '--');
+        const track = cfg.track || {};
+        document.getElementById('sensorSpacing').textContent = (track.sensor_spacing_m || 0.10) + ' m';
+      } catch(e) {}
+    }
+
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>
