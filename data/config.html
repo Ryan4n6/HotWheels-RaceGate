@@ -658,6 +658,11 @@
         // Load device info
         const infoResp = await fetch('/api/info');
         const info = await infoResp.json();
+        // Update Chrome tab title with device role
+        if (info.role && info.role !== 'unconfigured') {
+          const roleName = info.role.charAt(0).toUpperCase() + info.role.slice(1);
+          document.title = roleName + ' Gate - Setup';
+        }
         document.getElementById('deviceInfo').innerHTML =
           `<strong>Firmware:</strong> v${info.firmware || '?'}<br>
            <strong>Role:</strong> ${(info.role || 'unconfigured').toUpperCase()}<br>

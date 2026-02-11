@@ -491,7 +491,7 @@
 
       <!-- Garage Management Buttons -->
       <div id="garageStatus" style="text-align:center; margin:8px 0; font-size:0.85rem; font-weight:bold; min-height:1.2em;"></div>
-      <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="grid" style="grid-template-columns: repeat(4, 1fr);">
         <button class="btn btn-success" onclick="manualSaveGarage()">
           SAVE GARAGE
         </button>
@@ -502,6 +502,9 @@
           IMPORT GARAGE
           <input type="file" accept=".json" onchange="importGarage(event)" style="display:none;">
         </label>
+        <button class="btn btn-danger" onclick="clearGarage()">
+          CLEAR GARAGE
+        </button>
       </div>
     </div>
 
@@ -620,6 +623,12 @@
     // STATE HANDLING
     // ========================================================================
     function handleStateUpdate(data) {
+      // Update Chrome tab title with device role
+      if (data.role) {
+        const roleName = data.role.charAt(0).toUpperCase() + data.role.slice(1);
+        document.title = roleName + ' Gate - Hot Wheels Physics Lab';
+      }
+
       // Update scale factor from ESP32 config
       if (data.scaleFactor) {
         currentScaleFactor = data.scaleFactor;
@@ -772,6 +781,20 @@
       showGarageStatus(ok ? 'Garage saved to ESP32!' : 'Failed to save - check connection', ok);
     }
 
+    async function clearGarage() {
+      if (garage.length === 0) { alert('Garage is already empty!'); return; }
+      const c = prompt('Type CLEAR to delete all ' + garage.length + ' cars:');
+      if (c !== 'CLEAR') return;
+      garage = [];
+      activeCar = null;
+      localStorage.removeItem('hw_active_car');
+      localStorage.removeItem('hw_garage');
+      document.getElementById('currentCar').textContent = 'No car selected';
+      renderGarage();
+      const ok = await saveGarageToESP();
+      showGarageStatus(ok ? 'Garage cleared and reset!' : 'Cleared locally but ESP32 save failed', ok);
+    }
+
     function exportGarage() {
       if (garage.length === 0) { alert('No cars to export!'); return; }
       const blob = new Blob([JSON.stringify(garage, null, 2)], { type: 'application/json' });
@@ -802,7 +825,7 @@
               return;
             }
             // Ensure stats object exists
-            if (!car.stats) car.stats = { runs: 0, bestTime: Infinity, bestSpeed: 0 };
+            if (!car.stats) car.stats = { runs: 0, bestTime: null, bestSpeed: 0 };
             if (!car.id) car.id = Date.now() + Math.random();
           }
           // Merge or replace?
@@ -876,7 +899,7 @@
           name: name,
           color: color || 'N/A',
           weight: weight,
-          stats: { runs: 0, bestTime: Infinity, bestSpeed: 0 }
+          stats: { runs: 0, bestTime: null, bestSpeed: 0 }
         });
       }
 
@@ -927,28 +950,35 @@
         grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #999;">No cars in garage - add one above!</p>';
         return;
       }
-      grid.innerHTML = garage.map((car, i) =>
-        '<div class="garage-car ' + (activeCar && activeCar.id === car.id ? 'active' : '') + '" onclick="selectCar(' + i + ')">' +
+      grid.innerHTML = garage.map((car, i) => {
+        // Ensure stats object exists (may be missing from old/imported data)
+        if (!car.stats) car.stats = { runs: 0, bestTime: null, bestSpeed: 0 };
+        // Infinity becomes null in JSON round-trip — treat both as "no best time"
+        const hasBest = car.stats.bestTime != null && car.stats.bestTime !== Infinity && isFinite(car.stats.bestTime);
+        return '<div class="garage-car ' + (activeCar && activeCar.id === car.id ? 'active' : '') + '" onclick="selectCar(' + i + ')">' +
           '<button class="delete-btn" onclick="deleteCar(' + i + ', event)" title="Delete">x</button>' +
           '<button class="edit-btn" onclick="editCar(' + i + ', event)" title="Edit">&#9998;</button>' +
           '<h3>' + car.name + '</h3>' +
-          '<p>' + car.color + '</p>' +
+          '<p>' + (car.color || '') + '</p>' +
           '<p>' + car.weight + 'g</p>' +
           '<div class="garage-stats">' +
-            '<span>Runs: ' + car.stats.runs + '</span>' +
-            '<span>Best: ' + (car.stats.bestTime === Infinity ? '--' : car.stats.bestTime.toFixed(3)) + 's</span>' +
+            '<span>Runs: ' + (car.stats.runs || 0) + '</span>' +
+            '<span>Best: ' + (hasBest ? car.stats.bestTime.toFixed(3) : '--') + 's</span>' +
           '</div>' +
-        '</div>'
-      ).join('');
+        '</div>';
+      }).join('');
     }
 
     async function updateGarageStats(raceData) {
       if (!activeCar) return;
       const carIndex = garage.findIndex(c => c.id === activeCar.id);
       if (carIndex === -1) return;
+      if (!garage[carIndex].stats) garage[carIndex].stats = { runs: 0, bestTime: null, bestSpeed: 0 };
       garage[carIndex].stats.runs++;
-      if (raceData.time < garage[carIndex].stats.bestTime) garage[carIndex].stats.bestTime = raceData.time;
-      if (raceData.speed_mph > garage[carIndex].stats.bestSpeed) garage[carIndex].stats.bestSpeed = raceData.speed_mph;
+      // Use null instead of Infinity for "no best" (Infinity becomes null in JSON)
+      const prevBest = garage[carIndex].stats.bestTime;
+      if (prevBest == null || raceData.time < prevBest) garage[carIndex].stats.bestTime = raceData.time;
+      if (raceData.speed_mph > (garage[carIndex].stats.bestSpeed || 0)) garage[carIndex].stats.bestSpeed = raceData.speed_mph;
       await saveGarage();
     }
 

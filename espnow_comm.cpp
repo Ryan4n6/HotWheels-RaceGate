@@ -1,3 +1,32 @@
+// ============================================================================
+// TODO: AUTODISCOVERY PEER EXCHANGE (Feature Earmark)
+// ============================================================================
+// Currently, peer MAC addresses must be manually configured via the config UI.
+// The discovery broadcast (MSG_DISCOVER / MSG_DISCOVER_ACK) already exchanges
+// MAC addresses, roles, and hostnames between nodes.
+//
+// Planned enhancement: When a device discovers a peer via broadcast, it should:
+//   1. Auto-store the peer's MAC in its own config (cfg.peer_mac) and persist
+//      via saveConfig() — creating a "mesh registry" so all nodes know each
+//      other without manual MAC entry.
+//   2. The responding device should ALSO store the requester's MAC (from
+//      info->src_addr in the MSG_DISCOVER handler) — making it bidirectional.
+//   3. Add a "known_peers" array to DeviceConfig (config.h) to support
+//      future multi-lane setups where more than 2 nodes need to communicate.
+//   4. On boot, if cfg.peer_mac is 00:00:00:00:00:00, automatically run
+//      discovery for 30s and auto-pair with the first compatible peer
+//      (e.g., start gate auto-pairs with finish gate and vice versa).
+//   5. Add a "FORGET PEERS" button in config.html to clear stored MACs.
+//   6. Consider storing peers in a separate /peers.json on LittleFS rather
+//      than in config.json, to avoid requiring a reboot when peers change.
+//
+// Key data already available in discovery:
+//   - info->src_addr: requester's MAC (6 bytes)
+//   - msg.role: "start" or "finish"
+//   - msg.hostname: e.g. "hotwheels-A1B2"
+//   - msg.senderId: device ID number
+// ============================================================================
+
 #include "espnow_comm.h"
 #include "config.h"
 #include <ArduinoJson.h>
