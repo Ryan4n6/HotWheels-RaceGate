@@ -11,7 +11,6 @@ static volatile uint64_t triggerTime_us = 0;
 
 // Timing
 static unsigned long lastPingTime = 0;
-static unsigned long lastSyncTime = 0;
 static unsigned long triggeredTime = 0;
 
 // ============================================================================
@@ -55,11 +54,9 @@ void startGateLoop() {
     lastPingTime = millis();
   }
 
-  // Request clock sync every 10 seconds
-  if (millis() - lastSyncTime > 10000) {
-    sendToPeer(MSG_SYNC_REQ, nowUs(), 0);
-    lastSyncTime = millis();
-  }
+  // NOTE: The FINISH gate owns clock sync (it initiates SYNC_REQ every 10s).
+  // The start gate just responds to SYNC_REQ with MSG_OFFSET.
+  // This avoids both sides overwriting the global clockOffset_us.
 
   // Check peer connectivity timeout
   if (peerConnected && millis() - lastPeerSeen > 10000) {
@@ -81,14 +78,16 @@ void startGateLoop() {
         triggerDetected = false;
         triggeredTime = millis();
 
-        // Send START with precise timestamp to finish gate
+        // Send START with our LOCAL precise timestamp to finish gate.
+        // The finish gate will convert this to its timebase using clockOffset.
+        Serial.printf("[START] TRIGGERED at %llu us\n", triggerTime_us);
         sendToPeer(MSG_START, triggerTime_us, 0);
 
         // Detach interrupt to prevent re-trigger
         detachInterrupt(digitalPinToInterrupt(cfg.sensor_pin));
 
         setWLEDState("racing");
-        Serial.println("[START] TRIGGERED! Race started.");
+        Serial.println("[START] Race started.");
         broadcastState();
       }
       break;
@@ -135,14 +134,16 @@ void onStartGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
       break;
 
     case MSG_SYNC_REQ:
-      // Respond with our timestamp
+      // Finish gate is requesting clock sync - reply with our current time.
+      // The finish gate will use this to compute the offset between our clocks.
       sendToPeer(MSG_OFFSET, nowUs(), 0);
+      Serial.println("[START] Responded to sync request");
       break;
 
     case MSG_OFFSET:
-      // Clock sync response
-      clockOffset_us = msg.timestamp - receiveTime;
-      Serial.printf("[START] Clock offset: %lld us\n", clockOffset_us);
+      // We don't need to compute our own offset - the finish gate handles it.
+      // Just log it for debugging.
+      Serial.printf("[START] Received offset response (ignored - finish gate owns sync)\n");
       break;
 
     case MSG_ARM_CMD:

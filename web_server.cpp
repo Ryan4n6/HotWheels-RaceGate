@@ -112,17 +112,30 @@ void broadcastState() {
   doc["google_sheets_url"] = cfg.google_sheets_url;
 
   if (raceState == FINISHED && startTime_us > 0 && finishTime_us > 0) {
-    uint64_t elapsed_us = finishTime_us - startTime_us;
-    double elapsed_s = elapsed_us / 1000000.0;
-    double speed_ms = cfg.track_length_m / elapsed_s;
+    // Use SIGNED math to detect underflows instead of wrapping to huge values
+    int64_t elapsed_us = (int64_t)finishTime_us - (int64_t)startTime_us;
 
-    doc["time"] = elapsed_s;
-    doc["speed_mph"] = speed_ms * 2.23694;
-    doc["scale_mph"] = speed_ms * 2.23694 * (double)cfg.scale_factor;
+    // Sanity check: must be positive and < 60 seconds
+    if (elapsed_us > 0 && elapsed_us < 60000000LL) {
+      double elapsed_s = elapsed_us / 1000000.0;
+      double speed_ms = cfg.track_length_m / elapsed_s;
 
-    double mass_kg = currentWeight / 1000.0;
-    doc["momentum"] = mass_kg * speed_ms;
-    doc["ke"] = 0.5 * mass_kg * speed_ms * speed_ms;
+      doc["time"] = elapsed_s;
+      doc["speed_mph"] = speed_ms * 2.23694;
+      doc["scale_mph"] = speed_ms * 2.23694 * (double)cfg.scale_factor;
+
+      double mass_kg = currentWeight / 1000.0;
+      doc["momentum"] = mass_kg * speed_ms;
+      doc["ke"] = 0.5 * mass_kg * speed_ms * speed_ms;
+    } else {
+      // Timing error - report zeros instead of garbage
+      doc["time"] = 0;
+      doc["speed_mph"] = 0;
+      doc["scale_mph"] = 0;
+      doc["momentum"] = 0;
+      doc["ke"] = 0;
+      doc["timing_error"] = true;
+    }
   }
 
   String output;
