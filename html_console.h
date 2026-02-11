@@ -1,7 +1,9 @@
 #ifndef HTML_CONSOLE_H
 #define HTML_CONSOLE_H
+
 #include <Arduino.h>
-// M.A.S.S. Trap debug console page - embedded in firmware
+
+// M.A.S.S. Trap debug console - embedded in firmware
 static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
@@ -12,11 +14,16 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
   <title>M.A.S.S. Trap - Debug Console</title>
   <style>
     :root {
-      --hw-orange: #FF4400;
-      --hw-blue: #007ACC;
-      --hw-yellow: #FFCC00;
-      --hw-green: #28a745;
-      --hw-red: #dc3545;
+      --mass-navy: #1a1a2e;
+      --mass-gold: #d4af37;
+      --mass-blue: #4a90d9;
+      --mass-green: #28a745;
+      --mass-red: #dc3545;
+      --mass-dark: #0f0f1e;
+      --mass-card: #16213e;
+      --mass-card-border: #2a2a4a;
+      --mass-text: #e0e0e0;
+      --mass-muted: #8888aa;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -35,32 +42,36 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
       align-items: center;
       padding: 10px 0;
       margin-bottom: 10px;
-      border-bottom: 2px solid var(--hw-blue);
+      border-bottom: 2px solid var(--mass-gold);
     }
-    .header h1 { color: var(--hw-blue); font-size: 1.4rem; font-weight: 900; }
+    .header h1 { color: var(--mass-gold); font-size: 1.4rem; font-weight: 900; letter-spacing: 2px; }
     .header-links a {
-      color: var(--hw-yellow);
+      color: var(--mass-blue);
       text-decoration: none;
       margin-left: 15px;
       font-weight: 700;
       font-size: 0.9rem;
     }
-    .header-links a:hover { color: white; }
+    .header-links a:hover { color: var(--mass-gold); }
 
     /* Tabs */
     .tabs { display: flex; gap: 2px; margin-bottom: 0; }
     .tab-btn {
       padding: 10px 20px;
-      background: #2a2a3e;
-      color: #888;
-      border: none;
+      background: var(--mass-card);
+      color: var(--mass-muted);
+      border: 1px solid var(--mass-card-border);
+      border-bottom: none;
       border-radius: 8px 8px 0 0;
       cursor: pointer;
       font-weight: 700;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
     }
-    .tab-btn.active { background: #2a2a3e; color: var(--hw-blue); border-top: 3px solid var(--hw-blue); }
-    .tab-panel { display: none; background: #2a2a3e; border-radius: 0 8px 8px 8px; padding: 15px; }
+    .tab-btn:hover { color: var(--mass-text); }
+    .tab-btn.active { background: var(--mass-card); color: var(--mass-gold); border-color: var(--mass-gold); border-bottom: 1px solid var(--mass-card); }
+    .tab-panel { display: none; background: var(--mass-card); border: 1px solid var(--mass-card-border); border-radius: 0 8px 8px 8px; padding: 15px; margin-top: -1px; }
     .tab-panel.active { display: block; }
 
     /* Serial Monitor */
@@ -76,7 +87,7 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
       overflow-y: auto;
       white-space: pre-wrap;
       word-break: break-all;
-      border: 1px solid #333;
+      border: 1px solid var(--mass-card-border);
     }
     #serialOutput .ts { color: #666; }
     #serialOutput .err { color: #f55; }
@@ -111,10 +122,10 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
       text-transform: uppercase;
     }
     .btn:active { transform: translateY(1px); }
-    .btn-blue { background: var(--hw-blue); color: white; }
-    .btn-green { background: var(--hw-green); color: white; }
-    .btn-red { background: var(--hw-red); color: white; }
-    .btn-yellow { background: var(--hw-yellow); color: black; }
+    .btn-blue { background: var(--mass-blue); color: white; }
+    .btn-green { background: var(--mass-green); color: white; }
+    .btn-red { background: var(--mass-red); color: white; }
+    .btn-gold { background: var(--mass-gold); color: var(--mass-navy); }
     .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
 
     /* File Browser */
@@ -125,17 +136,17 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
       margin: 10px 0;
     }
     .file-item {
-      background: #1a1a2e;
-      border: 2px solid #333;
+      background: var(--mass-dark);
+      border: 2px solid var(--mass-card-border);
       border-radius: 8px;
       padding: 12px;
       cursor: pointer;
       transition: all 0.15s;
     }
-    .file-item:hover { border-color: var(--hw-blue); }
-    .file-item.active { border-color: var(--hw-green); background: #1a2e1a; }
-    .file-item .fname { font-weight: 700; color: var(--hw-blue); font-size: 0.9rem; word-break: break-all; }
-    .file-item .fsize { font-size: 0.75rem; color: #888; margin-top: 4px; }
+    .file-item:hover { border-color: var(--mass-blue); }
+    .file-item.active { border-color: var(--mass-gold); background: rgba(212,175,55,0.05); }
+    .file-item .fname { font-weight: 700; color: var(--mass-blue); font-size: 0.9rem; word-break: break-all; }
+    .file-item .fsize { font-size: 0.75rem; color: var(--mass-muted); margin-top: 4px; }
 
     /* Editor */
     #fileEditor {
@@ -148,10 +159,10 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
       border-radius: 6px;
       width: 100%;
       height: 45vh;
-      border: 1px solid #333;
+      border: 1px solid var(--mass-card-border);
       resize: vertical;
     }
-    #fileEditor:focus { outline: none; border-color: var(--hw-blue); }
+    #fileEditor:focus { outline: none; border-color: var(--mass-gold); }
 
     /* Status bar */
     .status-bar {
@@ -159,17 +170,17 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
       bottom: 0;
       left: 0;
       right: 0;
-      background: #111;
-      color: #aaa;
+      background: var(--mass-dark);
+      color: var(--mass-muted);
       padding: 6px 15px;
       font-size: 0.75rem;
       display: flex;
       justify-content: space-between;
-      border-top: 1px solid #333;
+      border-top: 1px solid var(--mass-card-border);
       z-index: 100;
     }
-    .status-bar .heap { color: var(--hw-green); }
-    .status-bar .uptime { color: var(--hw-yellow); }
+    .status-bar .heap { color: var(--mass-green); }
+    .status-bar .uptime { color: var(--mass-gold); }
 
     /* Device info grid */
     .info-grid {
@@ -179,13 +190,13 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
       margin: 10px 0;
     }
     .info-card {
-      background: #1a1a2e;
-      border: 1px solid #333;
+      background: var(--mass-dark);
+      border: 1px solid var(--mass-card-border);
       border-radius: 8px;
       padding: 12px;
     }
-    .info-card .label { font-size: 0.7rem; color: #888; text-transform: uppercase; font-weight: 700; }
-    .info-card .value { font-size: 1.2rem; color: var(--hw-blue); font-weight: 700; margin-top: 4px; }
+    .info-card .label { font-size: 0.7rem; color: var(--mass-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
+    .info-card .value { font-size: 1.2rem; color: var(--mass-gold); font-weight: 700; margin-top: 4px; }
 
     @media (max-width: 600px) {
       #serialOutput, #fileEditor { height: 40vh; }
@@ -235,7 +246,7 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
         <label>
           Filter: <input type="text" id="logFilter" placeholder="e.g. WIFI, ESP-NOW" style="background:#0d0d1a; color:#ddd; border:1px solid #444; border-radius:4px; padding:4px 8px; font-size:0.85rem; width:150px;">
         </label>
-        <button class="btn btn-yellow btn-sm" onclick="downloadLog()">Download</button>
+        <button class="btn btn-gold btn-sm" onclick="downloadLog()">Download</button>
       </div>
       <div id="serialOutput">Connecting...</div>
     </div>
@@ -244,7 +255,7 @@ static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
     <div id="tab-files" class="tab-panel">
       <div class="controls">
         <button class="btn btn-green" onclick="loadFileList()">Refresh Files</button>
-        <span id="currentFile" style="color:var(--hw-yellow); font-weight:700; margin-left:10px;">No file selected</span>
+        <span id="currentFile" style="color:var(--mass-gold); font-weight:700; margin-left:10px;">No file selected</span>
         <span style="flex:1;"></span>
         <button class="btn btn-blue" id="btnSaveFile" onclick="saveFile()" style="display:none;">Save File</button>
         <button class="btn btn-red btn-sm" id="btnDeleteFile" onclick="deleteFile()" style="display:none;">Delete</button>

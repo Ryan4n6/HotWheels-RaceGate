@@ -130,10 +130,27 @@ void setup() {
   LOG.println("[BOOT] Initializing Motion Analysis & Speed System...");
 
   // Initialize filesystem
-  if (!LittleFS.begin(true)) {
-    LOG.println("[BOOT] LittleFS mount FAILED!");
-  } else {
+  // IMPORTANT: Do NOT use LittleFS.begin(true) here!
+  // The 'true' parameter means "format if mount fails", which silently wipes
+  // all user data (config, garage, history) after OTA updates or flash glitches.
+  // Instead, try mounting WITHOUT format first, retry once, and only format
+  // as an absolute last resort on genuinely blank/corrupted partitions.
+  bool fsOK = LittleFS.begin(false);
+  if (!fsOK) {
+    LOG.println("[BOOT] LittleFS mount failed on first attempt, retrying...");
+    delay(100);
+    fsOK = LittleFS.begin(false);
+  }
+  if (!fsOK) {
+    // Filesystem is genuinely unformatted (first flash) or truly corrupted.
+    // Format it so the device can at least enter setup mode.
+    LOG.println("[BOOT] LittleFS mount failed twice — formatting (first flash or corruption)");
+    fsOK = LittleFS.begin(true);
+  }
+  if (fsOK) {
     LOG.println("[BOOT] LittleFS mounted OK");
+  } else {
+    LOG.println("[BOOT] LittleFS mount FAILED even after format!");
   }
 
   // Load configuration
