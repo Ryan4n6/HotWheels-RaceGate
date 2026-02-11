@@ -7,6 +7,7 @@
 #include "html_config.h"
 #include "html_console.h"
 #include "html_start_status.h"
+#include "html_chartjs.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <WiFi.h>
@@ -27,6 +28,19 @@ static String getContentType(const String& path) {
   if (path.endsWith(".json")) return "application/json";
   if (path.endsWith(".csv"))  return "text/csv";
   return "text/plain";
+}
+
+// ============================================================================
+// API AUTHENTICATION
+// Simple API key check for destructive endpoints.
+// Reuses OTA password as the key. Returns true if authorized.
+// ============================================================================
+static bool requireAuth() {
+  if (strlen(cfg.ota_password) == 0) return true; // No password set = open
+  String key = server.header("X-API-Key");
+  if (key == cfg.ota_password) return true;
+  server.send(401, "application/json", "{\"error\":\"Unauthorized. Provide X-API-Key header.\"}");
+  return false;
 }
 
 static void serveFile(const String& path, const String& contentType) {
@@ -166,6 +180,7 @@ static void handleApiConfig() {
     server.send(200, "application/json", configToJson());
   }
   else if (server.method() == HTTP_POST) {
+    if (!requireAuth()) return;
     String body = server.arg("plain");
     if (body.length() == 0) {
       server.send(400, "application/json", "{\"error\":\"Empty body\"}");
@@ -254,6 +269,7 @@ static void handleApiBackup() {
 }
 
 static void handleApiRestore() {
+  if (!requireAuth()) return;
   String body = server.arg("plain");
   if (body.length() == 0) {
     server.send(400, "application/json", "{\"error\":\"Empty body\"}");
@@ -288,6 +304,7 @@ static void handleApiRestore() {
 }
 
 static void handleApiReset() {
+  if (!requireAuth()) return;
   server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Factory reset. Rebooting...\"}");
   delay(500);
   resetConfig();
@@ -412,6 +429,7 @@ static void handleApiLog() {
     server.send(200, "text/plain", serialTee.getLog());
   }
   else if (server.method() == HTTP_DELETE) {
+    if (!requireAuth()) return;
     serialTee.clear();
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   }
@@ -469,6 +487,7 @@ static void handleApiFiles() {
     }
   }
   else if (server.method() == HTTP_POST) {
+    if (!requireAuth()) return;
     // Write file contents
     if (path.length() == 0 || path == "/") {
       server.send(400, "application/json", "{\"error\":\"No path specified\"}");
@@ -485,6 +504,7 @@ static void handleApiFiles() {
     server.send(200, "application/json", "{\"status\":\"ok\",\"size\":" + String(body.length()) + "}");
   }
   else if (server.method() == HTTP_DELETE) {
+    if (!requireAuth()) return;
     // Delete file
     if (path.length() == 0 || path == "/") {
       server.send(400, "application/json", "{\"error\":\"Cannot delete root\"}");
@@ -507,6 +527,10 @@ static void handleApiFiles() {
 // NORMAL MODE ROUTES
 // ============================================================================
 void initWebServer() {
+  // Collect X-API-Key header for authentication on protected endpoints
+  const char* headerKeys[] = {"X-API-Key"};
+  server.collectHeaders(headerKeys, 1);
+
   // Main page: serve role-appropriate page from PROGMEM
   // Finish gate gets the full dashboard (garage, history, physics)
   // Start gate gets a lightweight status page (no data recording)
@@ -516,6 +540,12 @@ void initWebServer() {
     } else {
       server.send_P(200, "text/html", INDEX_HTML);
     }
+  });
+
+  // Chart.js library from PROGMEM (cached by browser)
+  server.on("/chart.min.js", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "public, max-age=86400"); // Cache 24h
+    server.send_P(200, "application/javascript", CHARTJS_MIN);
   });
 
   // Config page from PROGMEM
@@ -558,7 +588,7 @@ void initWebServer() {
     }
     HTTPClient http;
     http.begin("http://" + String(cfg.wled_host) + "/json/info");
-    http.setTimeout(2000);
+    http.setTimeout(1000); // 1s for user-facing config page
     int code = http.GET();
     if (code == 200) {
       server.send(200, "application/json", http.getString());
@@ -575,7 +605,7 @@ void initWebServer() {
     }
     HTTPClient http;
     http.begin("http://" + String(cfg.wled_host) + "/json/effects");
-    http.setTimeout(2000);
+    http.setTimeout(1000); // 1s for user-facing config page
     int code = http.GET();
     if (code == 200) {
       server.send(200, "application/json", http.getString());
@@ -608,6 +638,10 @@ void startWebServer() {
 // SETUP MODE SERVER (captive portal)
 // ============================================================================
 void initSetupServer() {
+  // Collect X-API-Key header for authentication
+  const char* headerKeys[] = {"X-API-Key"};
+  server.collectHeaders(headerKeys, 1);
+
   // In setup mode, serve config page from PROGMEM at root
   server.on("/", HTTP_GET, []() {
     server.send_P(200, "text/html", CONFIG_HTML);

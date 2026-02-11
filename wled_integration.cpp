@@ -3,6 +3,11 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
+// Auto-sleep timer: turn off WLED after 5 minutes of inactivity
+static unsigned long lastWLEDActivity = 0;
+static bool wledActive = false;
+static const unsigned long WLED_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
 void setWLEDState(const char* raceState) {
   if (strlen(cfg.wled_host) == 0) return; // WLED not configured
 
@@ -16,7 +21,7 @@ void setWLEDState(const char* raceState) {
   HTTPClient http;
   String url = "http://" + String(cfg.wled_host) + "/json/state";
   http.begin(url);
-  http.setTimeout(500); // 500ms max - don't block race timing
+  http.setTimeout(100); // 100ms max - LAN is fast, don't block race timing
   http.addHeader("Content-Type", "application/json");
 
   StaticJsonDocument<128> doc;
@@ -38,6 +43,45 @@ void setWLEDState(const char* raceState) {
     LOG.printf("[WLED] Request failed: %s\n", http.errorToString(httpCode).c_str());
   }
   http.end();
+
+  // Reset activity timer
+  lastWLEDActivity = millis();
+  wledActive = true;
+}
+
+void setWLEDOff() {
+  if (strlen(cfg.wled_host) == 0) return;
+
+  HTTPClient http;
+  String url = "http://" + String(cfg.wled_host) + "/json/state";
+  http.begin(url);
+  http.setTimeout(100);
+  http.addHeader("Content-Type", "application/json");
+
+  int httpCode = http.POST("{\"on\":false}");
+  if (httpCode > 0) {
+    LOG.println("[WLED] Turned off (auto-sleep)");
+  }
+  http.end();
+  wledActive = false;
+}
+
+void resetWLEDActivity() {
+  lastWLEDActivity = millis();
+  // If WLED was asleep, wake it up to idle state
+  if (!wledActive && strlen(cfg.wled_host) > 0) {
+    wledActive = true;
+    setWLEDState("idle");
+  }
+}
+
+void checkWLEDTimeout() {
+  if (!wledActive) return;
+  if (strlen(cfg.wled_host) == 0) return;
+  if (millis() - lastWLEDActivity > WLED_TIMEOUT_MS) {
+    LOG.println("[WLED] Inactivity timeout - turning off");
+    setWLEDOff();
+  }
 }
 
 bool testWLEDConnection() {
@@ -46,7 +90,7 @@ bool testWLEDConnection() {
   HTTPClient http;
   String url = "http://" + String(cfg.wled_host) + "/json/info";
   http.begin(url);
-  http.setTimeout(2000);
+  http.setTimeout(2000); // Config page call - 2s is fine here
 
   int httpCode = http.GET();
   http.end();

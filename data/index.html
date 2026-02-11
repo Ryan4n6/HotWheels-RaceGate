@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="fw-version" content="2.2.0">
+  <meta name="fw-version" content="2.3.0">
   <title>Hot Wheels Physics Lab</title>
   <style>
     /* ===== VARIABLES ===== */
@@ -383,6 +383,96 @@
       background: #e9ecef;
     }
 
+    /* ===== LED VISUALIZER BAR ===== */
+    .led-visualizer {
+      height: 12px;
+      width: 100%;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      background: #333;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5) inset;
+      transition: all 0.3s;
+    }
+    .led-visualizer.idle {
+      background: #28a745;
+      box-shadow: 0 0 15px #28a745;
+      animation: breathe 3s infinite ease-in-out;
+    }
+    .led-visualizer.armed {
+      background: #ff0000;
+      box-shadow: 0 0 20px #ff0000;
+      animation: pulse-fast 0.5s infinite;
+    }
+    .led-visualizer.racing {
+      background: linear-gradient(90deg, transparent 0%, #ffcc00 50%, transparent 100%);
+      background-size: 200% 100%;
+      animation: chase 0.5s infinite linear;
+    }
+    .led-visualizer.finished {
+      background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
+      background-size: 400% 100%;
+      animation: rainbow-flow 2s infinite linear;
+      box-shadow: 0 0 20px rgba(255,255,255,0.5);
+    }
+    @keyframes breathe { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+    @keyframes pulse-fast { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    @keyframes chase { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    @keyframes rainbow-flow { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+    /* ===== GHOST CAR COMPARISON ===== */
+    #ghostSection { display: none; }
+    #ghostSection.new-record { border-color: var(--hw-green); }
+    #ghostSection.new-record .section-title { background: var(--hw-green); }
+    #ghostSection.slower { border-color: var(--hw-red); }
+    #ghostSection.slower .section-title { background: var(--hw-red); }
+
+    /* ===== CHARTS ===== */
+    #chartsSection canvas { max-width: 100%; background: white; border-radius: 8px; }
+
+    /* ===== PHYSICS EXPLAINER ===== */
+    .formula-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      padding-top: 15px;
+    }
+    .formula-card {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      border: 2px solid #e9ecef;
+    }
+    .formula-title {
+      font-weight: 900;
+      text-transform: uppercase;
+      color: var(--hw-blue);
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+    }
+    .formula-eq {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--hw-orange);
+      font-family: 'Georgia', serif;
+      margin-bottom: 8px;
+    }
+    .formula-desc {
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 12px;
+    }
+    .formula-values {
+      background: white;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: var(--hw-green);
+      font-weight: bold;
+      min-height: 2.5em;
+    }
+
     /* ===== RESPONSIVE ===== */
     @media (max-width: 768px) {
       .header h1 {
@@ -394,6 +484,14 @@
       }
 
       .garage-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #chartsSection .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .formula-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -420,6 +518,9 @@
     <div id="stateBanner" class="state-banner">
       INITIALIZING...
     </div>
+
+    <!-- LED Visualizer Bar (mirrors WLED state) -->
+    <div id="ledBar" class="led-visualizer"></div>
 
     <!-- Quick Actions -->
     <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
@@ -479,6 +580,60 @@
         <div class="card-label">Total Runs</div>
         <div>
           <span id="statRuns" class="card-value">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ghost Car Comparison (appears after race finishes) -->
+    <div id="ghostSection" class="section">
+      <div class="section-title">VS PERSONAL BEST</div>
+      <div style="text-align:center; padding:15px;">
+        <div id="ghostDelta" style="font-size:3rem; font-weight:900; line-height:1.2;"></div>
+        <div id="ghostLabel" style="font-size:1rem; color:#666; margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- Science Fair Charts -->
+    <div class="section" id="chartsSection">
+      <div class="section-title">SCIENCE DATA</div>
+      <div class="grid" style="grid-template-columns: 1fr 1fr; margin-top:10px;">
+        <div><canvas id="speedChart" height="250"></canvas></div>
+        <div><canvas id="keChart" height="250"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Physics Explainer -->
+    <div class="section" id="physicsExplainer">
+      <div class="section-title">HOW THE MATH WORKS</div>
+      <div id="explainerToggle" onclick="toggleExplainer()" style="text-align:center; cursor:pointer; padding:8px; color:var(--hw-blue); font-weight:bold;">
+        Show Formulas &#x25BC;
+      </div>
+      <div id="explainerContent" style="display:none;">
+        <div class="formula-grid">
+          <div class="formula-card">
+            <div class="formula-title">SPEED (Velocity)</div>
+            <div class="formula-eq">v = d / t</div>
+            <div class="formula-desc">velocity = distance &divide; time</div>
+            <div id="formulaSpeed" class="formula-values">Run a race to see values!</div>
+          </div>
+          <div class="formula-card">
+            <div class="formula-title">MOMENTUM</div>
+            <div class="formula-eq">p = m &times; v</div>
+            <div class="formula-desc">momentum = mass &times; velocity</div>
+            <div id="formulaMomentum" class="formula-values">Run a race to see values!</div>
+          </div>
+          <div class="formula-card">
+            <div class="formula-title">KINETIC ENERGY</div>
+            <div class="formula-eq">KE = &frac12; m v&sup2;</div>
+            <div class="formula-desc">kinetic energy = one half &times; mass &times; velocity squared</div>
+            <div id="formulaKE" class="formula-values">Run a race to see values!</div>
+          </div>
+          <div class="formula-card">
+            <div class="formula-title">G-FORCE</div>
+            <div class="formula-eq">a = v / t</div>
+            <div class="formula-desc">acceleration = velocity &divide; time, then &divide; 9.8 for G's</div>
+            <div id="formulaGForce" class="formula-values">Run a race to see values!</div>
+          </div>
         </div>
       </div>
     </div>
@@ -593,6 +748,18 @@
     let currentScaleFactor = 64; // Updated from ESP32 state
     let configSheetsUrl = ''; // Updated from ESP32 state
 
+    // XSS-safe car display helper
+    function setCurrentCarDisplay(car) {
+      const el = document.getElementById('currentCar');
+      el.textContent = ''; // Clear
+      el.appendChild(document.createTextNode('Currently Racing: '));
+      const span = document.createElement('span');
+      span.style.color = 'var(--hw-green)';
+      span.textContent = car.name; // Safe: textContent escapes HTML
+      el.appendChild(span);
+      el.appendChild(document.createTextNode(' (' + car.weight + 'g)'));
+    }
+
     function connectWebSocket() {
       const wsUrl = `ws://${window.location.hostname}:81`;
       ws = new WebSocket(wsUrl);
@@ -670,6 +837,15 @@
       banner.className = 'state-banner ' + data.state.toLowerCase();
       banner.textContent = data.state;
 
+      // Update LED visualizer bar (mirrors WLED state)
+      const ledBar = document.getElementById('ledBar');
+      ledBar.className = 'led-visualizer ' + data.state.toLowerCase();
+
+      // Hide ghost section when not FINISHED
+      if (data.state !== 'FINISHED') {
+        document.getElementById('ghostSection').style.display = 'none';
+      }
+
       // Update stats
       document.getElementById('statTime').textContent = data.time ? data.time.toFixed(3) : '--';
       document.getElementById('statSpeed').textContent = data.speed_mph ? data.speed_mph.toFixed(1) : '--';
@@ -681,8 +857,11 @@
       // If race finished, update garage stats and upload
       // Check data.time !== undefined (not just truthy) because 0 is a valid timing error
       if (data.state === 'FINISHED' && data.time !== undefined) {
+        showGhostComparison(data);   // BEFORE updateGarageStats (reads old best)
         updateGarageStats(data);
         addToHistory(data);
+        addRaceToCharts(data);
+        updateExplainerValues(data);
 
         // Auto-upload to Google Sheets if configured AND time is valid (> 0)
         const sheetsUrl = document.getElementById('sheetsUrl').value || configSheetsUrl;
@@ -902,8 +1081,7 @@
           activeCar = garage[editingCarIndex];
           localStorage.setItem('hw_active_car', JSON.stringify(activeCar));
           send({ cmd: 'setCar', name: activeCar.name, weight: activeCar.weight });
-          document.getElementById('currentCar').innerHTML =
-            'Currently Racing: <span style="color: var(--hw-green);">' + activeCar.name + '</span> (' + activeCar.weight + 'g)';
+          setCurrentCarDisplay(activeCar);
         }
         editingCarIndex = -1;
         document.getElementById('addCarBtn').textContent = 'ADD TO GARAGE';
@@ -943,8 +1121,7 @@
       activeCar = garage[index];
       localStorage.setItem('hw_active_car', JSON.stringify(activeCar));
       send({ cmd: 'setCar', name: activeCar.name, weight: activeCar.weight });
-      document.getElementById('currentCar').innerHTML =
-        'Currently Racing: <span style="color: var(--hw-green);">' + activeCar.name + '</span> (' + activeCar.weight + 'g)';
+      setCurrentCarDisplay(activeCar);
       renderGarage();
     }
 
@@ -1168,6 +1345,192 @@
     }
 
     // ========================================================================
+    // GHOST CAR COMPARISON
+    // ========================================================================
+    function showGhostComparison(raceData) {
+      const section = document.getElementById('ghostSection');
+      const deltaEl = document.getElementById('ghostDelta');
+      const labelEl = document.getElementById('ghostLabel');
+
+      if (!activeCar) { section.style.display = 'none'; return; }
+
+      const carIndex = garage.findIndex(c => c.id === activeCar.id);
+      if (carIndex === -1 || !garage[carIndex].stats) { section.style.display = 'none'; return; }
+
+      const prevBest = garage[carIndex].stats.bestTime;
+
+      if (prevBest == null || !isFinite(prevBest)) {
+        // First run for this car
+        section.style.display = 'block';
+        section.className = 'section new-record';
+        deltaEl.textContent = 'FIRST RUN!';
+        deltaEl.style.color = 'var(--hw-green)';
+        labelEl.textContent = raceData.time.toFixed(3) + 's is the benchmark for ' + activeCar.name;
+        return;
+      }
+
+      const delta = raceData.time - prevBest;
+      section.style.display = 'block';
+
+      if (delta < 0) {
+        section.className = 'section new-record';
+        deltaEl.textContent = delta.toFixed(3) + 's';
+        deltaEl.style.color = 'var(--hw-green)';
+        labelEl.textContent = 'NEW PERSONAL BEST! Previous: ' + prevBest.toFixed(3) + 's';
+      } else if (delta === 0) {
+        section.className = 'section new-record';
+        deltaEl.textContent = 'TIED!';
+        deltaEl.style.color = 'var(--hw-yellow)';
+        labelEl.textContent = 'Matched personal best: ' + prevBest.toFixed(3) + 's';
+      } else {
+        section.className = 'section slower';
+        deltaEl.textContent = '+' + delta.toFixed(3) + 's';
+        deltaEl.style.color = 'var(--hw-red)';
+        labelEl.textContent = 'Personal best: ' + prevBest.toFixed(3) + 's';
+      }
+    }
+
+    // ========================================================================
+    // CHART.JS SCIENCE FAIR CHARTS
+    // ========================================================================
+    let speedChart = null;
+    let keChart = null;
+
+    function initCharts() {
+      if (typeof Chart === 'undefined') return; // Chart.js not loaded yet
+
+      const speedCtx = document.getElementById('speedChart').getContext('2d');
+      speedChart = new Chart(speedCtx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Speed (mph)',
+            data: [],
+            borderColor: '#007ACC',
+            backgroundColor: 'rgba(0,122,204,0.1)',
+            borderWidth: 2,
+            pointBackgroundColor: '#FF4400',
+            pointRadius: 4,
+            tension: 0.1,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: 'Speed vs Run Number', font: { size: 14, weight: 'bold' } },
+            legend: { display: false }
+          },
+          scales: {
+            x: { title: { display: true, text: 'Run #' } },
+            y: { title: { display: true, text: 'Speed (mph)' }, beginAtZero: true }
+          }
+        }
+      });
+
+      const keCtx = document.getElementById('keChart').getContext('2d');
+      keChart = new Chart(keCtx, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: 'KE vs Weight',
+            data: [],
+            backgroundColor: '#FF4400',
+            pointRadius: 6,
+            pointHoverRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: { display: true, text: 'Kinetic Energy vs Weight', font: { size: 14, weight: 'bold' } },
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return ctx.raw.car + ': ' + ctx.raw.y.toFixed(4) + 'J @ ' + ctx.raw.x + 'g';
+                }
+              }
+            }
+          },
+          scales: {
+            x: { title: { display: true, text: 'Weight (g)' } },
+            y: { title: { display: true, text: 'Kinetic Energy (J)' }, beginAtZero: true }
+          }
+        }
+      });
+
+      // Populate from existing history
+      updateChartsFromHistory();
+    }
+
+    function updateChartsFromHistory() {
+      if (!speedChart || !keChart) return;
+
+      const chronological = [...history].reverse();
+      speedChart.data.labels = chronological.map((h, i) => '#' + (h.run || i + 1));
+      speedChart.data.datasets[0].data = chronological.map(h => h.speed_mph);
+      speedChart.update();
+
+      keChart.data.datasets[0].data = chronological.map(h => ({
+        x: h.weight,
+        y: h.ke,
+        car: h.car
+      }));
+      keChart.update();
+    }
+
+    function addRaceToCharts(raceData) {
+      if (!speedChart || !keChart) return;
+
+      speedChart.data.labels.push('#' + (raceData.totalRuns || speedChart.data.labels.length + 1));
+      speedChart.data.datasets[0].data.push(raceData.speed_mph);
+      speedChart.update();
+
+      keChart.data.datasets[0].data.push({
+        x: raceData.weight,
+        y: raceData.ke,
+        car: raceData.car
+      });
+      keChart.update();
+    }
+
+    // ========================================================================
+    // PHYSICS EXPLAINER
+    // ========================================================================
+    let explainerOpen = false;
+
+    function toggleExplainer() {
+      explainerOpen = !explainerOpen;
+      document.getElementById('explainerContent').style.display = explainerOpen ? 'block' : 'none';
+      document.getElementById('explainerToggle').innerHTML =
+        (explainerOpen ? 'Hide Formulas &#x25B2;' : 'Show Formulas &#x25BC;');
+    }
+
+    function updateExplainerValues(data) {
+      if (!data.time || data.time <= 0) return;
+
+      const d = parseFloat(document.getElementById('trackLength').value) || 2.0;
+      const t = data.time;
+      const v_ms = d / t;
+      const m_kg = (data.weight || 35) / 1000.0;
+      const gForce = (v_ms / t) / 9.8;
+
+      document.getElementById('formulaSpeed').innerHTML =
+        'v = ' + d.toFixed(2) + 'm &divide; ' + t.toFixed(3) + 's = <strong>' + v_ms.toFixed(2) + ' m/s</strong> (' + (v_ms * 2.23694).toFixed(1) + ' mph)';
+
+      document.getElementById('formulaMomentum').innerHTML =
+        'p = ' + m_kg.toFixed(3) + 'kg &times; ' + v_ms.toFixed(2) + 'm/s = <strong>' + (m_kg * v_ms).toFixed(4) + ' kg&middot;m/s</strong>';
+
+      document.getElementById('formulaKE').innerHTML =
+        'KE = 0.5 &times; ' + m_kg.toFixed(3) + 'kg &times; ' + v_ms.toFixed(2) + '&sup2; = <strong>' + (0.5 * m_kg * v_ms * v_ms).toFixed(4) + ' J</strong>';
+
+      document.getElementById('formulaGForce').innerHTML =
+        'a = ' + v_ms.toFixed(2) + 'm/s &divide; ' + t.toFixed(3) + 's &divide; 9.8 = <strong>' + gForce.toFixed(2) + ' G</strong>';
+    }
+
+    // ========================================================================
     // INITIALIZATION
     // ========================================================================
     // Fetch and display firmware version
@@ -1183,14 +1546,14 @@
       }
     }
 
-    window.onload = () => {
-      loadGarageFromESP();   // Load from ESP32 (falls back to localStorage)
-      loadHistoryFromESP();  // Load from ESP32 (falls back to localStorage)
+    window.onload = async () => {
+      await loadGarageFromESP();   // Load from ESP32 (falls back to localStorage)
+      await loadHistoryFromESP();  // Load from ESP32 (falls back to localStorage)
+      initCharts();                // Initialize charts after history is loaded
       connectWebSocket();
       loadVersion();
       if (activeCar) {
-        document.getElementById('currentCar').innerHTML =
-          'Currently Racing: <span style="color: var(--hw-green);">' + activeCar.name + '</span> (' + activeCar.weight + 'g)';
+        setCurrentCarDisplay(activeCar);
       }
     };
 
@@ -1208,5 +1571,6 @@
       } catch (e) { /* best effort */ }
     });
   </script>
+  <script src="/chart.min.js"></script>
 </body>
 </html>

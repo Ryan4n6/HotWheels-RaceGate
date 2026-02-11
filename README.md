@@ -244,8 +244,17 @@ The HTML files in `data/` are the **source files** you edit. They get wrapped in
 - [ ] **Multi-Lane Support** — Multiple finish sensors for parallel lane timing
 - [ ] **Tournament Bracket Mode** — Head-to-head elimination bracket with automatic advancement
 - [ ] **Audio Announcements** — Race countdown, results readout via connected speaker
-- [ ] **Data Visualization** — Built-in charts and graphs for science fair presentations
 - [ ] **Single Source of Truth Architecture** — All databases migrate to hub device; gate nodes become pure sensors
+
+### Completed (v2.3.0)
+- [x] **Chart.js Data Visualization** — Speed vs Run Number and KE vs Weight scatter plots, auto-updating after each race
+- [x] **Ghost Car Comparison** — Personal best delta display (±time) with new record/slower visual indicators
+- [x] **Physics Explainer Panel** — Collapsible formula display with live race values (v=d/t, p=mv, KE=½mv², G-force)
+- [x] **LED Visualizer Bar** — CSS animations mirroring WLED states (breathe/pulse/chase/rainbow)
+- [x] **API Authentication** — X-API-Key header protection on destructive endpoints (reuses OTA password)
+- [x] **WLED Auto-Sleep** — 5-minute inactivity timer turns off WLED, wakes on next race activity
+- [x] **WLED Timeout Reduction** — Race-path HTTP timeout reduced from 500ms to 100ms
+- [x] **XSS Protection** — User input (car names) rendered with textContent instead of innerHTML
 
 ### Completed (v2.2.0)
 - [x] Unified firmware (start + finish from one codebase)
@@ -262,6 +271,10 @@ The HTML files in `data/` are the **source files** you edit. They get wrapped in
 - [x] OTA firmware updates
 - [x] Backup/restore configuration
 - [x] Web-based serial console with file browser
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
 ## License
 

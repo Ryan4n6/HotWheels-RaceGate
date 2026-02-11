@@ -1,15 +1,14 @@
 #ifndef HTML_CONSOLE_H
 #define HTML_CONSOLE_H
-
 #include <Arduino.h>
-
-const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
+// Debug console page - embedded in firmware for OTA-friendly updates
+static const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="fw-version" content="2.2.0">
+  <meta name="fw-version" content="2.3.0">
   <title>Debug Console - Hot Wheels</title>
   <style>
     :root {
@@ -269,6 +268,23 @@ const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
 
   <script>
     // ====================================================================
+    // API AUTHENTICATION HELPER
+    // ====================================================================
+    function getApiKey() {
+      if (!window._apiKey) {
+        window._apiKey = localStorage.getItem('hw_api_key') || '';
+      }
+      if (!window._apiKey) {
+        window._apiKey = prompt('Enter API key (OTA password):') || '';
+        if (window._apiKey) localStorage.setItem('hw_api_key', window._apiKey);
+      }
+      return window._apiKey;
+    }
+    function authHeaders(extra) {
+      return Object.assign({ 'X-API-Key': getApiKey() }, extra || {});
+    }
+
+    // ====================================================================
     // DEVICE INFO
     // ====================================================================
     async function loadDeviceInfo() {
@@ -362,7 +378,7 @@ const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
 
     async function clearLog() {
       try {
-        await fetch('/api/log', { method: 'DELETE' });
+        await fetch('/api/log', { method: 'DELETE', headers: authHeaders() });
         rawLog = '';
         document.getElementById('serialOutput').textContent = '(log cleared)';
       } catch (e) {}
@@ -449,7 +465,7 @@ const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
       try {
         const resp = await fetch('/api/files?path=' + encodeURIComponent(currentFilePath), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/octet-stream' },
+          headers: authHeaders({ 'Content-Type': 'application/octet-stream' }),
           body: content
         });
         const result = await resp.json();
@@ -470,7 +486,8 @@ const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
       if (!confirm('Delete ' + currentFilePath + '? This cannot be undone.')) return;
       try {
         const resp = await fetch('/api/files?path=' + encodeURIComponent(currentFilePath), {
-          method: 'DELETE'
+          method: 'DELETE',
+          headers: authHeaders()
         });
         const result = await resp.json();
         if (result.status === 'ok') {
@@ -526,7 +543,5 @@ const char CONSOLE_HTML[] PROGMEM = R"rawliteral(
   </script>
 </body>
 </html>
-
 )rawliteral";
-
-#endif // HTML_CONSOLE_H
+#endif

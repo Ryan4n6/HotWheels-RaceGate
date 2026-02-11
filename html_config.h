@@ -1,15 +1,14 @@
 #ifndef HTML_CONFIG_H
 #define HTML_CONFIG_H
-
 #include <Arduino.h>
-
-const char CONFIG_HTML[] PROGMEM = R"rawliteral(
+// Configuration page - embedded in firmware for OTA-friendly updates
+static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="fw-version" content="2.2.0">
+  <meta name="fw-version" content="2.3.0">
   <title>Hot Wheels Race Gate - Setup</title>
   <style>
     :root {
@@ -603,7 +602,7 @@ const char CONFIG_HTML[] PROGMEM = R"rawliteral(
         showStatus('Saving configuration...', '');
         const resp = await fetch('/api/config', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(config)
         });
         const result = await resp.json();
@@ -641,7 +640,7 @@ const char CONFIG_HTML[] PROGMEM = R"rawliteral(
         showStatus('Restoring configuration...', '');
         const resp = await fetch('/api/restore', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: text
         });
         if (resp.ok) {
@@ -658,11 +657,19 @@ const char CONFIG_HTML[] PROGMEM = R"rawliteral(
       if (!confirm('This will delete ALL configuration and race data. Continue?')) return;
       if (!confirm('Are you sure? Type YES to confirm.')) return;
       try {
-        await fetch('/api/reset', { method: 'POST' });
+        await fetch('/api/reset', { method: 'POST', headers: authHeaders() });
         showStatus('Factory reset! Device rebooting into setup mode...', 'success');
       } catch (e) {
         showStatus('Reset failed', 'error');
       }
+    }
+
+    // ====================================================================
+    // API AUTHENTICATION HELPER
+    // ====================================================================
+    function authHeaders(extra) {
+      const key = document.getElementById('otaPassword').value || 'admin';
+      return Object.assign({ 'X-API-Key': key }, extra || {});
     }
 
     // ====================================================================
@@ -766,7 +773,5 @@ const char CONFIG_HTML[] PROGMEM = R"rawliteral(
   </script>
 </body>
 </html>
-
 )rawliteral";
-
-#endif // HTML_CONFIG_H
+#endif

@@ -5,8 +5,8 @@
 
 #define CONFIG_FILE "/config.json"
 #define CONFIG_VERSION 1
-#define FIRMWARE_VERSION "2.2.0"
-#define WEB_UI_VERSION  "2.2.0"
+#define FIRMWARE_VERSION "2.3.0"
+#define WEB_UI_VERSION  "2.3.0"
 #define BUILD_DATE      __DATE__
 #define BUILD_TIME      __TIME__
 

@@ -87,6 +87,9 @@ void finishGateLoop() {
     LOG.println("[FINISH] Auto-reset to IDLE");
   }
 
+  // Check WLED auto-sleep timer
+  checkWLEDTimeout();
+
   // Handle race finish (runs ONCE when ISR sets FINISHED)
   if (raceState == FINISHED && finishTime_us > 0 && !waitingToReset) {
     // ================================================================
