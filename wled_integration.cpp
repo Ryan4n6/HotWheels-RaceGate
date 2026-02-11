@@ -33,9 +33,9 @@ void setWLEDState(const char* raceState) {
 
   int httpCode = http.POST(body);
   if (httpCode > 0) {
-    Serial.printf("[WLED] Effect %d set (state: %s)\n", effectId, raceState);
+    LOG.printf("[WLED] Effect %d set (state: %s)\n", effectId, raceState);
   } else {
-    Serial.printf("[WLED] Request failed: %s\n", http.errorToString(httpCode).c_str());
+    LOG.printf("[WLED] Request failed: %s\n", http.errorToString(httpCode).c_str());
   }
   http.end();
 }

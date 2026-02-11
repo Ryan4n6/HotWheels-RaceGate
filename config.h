@@ -5,7 +5,13 @@
 
 #define CONFIG_FILE "/config.json"
 #define CONFIG_VERSION 1
-#define FIRMWARE_VERSION "2.1.0"
+#define FIRMWARE_VERSION "2.1.1"
+
+// Global log output — all Serial.printf calls should use LOG.printf instead
+// This captures output for the web serial monitor (/console)
+// Set to &serialTee in setup(), falls back to Serial before that
+extern Print* logOutput;
+#define LOG (*logOutput)
 
 // GPIO blacklist - pins unsafe for general use on ESP32/ESP32-S3
 // GPIO 0: boot button, 6-11: flash SPI (ESP32),

@@ -50,6 +50,9 @@
 DNSServer dnsServer;
 bool setupMode = false;
 
+// Global log output — defaults to Serial, switched to serialTee in setup()
+Print* logOutput = &Serial;
+
 // Helper: get unique 4-char hex suffix from hardware MAC
 static void getMacSuffix(char* buf, size_t len) {
   uint8_t mac[6];
@@ -72,7 +75,7 @@ static bool connectWiFi(const char* ssid, const char* pass, const char* hostname
   WiFi.setHostname(hostname);
   WiFi.begin(ssid, pass);
 
-  Serial.printf("[WIFI] Connecting to '%s'", ssid);
+  LOG.printf("[WIFI] Connecting to '%s'", ssid);
 
   // LED feedback while connecting
   pinMode(cfg.led_pin > 0 ? cfg.led_pin : 2, OUTPUT);
@@ -83,13 +86,13 @@ static bool connectWiFi(const char* ssid, const char* pass, const char* hostname
   while (WiFi.status() != WL_CONNECTED && millis() - start < 20000) {
     delay(200);
     digitalWrite(ledPin, !digitalRead(ledPin));
-    Serial.print(".");
+    LOG.print(".");
   }
-  Serial.println();
+  LOG.println();
 
   if (WiFi.status() == WL_CONNECTED) {
     digitalWrite(ledPin, HIGH);
-    Serial.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+    LOG.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
 
     // NOW switch to AP_STA so ESP-NOW can work alongside WiFi.
     // Do this AFTER successful connection to avoid confusing the driver.
@@ -99,7 +102,7 @@ static bool connectWiFi(const char* ssid, const char* pass, const char* hostname
     return true;
   }
 
-  Serial.printf("[WIFI] Failed to connect to '%s' (status=%d)\n", ssid, (int)WiFi.status());
+  LOG.printf("[WIFI] Failed to connect to '%s' (status=%d)\n", ssid, (int)WiFi.status());
   return false;
 }
 
@@ -107,17 +110,21 @@ static bool connectWiFi(const char* ssid, const char* pass, const char* hostname
 // SETUP
 // ============================================================================
 void setup() {
-  Serial.begin(115200);
+  // Initialize serial through the tee so all output is captured for the web console.
+  // serialTee.begin() calls Serial.begin() internally, then all prints via
+  // serialTee also go to the UART as normal.
+  serialTee.begin(115200);
+  logOutput = &serialTee;  // Redirect LOG macro to captured output
   delay(500);
-  Serial.println("\n\n========================================");
-  Serial.println("  HOT WHEELS RACE GATE v" FIRMWARE_VERSION);
-  Serial.println("========================================");
+  LOG.println("\n\n========================================");
+  LOG.println("  HOT WHEELS RACE GATE v" FIRMWARE_VERSION);
+  LOG.println("========================================");
 
   // Initialize filesystem
   if (!LittleFS.begin(true)) {
-    Serial.println("[BOOT] LittleFS mount FAILED!");
+    LOG.println("[BOOT] LittleFS mount FAILED!");
   } else {
-    Serial.println("[BOOT] LittleFS mounted OK");
+    LOG.println("[BOOT] LittleFS mounted OK");
   }
 
   // Load configuration
@@ -128,7 +135,7 @@ void setup() {
     // SETUP MODE - First boot or factory reset
     // ====================================================================
     setupMode = true;
-    Serial.println("[BOOT] No config found - entering SETUP MODE");
+    LOG.println("[BOOT] No config found - entering SETUP MODE");
 
     // Create AP with unique SSID using last 2 bytes of the hardware MAC
     char suffix[5];
@@ -139,8 +146,8 @@ void setup() {
     WiFi.softAP(apName.c_str());
     delay(500);
 
-    Serial.printf("[BOOT] AP started: %s\n", apName.c_str());
-    Serial.printf("[BOOT] Connect to WiFi '%s' and open http://192.168.4.1\n", apName.c_str());
+    LOG.printf("[BOOT] AP started: %s\n", apName.c_str());
+    LOG.printf("[BOOT] Connect to WiFi '%s' and open http://192.168.4.1\n", apName.c_str());
 
     // Start DNS server for captive portal
     dnsServer.start(53, "*", WiFi.softAPIP());
@@ -155,7 +162,7 @@ void setup() {
     // ====================================================================
     // NORMAL MODE - Configured and ready
     // ====================================================================
-    Serial.printf("[BOOT] Config loaded: role=%s, hostname=%s\n", cfg.role, cfg.hostname);
+    LOG.printf("[BOOT] Config loaded: role=%s, hostname=%s\n", cfg.role, cfg.hostname);
 
     if (strcmp(cfg.network_mode, "standalone") == 0) {
       // Standalone: AP only, no external WiFi
@@ -165,7 +172,7 @@ void setup() {
       snprintf(standaloneAP, sizeof(standaloneAP), "%s-%s", cfg.hostname, suffix);
       WiFi.mode(WIFI_AP);
       WiFi.softAP(standaloneAP);
-      Serial.printf("[BOOT] Standalone AP: %s\n", standaloneAP);
+      LOG.printf("[BOOT] Standalone AP: %s\n", standaloneAP);
     }
     else {
       // ================================================================
@@ -175,33 +182,33 @@ void setup() {
 
       // Try 1: Use config credentials (from captive portal)
       if (strlen(cfg.wifi_ssid) > 0) {
-        Serial.println("[BOOT] Trying configured WiFi credentials...");
+        LOG.println("[BOOT] Trying configured WiFi credentials...");
         connected = connectWiFi(cfg.wifi_ssid, cfg.wifi_pass, cfg.hostname);
       }
 
       // Try 2: Hardcoded fallback (guaranteed to work tonight)
       if (!connected) {
-        Serial.println("[BOOT] Config WiFi failed - trying hardcoded fallback...");
+        LOG.println("[BOOT] Config WiFi failed - trying hardcoded fallback...");
         connected = connectWiFi(FALLBACK_WIFI_SSID, FALLBACK_WIFI_PASS, cfg.hostname);
       }
 
       // Try 3: If all else fails, become an AP so you can still reach config
       if (!connected) {
-        Serial.println("[BOOT] All WiFi failed - AP fallback mode");
+        LOG.println("[BOOT] All WiFi failed - AP fallback mode");
         char suffix[5];
         getMacSuffix(suffix, sizeof(suffix));
         char fallbackAP[48];
         snprintf(fallbackAP, sizeof(fallbackAP), "%s-%s", cfg.hostname, suffix);
         WiFi.mode(WIFI_AP);
         WiFi.softAP(fallbackAP);
-        Serial.printf("[BOOT] Fallback AP: %s at 192.168.4.1\n", fallbackAP);
+        LOG.printf("[BOOT] Fallback AP: %s at 192.168.4.1\n", fallbackAP);
       }
     }
 
     // mDNS
     if (MDNS.begin(cfg.hostname)) {
       MDNS.addService("http", "tcp", 80);
-      Serial.printf("[BOOT] mDNS: http://%s.local\n", cfg.hostname);
+      LOG.printf("[BOOT] mDNS: http://%s.local\n", cfg.hostname);
     }
 
     // ESP-NOW (works in both STA and AP_STA modes)
@@ -215,7 +222,7 @@ void setup() {
     ArduinoOTA.setHostname(cfg.hostname);
     ArduinoOTA.setPassword(cfg.ota_password);
     ArduinoOTA.begin();
-    Serial.println("[BOOT] OTA ready");
+    LOG.println("[BOOT] OTA ready");
 
     // Role-specific setup
     if (strcmp(cfg.role, "finish") == 0) {
@@ -225,15 +232,15 @@ void setup() {
       startGateSetup();
     }
     else {
-      Serial.printf("[BOOT] Role '%s' not yet implemented\n", cfg.role);
+      LOG.printf("[BOOT] Role '%s' not yet implemented\n", cfg.role);
     }
 
     // Set initial WLED state
     setWLEDState("idle");
 
-    Serial.println("========================================");
-    Serial.println("  SYSTEM READY");
-    Serial.println("========================================");
+    LOG.println("========================================");
+    LOG.println("  SYSTEM READY");
+    LOG.println("========================================");
   }
 }
 

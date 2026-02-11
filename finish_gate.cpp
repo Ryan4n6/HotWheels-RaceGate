@@ -37,7 +37,7 @@ void finishGateSetup() {
   pinMode(cfg.sensor_pin, INPUT_PULLUP);
   pinMode(cfg.led_pin, OUTPUT);
   attachInterrupt(digitalPinToInterrupt(cfg.sensor_pin), finishISR, FALLING);
-  Serial.printf("[FINISH] Setup complete. Sensor=GPIO%d, LED=GPIO%d\n",
+  LOG.printf("[FINISH] Setup complete. Sensor=GPIO%d, LED=GPIO%d\n",
                 cfg.sensor_pin, cfg.led_pin);
 }
 
@@ -82,7 +82,7 @@ void finishGateLoop() {
     finishTime_us = 0;
     setWLEDState("idle");
     broadcastState();
-    Serial.println("[FINISH] Auto-reset to IDLE");
+    LOG.println("[FINISH] Auto-reset to IDLE");
   }
 
   // Handle race finish (runs ONCE when ISR sets FINISHED)
@@ -93,24 +93,24 @@ void finishGateLoop() {
     // ================================================================
     int64_t elapsed_us = (int64_t)finishTime_us - (int64_t)startTime_us;
 
-    Serial.println("[FINISH] ===== RACE RESULT =====");
-    Serial.printf("[FINISH] finishTime_us = %llu\n", finishTime_us);
-    Serial.printf("[FINISH] startTime_us  = %llu\n", startTime_us);
-    Serial.printf("[FINISH] clockOffset   = %lld\n", clockOffset_us);
-    Serial.printf("[FINISH] elapsed_us    = %lld\n", elapsed_us);
+    LOG.println("[FINISH] ===== RACE RESULT =====");
+    LOG.printf("[FINISH] finishTime_us = %llu\n", finishTime_us);
+    LOG.printf("[FINISH] startTime_us  = %llu\n", startTime_us);
+    LOG.printf("[FINISH] clockOffset   = %lld\n", clockOffset_us);
+    LOG.printf("[FINISH] elapsed_us    = %lld\n", elapsed_us);
 
     // Sanity check: elapsed must be positive and reasonable (< 60 seconds)
     if (elapsed_us <= 0 || elapsed_us > 60000000LL) {
-      Serial.printf("[FINISH] BAD TIMING! elapsed=%lld us\n", elapsed_us);
+      LOG.printf("[FINISH] BAD TIMING! elapsed=%lld us\n", elapsed_us);
       elapsed_us = 0; // Will show as 0.000s which signals a timing error
     }
 
     double elapsed_s = elapsed_us / 1000000.0;
     double speed_ms = (elapsed_s > 0) ? cfg.track_length_m / elapsed_s : 0;
 
-    Serial.printf("[FINISH] Time: %.4f s, Speed: %.1f mph\n",
+    LOG.printf("[FINISH] Time: %.4f s, Speed: %.1f mph\n",
                   elapsed_s, speed_ms * 2.23694);
-    Serial.println("[FINISH] =========================");
+    LOG.println("[FINISH] =========================");
 
     // Save to LittleFS CSV
     File file = LittleFS.open("/runs.csv", "a");
@@ -161,12 +161,12 @@ void onFinishGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
         // gives the actual elapsed race time.
         startTime_us = msg.timestamp - clockOffset_us;
 
-        Serial.printf("[FINISH] START received: raw_ts=%llu, offset=%lld, adjusted=%llu\n",
+        LOG.printf("[FINISH] START received: raw_ts=%llu, offset=%lld, adjusted=%llu\n",
                       msg.timestamp, clockOffset_us, startTime_us);
 
         raceState = RACING;
         setWLEDState("racing");
-        Serial.println("[FINISH] RACE STARTED!");
+        LOG.println("[FINISH] RACE STARTED!");
         broadcastState();
       }
       break;
@@ -184,7 +184,7 @@ void onFinishGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
       //
       // Simple single-sample offset (good enough for ~1ms ESP-NOW latency)
       clockOffset_us = (int64_t)msg.timestamp - (int64_t)receiveTime;
-      Serial.printf("[FINISH] Clock sync: offset=%lld us (%.1f ms)\n",
+      LOG.printf("[FINISH] Clock sync: offset=%lld us (%.1f ms)\n",
                     clockOffset_us, clockOffset_us / 1000.0);
       break;
   }

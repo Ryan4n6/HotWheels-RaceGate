@@ -81,7 +81,7 @@ static void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int
       strncpy(discoveredDevices[discoveredCount].hostname, msg.hostname, sizeof(discoveredDevices[discoveredCount].hostname) - 1);
       discoveredDevices[discoveredCount].lastSeen = millis();
       discoveredCount++;
-      Serial.printf("[DISCOVER] Found device: %s (%s) at %02X:%02X:%02X:%02X:%02X:%02X\n",
+      LOG.printf("[DISCOVER] Found device: %s (%s) at %02X:%02X:%02X:%02X:%02X:%02X\n",
                     msg.hostname, msg.role,
                     info->src_addr[0], info->src_addr[1], info->src_addr[2],
                     info->src_addr[3], info->src_addr[4], info->src_addr[5]);
@@ -105,7 +105,7 @@ static void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int
 
 void initESPNow() {
   if (esp_now_init() != ESP_OK) {
-    Serial.println("[ESP-NOW] Init failed!");
+    LOG.println("[ESP-NOW] Init failed!");
     return;
   }
 
@@ -123,7 +123,7 @@ void initESPNow() {
     peer.channel = 0;
     peer.encrypt = false;
     if (esp_now_add_peer(&peer) == ESP_OK) {
-      Serial.printf("[ESP-NOW] Peer added: %s\n", formatMac(cfg.peer_mac).c_str());
+      LOG.printf("[ESP-NOW] Peer added: %s\n", formatMac(cfg.peer_mac).c_str());
     }
   }
 
@@ -138,7 +138,7 @@ void initESPNow() {
   discoveryActive = true;
   discoveryStartTime = millis();
 
-  Serial.println("[ESP-NOW] Initialized");
+  LOG.println("[ESP-NOW] Initialized");
 }
 
 void sendToPeer(uint8_t type, uint64_t timestamp, int64_t offset) {
@@ -203,7 +203,7 @@ void discoveryLoop() {
   // Stop after 30 seconds
   if (millis() - discoveryStartTime > 30000) {
     discoveryActive = false;
-    Serial.printf("[DISCOVER] Scan complete. Found %d device(s)\n", discoveredCount);
+    LOG.printf("[DISCOVER] Scan complete. Found %d device(s)\n", discoveredCount);
   }
 }
 

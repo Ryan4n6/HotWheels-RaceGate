@@ -38,13 +38,13 @@ bool loadConfig() {
   setDefaults(cfg);
 
   if (!LittleFS.exists(CONFIG_FILE)) {
-    Serial.println("[CONFIG] No config file found, using defaults");
+    LOG.println("[CONFIG] No config file found, using defaults");
     return false;
   }
 
   File file = LittleFS.open(CONFIG_FILE, "r");
   if (!file) {
-    Serial.println("[CONFIG] Failed to open config file");
+    LOG.println("[CONFIG] Failed to open config file");
     return false;
   }
 
@@ -59,13 +59,13 @@ bool saveConfig() {
 
   File file = LittleFS.open(CONFIG_FILE, "w");
   if (!file) {
-    Serial.println("[CONFIG] Failed to open config file for writing");
+    LOG.println("[CONFIG] Failed to open config file for writing");
     return false;
   }
 
   file.print(json);
   file.close();
-  Serial.println("[CONFIG] Config saved successfully");
+  LOG.println("[CONFIG] Config saved successfully");
   return true;
 }
 
@@ -79,37 +79,37 @@ bool isValidGPIO(uint8_t pin) {
 
 bool validateConfig(const DeviceConfig& c) {
   if (!isValidGPIO(c.sensor_pin)) {
-    Serial.printf("[CONFIG] Invalid sensor pin: %d\n", c.sensor_pin);
+    LOG.printf("[CONFIG] Invalid sensor pin: %d\n", c.sensor_pin);
     return false;
   }
   if (!isValidGPIO(c.led_pin)) {
-    Serial.printf("[CONFIG] Invalid LED pin: %d\n", c.led_pin);
+    LOG.printf("[CONFIG] Invalid LED pin: %d\n", c.led_pin);
     return false;
   }
   if (c.sensor_pin == c.led_pin) {
-    Serial.println("[CONFIG] Sensor and LED pins cannot be the same");
+    LOG.println("[CONFIG] Sensor and LED pins cannot be the same");
     return false;
   }
   if (c.device_id == 0) {
-    Serial.println("[CONFIG] Device ID must be > 0");
+    LOG.println("[CONFIG] Device ID must be > 0");
     return false;
   }
   if (c.track_length_m <= 0 || c.track_length_m > 100) {
-    Serial.println("[CONFIG] Track length must be 0-100m");
+    LOG.println("[CONFIG] Track length must be 0-100m");
     return false;
   }
   if (c.scale_factor < 1 || c.scale_factor > 1000) {
-    Serial.println("[CONFIG] Scale factor must be 1-1000");
+    LOG.println("[CONFIG] Scale factor must be 1-1000");
     return false;
   }
   if (strlen(c.hostname) == 0) {
-    Serial.println("[CONFIG] Hostname cannot be empty");
+    LOG.println("[CONFIG] Hostname cannot be empty");
     return false;
   }
   if (strcmp(c.role, "start") != 0 && strcmp(c.role, "finish") != 0 &&
       strcmp(c.role, "display") != 0 && strcmp(c.role, "judge") != 0 &&
       strcmp(c.role, "lights") != 0) {
-    Serial.printf("[CONFIG] Invalid role: %s\n", c.role);
+    LOG.printf("[CONFIG] Invalid role: %s\n", c.role);
     return false;
   }
   return true;
@@ -163,7 +163,7 @@ bool configFromJson(const String& json) {
   StaticJsonDocument<1024> doc;
   DeserializationError err = deserializeJson(doc, json);
   if (err) {
-    Serial.printf("[CONFIG] JSON parse error: %s\n", err.c_str());
+    LOG.printf("[CONFIG] JSON parse error: %s\n", err.c_str());
     return false;
   }
 
@@ -221,7 +221,7 @@ bool configFromJson(const String& json) {
   }
 
   if (cfg.configured) {
-    Serial.printf("[CONFIG] Loaded: role=%s, hostname=%s, wifi=%s\n",
+    LOG.printf("[CONFIG] Loaded: role=%s, hostname=%s, wifi=%s\n",
                   cfg.role, cfg.hostname, cfg.wifi_ssid);
   }
 
@@ -229,7 +229,7 @@ bool configFromJson(const String& json) {
 }
 
 void resetConfig() {
-  Serial.println("[CONFIG] Factory reset - deleting config and rebooting");
+  LOG.println("[CONFIG] Factory reset - deleting config and rebooting");
   LittleFS.remove(CONFIG_FILE);
   LittleFS.remove("/runs.csv");
   delay(500);

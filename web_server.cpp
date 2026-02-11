@@ -11,6 +11,7 @@
 
 WebServer server(80);
 WebSocketsServer webSocket(81);
+SerialTee serialTee;
 
 // ============================================================================
 // FILE SERVING HELPERS
@@ -86,7 +87,7 @@ static void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t 
           strncpy(cfg.google_sheets_url, url, sizeof(cfg.google_sheets_url) - 1);
           cfg.google_sheets_url[sizeof(cfg.google_sheets_url) - 1] = '\0';
           saveConfig();
-          Serial.printf("[WEB] Google Sheets URL updated: %s\n", cfg.google_sheets_url);
+          LOG.printf("[WEB] Google Sheets URL updated: %s\n", cfg.google_sheets_url);
         }
       }
       break;
@@ -381,6 +382,105 @@ static void handleApiHistory() {
 }
 
 // ============================================================================
+// SERIAL LOG API - Web-viewable serial monitor
+// ============================================================================
+static void handleApiLog() {
+  if (server.method() == HTTP_GET) {
+    server.send(200, "text/plain", serialTee.getLog());
+  }
+  else if (server.method() == HTTP_DELETE) {
+    serialTee.clear();
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+  }
+}
+
+// ============================================================================
+// FILESYSTEM API - Browse, read, and write LittleFS files from the web
+// ============================================================================
+static void handleApiFiles() {
+  String path = server.arg("path");
+  if (path.length() == 0) path = "/";
+
+  if (server.method() == HTTP_GET) {
+    // If path ends with / or is a directory, list files
+    // Otherwise, return file contents
+    if (path == "/" || path.endsWith("/")) {
+      // List directory
+      File root = LittleFS.open(path.length() > 0 ? path : "/");
+      if (!root || !root.isDirectory()) {
+        // Not a directory — try listing root
+        root = LittleFS.open("/");
+      }
+
+      StaticJsonDocument<2048> doc;
+      JsonArray arr = doc.to<JsonArray>();
+      File f = root.openNextFile();
+      while (f) {
+        JsonObject entry = arr.createNestedObject();
+        entry["name"] = String(f.name());
+        entry["size"] = f.size();
+        entry["isDir"] = f.isDirectory();
+        f = root.openNextFile();
+      }
+      String output;
+      serializeJson(doc, output);
+      server.send(200, "application/json", output);
+    } else {
+      // Read specific file
+      if (!LittleFS.exists(path)) {
+        server.send(404, "application/json", "{\"error\":\"File not found\"}");
+        return;
+      }
+      File f = LittleFS.open(path, "r");
+      String content = f.readString();
+      f.close();
+      // Return as JSON with metadata
+      // Use DynamicJsonDocument for potentially large file contents
+      DynamicJsonDocument doc(content.length() + 256);
+      doc["path"] = path;
+      doc["size"] = content.length();
+      doc["content"] = content;
+      String output;
+      serializeJson(doc, output);
+      server.send(200, "application/json", output);
+    }
+  }
+  else if (server.method() == HTTP_POST) {
+    // Write file contents
+    if (path.length() == 0 || path == "/") {
+      server.send(400, "application/json", "{\"error\":\"No path specified\"}");
+      return;
+    }
+    String body = server.arg("plain");
+    File f = LittleFS.open(path, "w");
+    if (!f) {
+      server.send(500, "application/json", "{\"error\":\"Failed to open file for writing\"}");
+      return;
+    }
+    f.print(body);
+    f.close();
+    server.send(200, "application/json", "{\"status\":\"ok\",\"size\":" + String(body.length()) + "}");
+  }
+  else if (server.method() == HTTP_DELETE) {
+    // Delete file
+    if (path.length() == 0 || path == "/") {
+      server.send(400, "application/json", "{\"error\":\"Cannot delete root\"}");
+      return;
+    }
+    // Protect critical files
+    if (path == CONFIG_FILE) {
+      server.send(400, "application/json", "{\"error\":\"Use factory reset to delete config\"}");
+      return;
+    }
+    if (LittleFS.remove(path)) {
+      server.send(200, "application/json", "{\"status\":\"ok\"}");
+    } else {
+      server.send(404, "application/json", "{\"error\":\"File not found or delete failed\"}");
+    }
+  }
+}
+
+// ============================================================================
 // NORMAL MODE ROUTES
 // ============================================================================
 void initWebServer() {
@@ -407,6 +507,18 @@ void initWebServer() {
   server.on("/api/garage", HTTP_POST, handleApiGarage);
   server.on("/api/history", HTTP_GET, handleApiHistory);
   server.on("/api/history", HTTP_POST, handleApiHistory);
+
+  // Serial log & filesystem
+  server.on("/api/log", HTTP_GET, handleApiLog);
+  server.on("/api/log", HTTP_DELETE, handleApiLog);
+  server.on("/api/files", HTTP_GET, handleApiFiles);
+  server.on("/api/files", HTTP_POST, handleApiFiles);
+  server.on("/api/files", HTTP_DELETE, handleApiFiles);
+
+  // Console page
+  server.on("/console", HTTP_GET, []() {
+    serveFile("/console.html", "text/html");
+  });
 
   // WLED proxy endpoints (for config page to fetch WLED data without CORS issues)
   server.on("/api/wled/info", HTTP_GET, []() {
@@ -458,8 +570,8 @@ void startWebServer() {
   server.begin();
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
-  Serial.println("[WEB] HTTP server started on port 80");
-  Serial.println("[WEB] WebSocket server started on port 81");
+  LOG.println("[WEB] HTTP server started on port 80");
+  LOG.println("[WEB] WebSocket server started on port 81");
 }
 
 // ============================================================================
@@ -489,5 +601,5 @@ void initSetupServer() {
   });
 
   server.begin();
-  Serial.println("[WEB] Setup mode server started");
+  LOG.println("[WEB] Setup mode server started");
 }

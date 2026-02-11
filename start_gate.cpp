@@ -30,7 +30,7 @@ void startGateSetup() {
   pinMode(cfg.sensor_pin, INPUT_PULLUP);
   pinMode(cfg.led_pin, OUTPUT);
   // Don't attach interrupt yet - only when ARMED
-  Serial.printf("[START] Setup complete. Trigger=GPIO%d, LED=GPIO%d\n",
+  LOG.printf("[START] Setup complete. Trigger=GPIO%d, LED=GPIO%d\n",
                 cfg.sensor_pin, cfg.led_pin);
 }
 
@@ -66,7 +66,7 @@ void startGateLoop() {
   if (waitingToReset && millis() - finishedAt > 2000) {
     waitingToReset = false;
     raceState = IDLE;
-    Serial.println("[START] Auto-reset to IDLE");
+    LOG.println("[START] Auto-reset to IDLE");
   }
 
   switch (raceState) {
@@ -86,13 +86,13 @@ void startGateLoop() {
 
         // Send START with our LOCAL precise timestamp to finish gate.
         // The finish gate will convert this to its timebase using clockOffset.
-        Serial.printf("[START] TRIGGERED at %llu us\n", triggerTime_us);
+        LOG.printf("[START] TRIGGERED at %llu us\n", triggerTime_us);
         sendToPeer(MSG_START, triggerTime_us, 0);
 
         // Detach interrupt to prevent re-trigger
         detachInterrupt(digitalPinToInterrupt(cfg.sensor_pin));
 
-        Serial.println("[START] Race started.");
+        LOG.println("[START] Race started.");
       }
       break;
 
@@ -102,7 +102,7 @@ void startGateLoop() {
 
       // Timeout: if no CONFIRM after 30 seconds, reset
       if (millis() - triggeredTime > 30000) {
-        Serial.println("[START] Race timeout - no finish confirmation");
+        LOG.println("[START] Race timeout - no finish confirmation");
         raceState = IDLE;
       }
       break;
@@ -131,7 +131,7 @@ void onStartGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
     case MSG_CONFIRM:
       // Finish gate confirmed race complete
       raceState = FINISHED;
-      Serial.println("[START] Race confirmed complete!");
+      LOG.println("[START] Race confirmed complete!");
       break;
 
     case MSG_SYNC_REQ:
@@ -152,7 +152,7 @@ void onStartGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
         triggerTime_us = 0;
         // Attach interrupt to detect beam break
         attachInterrupt(digitalPinToInterrupt(cfg.sensor_pin), startTriggerISR, FALLING);
-        Serial.println("[START] ARMED - waiting for trigger");
+        LOG.println("[START] ARMED - waiting for trigger");
       }
       break;
 
@@ -161,7 +161,7 @@ void onStartGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
       raceState = IDLE;
       triggerDetected = false;
       detachInterrupt(digitalPinToInterrupt(cfg.sensor_pin));
-      Serial.println("[START] DISARMED");
+      LOG.println("[START] DISARMED");
       break;
   }
 }
