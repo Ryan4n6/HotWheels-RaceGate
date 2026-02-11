@@ -403,8 +403,10 @@ void initWebServer() {
   server.on("/api/reset", HTTP_POST, handleApiReset);
   server.on("/api/info", HTTP_GET, handleApiInfo);
   server.on("/api/discover", HTTP_GET, handleApiDiscover);
-  server.on("/api/garage", handleApiGarage);
-  server.on("/api/history", handleApiHistory);
+  server.on("/api/garage", HTTP_GET, handleApiGarage);
+  server.on("/api/garage", HTTP_POST, handleApiGarage);
+  server.on("/api/history", HTTP_GET, handleApiHistory);
+  server.on("/api/history", HTTP_POST, handleApiHistory);
 
   // WLED proxy endpoints (for config page to fetch WLED data without CORS issues)
   server.on("/api/wled/info", HTTP_GET, []() {

@@ -488,6 +488,21 @@
       <div id="garageGrid" class="garage-grid">
         <!-- Cars will be rendered here -->
       </div>
+
+      <!-- Garage Management Buttons -->
+      <div id="garageStatus" style="text-align:center; margin:8px 0; font-size:0.85rem; font-weight:bold; min-height:1.2em;"></div>
+      <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
+        <button class="btn btn-success" onclick="manualSaveGarage()">
+          SAVE GARAGE
+        </button>
+        <button class="btn btn-primary" onclick="exportGarage()">
+          EXPORT GARAGE
+        </button>
+        <label class="btn btn-warning" style="text-align:center; cursor:pointer;">
+          IMPORT GARAGE
+          <input type="file" accept=".json" onchange="importGarage(event)" style="display:none;">
+        </label>
+      </div>
     </div>
 
     <!-- Settings -->
@@ -714,25 +729,113 @@
     }
 
     async function saveGarageToESP() {
-      // Save to both ESP32 and localStorage (belt and suspenders)
+      // Always save to localStorage first (instant, reliable)
       localStorage.setItem('hw_garage', JSON.stringify(garage));
-      try {
-        await fetch('/api/garage', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(garage)
-        });
-      } catch (e) {
-        console.error('Failed to save garage to ESP32:', e);
+      // Then save to ESP32 with retry
+      let saved = false;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const resp = await fetch('/api/garage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(garage)
+          });
+          if (resp.ok) {
+            saved = true;
+            break;
+          }
+          console.warn('Garage save attempt ' + (attempt+1) + ' failed: HTTP ' + resp.status);
+        } catch (e) {
+          console.warn('Garage save attempt ' + (attempt+1) + ' error:', e);
+        }
       }
+      return saved;
     }
 
-    function saveGarage() {
-      saveGarageToESP();
+    async function saveGarage() {
       renderGarage();
+      const ok = await saveGarageToESP();
+      showGarageStatus(ok ? 'Garage saved!' : 'Save failed - try SAVE GARAGE button', ok);
     }
 
-    function addCar() {
+    function showGarageStatus(msg, success) {
+      const el = document.getElementById('garageStatus');
+      if (!el) return;
+      el.textContent = msg;
+      el.style.color = success ? '#28a745' : '#dc3545';
+      setTimeout(() => { el.textContent = ''; }, 3000);
+    }
+
+    async function manualSaveGarage() {
+      showGarageStatus('Saving...', true);
+      const ok = await saveGarageToESP();
+      showGarageStatus(ok ? 'Garage saved to ESP32!' : 'Failed to save - check connection', ok);
+    }
+
+    function exportGarage() {
+      if (garage.length === 0) { alert('No cars to export!'); return; }
+      const blob = new Blob([JSON.stringify(garage, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'hotwheels_garage_' + Date.now() + '.json';
+      a.click();
+      window.URL.revokeObjectURL(url);
+      showGarageStatus('Garage exported!', true);
+    }
+
+    function importGarage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (!Array.isArray(imported)) {
+            alert('Invalid garage file - expected an array of cars');
+            return;
+          }
+          // Validate each car has required fields
+          for (const car of imported) {
+            if (!car.name || !car.weight) {
+              alert('Invalid car data - each car needs name and weight');
+              return;
+            }
+            // Ensure stats object exists
+            if (!car.stats) car.stats = { runs: 0, bestTime: Infinity, bestSpeed: 0 };
+            if (!car.id) car.id = Date.now() + Math.random();
+          }
+          // Merge or replace?
+          if (garage.length > 0) {
+            const choice = confirm('You have ' + garage.length + ' cars. OK to REPLACE all, Cancel to MERGE (add new cars only).');
+            if (choice) {
+              garage = imported;
+            } else {
+              // Merge: add only cars with names not already in garage
+              let added = 0;
+              for (const car of imported) {
+                if (!garage.some(g => g.name.toLowerCase() === car.name.toLowerCase())) {
+                  garage.push(car);
+                  added++;
+                }
+              }
+              showGarageStatus('Merged ' + added + ' new cars', true);
+            }
+          } else {
+            garage = imported;
+          }
+          await saveGarage();
+          showGarageStatus('Imported ' + imported.length + ' cars!', true);
+        } catch (err) {
+          alert('Failed to parse garage file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      // Reset file input so same file can be re-imported
+      event.target.value = '';
+    }
+
+    async function addCar() {
       const name = document.getElementById('carName').value.trim();
       const color = document.getElementById('carColor').value.trim();
       const weight = parseFloat(document.getElementById('carWeight').value);
@@ -777,7 +880,7 @@
         });
       }
 
-      saveGarage();
+      await saveGarage();
       document.getElementById('carName').value = '';
       document.getElementById('carColor').value = '';
       document.getElementById('carWeight').value = '';
@@ -803,7 +906,7 @@
       renderGarage();
     }
 
-    function deleteCar(index, event) {
+    async function deleteCar(index, event) {
       event.stopPropagation();
       if (confirm('Delete ' + garage[index].name + '?')) {
         const deletedId = garage[index].id;
@@ -814,7 +917,7 @@
           document.getElementById('currentCar').textContent = 'No car selected';
         }
         if (editingCarIndex === index) editingCarIndex = -1;
-        saveGarage();
+        await saveGarage();
       }
     }
 
@@ -839,14 +942,14 @@
       ).join('');
     }
 
-    function updateGarageStats(raceData) {
+    async function updateGarageStats(raceData) {
       if (!activeCar) return;
       const carIndex = garage.findIndex(c => c.id === activeCar.id);
       if (carIndex === -1) return;
       garage[carIndex].stats.runs++;
       if (raceData.time < garage[carIndex].stats.bestTime) garage[carIndex].stats.bestTime = raceData.time;
       if (raceData.speed_mph > garage[carIndex].stats.bestSpeed) garage[carIndex].stats.bestSpeed = raceData.speed_mph;
-      saveGarage();
+      await saveGarage();
     }
 
     // ========================================================================
@@ -1026,6 +1129,20 @@
           'Currently Racing: <span style="color: var(--hw-green);">' + activeCar.name + '</span> (' + activeCar.weight + 'g)';
       }
     };
+
+    // Safety net: sync to localStorage before page unload (ESP32 save is async
+    // and may not complete, but localStorage is synchronous and instant)
+    window.addEventListener('beforeunload', () => {
+      localStorage.setItem('hw_garage', JSON.stringify(garage));
+      localStorage.setItem('hw_history', JSON.stringify(history));
+      // Also fire a synchronous XHR to save garage (best-effort)
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/garage', false); // synchronous
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify(garage));
+      } catch (e) { /* best effort */ }
+    });
   </script>
 </body>
 </html>
