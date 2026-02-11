@@ -45,7 +45,7 @@ public:
     hw->write(c);  // Always send to real UART
     buffer[head] = (char)c;
     head = (head + 1) % SERIAL_LOG_SIZE;
-    if (count < SERIAL_LOG_SIZE) count++;
+    if (count < SERIAL_LOG_SIZE) count = count + 1;
     return 1;
   }
 

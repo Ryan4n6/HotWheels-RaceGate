@@ -34,7 +34,7 @@
 // BOARD VALIDATION — Catch misconfiguration at compile time, not at runtime
 // ============================================================================
 #if !defined(CONFIG_IDF_TARGET_ESP32S3)
-  #error "M.A.S.S. Trap requires ESP32-S3. In Arduino IDE: Tools > Board > ESP32S3 Dev Module"
+  #error "M.A.S.S. Trap requires an ESP32-S3 board. In Arduino IDE: Tools > Board > ESP32S3 Dev Module (or any ESP32-S3 variant)"
 #endif
 
 #if !defined(CONFIG_ESPTOOLPY_FLASHSIZE_16MB)

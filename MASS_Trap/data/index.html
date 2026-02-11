@@ -370,6 +370,142 @@
     @keyframes chase { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     @keyframes rainbow-flow { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 
+    /* ===== MOST WANTED — Criminal Leaderboard ===== */
+    .most-wanted {
+      position: relative;
+      border-color: var(--mass-red);
+      border-width: 2px;
+    }
+    .most-wanted .section-title {
+      background: var(--mass-red);
+      color: white;
+      letter-spacing: 2px;
+    }
+    .mw-board {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+      padding-top: 12px;
+    }
+    .mw-card {
+      background: var(--mass-dark);
+      border: 2px solid var(--mass-card-border);
+      border-radius: 10px;
+      padding: 15px;
+      position: relative;
+      transition: all 0.3s;
+    }
+    .mw-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+    }
+    .mw-card.rank-1 {
+      border-color: var(--mass-gold);
+      box-shadow: 0 0 15px rgba(212,175,55,0.3);
+    }
+    .mw-card.rank-2, .mw-card.rank-3 {
+      border-color: var(--mass-blue);
+    }
+    .mw-rank {
+      position: absolute;
+      top: -10px; left: 12px;
+      background: var(--mass-red);
+      color: white;
+      font-weight: 900;
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .mw-card.rank-1 .mw-rank { background: var(--mass-gold); color: var(--mass-navy); }
+    .mw-card.rank-2 .mw-rank, .mw-card.rank-3 .mw-rank { background: var(--mass-blue); }
+    .mw-name {
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: var(--mass-gold);
+      margin-top: 6px;
+      margin-bottom: 8px;
+    }
+    .mw-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      font-size: 0.8rem;
+      color: var(--mass-muted);
+    }
+    .mw-stats strong {
+      color: var(--mass-text);
+      font-family: 'Courier New', monospace;
+    }
+    .mw-threat {
+      margin-top: 10px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-weight: 900;
+      font-size: 0.7rem;
+      text-align: center;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .mw-threat.armed-dangerous {
+      background: rgba(220,53,69,0.2);
+      border: 1px solid var(--mass-red);
+      color: var(--mass-red);
+    }
+    .mw-threat.known-offender {
+      background: rgba(212,175,55,0.15);
+      border: 1px solid var(--mass-gold);
+      color: var(--mass-gold);
+    }
+    .mw-threat.person-of-interest {
+      background: rgba(136,136,170,0.1);
+      border: 1px solid var(--mass-muted);
+      color: var(--mass-muted);
+    }
+    .mw-empty {
+      text-align: center;
+      padding: 30px;
+      color: var(--mass-muted);
+      font-style: italic;
+    }
+    .mw-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 5px;
+      margin-bottom: 4px;
+    }
+    .mw-toggle {
+      font-size: 0.8rem;
+      color: var(--mass-gold);
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .mw-sort-controls {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .mw-sort-btn {
+      padding: 4px 10px;
+      border: 1px solid var(--mass-card-border);
+      border-radius: 4px;
+      background: var(--mass-dark);
+      color: var(--mass-muted);
+      font-size: 0.7rem;
+      font-weight: 800;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .mw-sort-btn.active {
+      border-color: var(--mass-gold);
+      color: var(--mass-gold);
+    }
+    @keyframes mw-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+    .mw-new-record { animation: mw-pulse 1s ease-in-out 3; }
+
     /* ===== SPEED PROFILE (mid-track) ===== */
     .speed-profile {
       display: none;
@@ -507,6 +643,9 @@
       .header h1 { font-size: 2rem; letter-spacing: 2px; }
       .grid { grid-template-columns: repeat(2, 1fr); }
       .garage-grid { grid-template-columns: 1fr; }
+      .mw-board { grid-template-columns: 1fr; }
+      .mw-sort-controls { flex-wrap: wrap; }
+      .mw-header { flex-direction: column; gap: 8px; align-items: flex-start; }
       #chartsSection .grid { grid-template-columns: 1fr; }
       .formula-grid { grid-template-columns: 1fr; }
     }
@@ -574,6 +713,23 @@
       <div class="card">
         <div class="card-label">Total Runs</div>
         <div><span id="statRuns" class="card-value">0</span></div>
+      </div>
+    </div>
+
+    <!-- ===== MOST WANTED — Criminal Leaderboard ===== -->
+    <div class="section most-wanted" id="mostWantedSection">
+      <div class="section-title">MOST WANTED</div>
+      <div class="mw-header">
+        <div class="mw-sort-controls">
+          <button class="mw-sort-btn active" onclick="sortMostWanted('time')" id="mwSortTime">Fastest</button>
+          <button class="mw-sort-btn" onclick="sortMostWanted('speed')" id="mwSortSpeed">Top Speed</button>
+          <button class="mw-sort-btn" onclick="sortMostWanted('runs')" id="mwSortRuns">Most Offenses</button>
+          <button class="mw-sort-btn" onclick="sortMostWanted('ke')" id="mwSortKe">Most Dangerous</button>
+        </div>
+        <span class="mw-toggle" onclick="toggleMostWanted()" id="mwToggle">Collapse &#x25B2;</span>
+      </div>
+      <div id="mwBoard" class="mw-board">
+        <div class="mw-empty">No suspects in the system. Add cars to the garage and run races to populate the Most Wanted list.</div>
       </div>
     </div>
 
@@ -713,12 +869,14 @@
     </div>
   </div>
 
-  <!-- Leaderboard Overlay -->
+  <!-- Leaderboard Overlay (Criminal Verdict) -->
   <div id="leaderboardOverlay" class="leaderboard-overlay" onclick="this.classList.remove('show');">
     <div class="leaderboard-card" onclick="event.stopPropagation();">
+      <div id="lbVerdict" style="font-size:0.85rem; font-weight:900; letter-spacing:2px; color:var(--mass-red); text-transform:uppercase; margin-bottom:4px;"></div>
       <div id="lbRank" class="leaderboard-rank">#1</div>
       <div id="lbText" class="leaderboard-text"></div>
       <div id="lbDetail" class="leaderboard-detail"></div>
+      <div id="lbThreat" style="margin-top:12px; padding:6px 14px; border-radius:6px; font-size:0.8rem; font-weight:900; display:inline-block;"></div>
     </div>
   </div>
 
@@ -860,7 +1018,7 @@
     }
 
     // ========================================================================
-    // LEADERBOARD OVERLAY
+    // LEADERBOARD OVERLAY (Criminal Verdict)
     // ========================================================================
     function showLeaderboardOverlay(data) {
       if (!data.time || data.time <= 0) return;
@@ -872,19 +1030,183 @@
       if (rank <= 0 || allBests.length < 2) return;
 
       const overlay = document.getElementById('leaderboardOverlay');
-      const rankText = rank === 1 ? '#1' : '#' + rank;
+      const rankText = '#' + rank;
       document.getElementById('lbRank').textContent = rankText;
       document.getElementById('lbRank').style.color = rank === 1 ? 'var(--mass-gold)' : rank <= 3 ? 'var(--mass-blue)' : 'var(--mass-muted)';
 
-      let msg = '';
-      if (rank === 1) msg = 'FASTEST SUSPECT ON RECORD!';
-      else if (rank <= 3) msg = 'TOP 3 FINISH!';
-      else msg = 'RANKED ' + rankText + ' OF ' + allBests.length;
+      // Criminal verdict text
+      const verdictEl = document.getElementById('lbVerdict');
+      const threatEl = document.getElementById('lbThreat');
+      let msg = '', verdict = '', threatClass = '', threatText = '';
+
+      if (rank === 1) {
+        verdict = 'ALL POINTS BULLETIN';
+        msg = 'PUBLIC ENEMY #1';
+        threatClass = 'armed-dangerous';
+        threatText = 'ARMED & DANGEROUS';
+      } else if (rank === 2) {
+        verdict = 'WARRANT ISSUED';
+        msg = 'MOST WANTED #2';
+        threatClass = 'armed-dangerous';
+        threatText = 'ARMED & DANGEROUS';
+      } else if (rank === 3) {
+        verdict = 'SUSPECT IDENTIFIED';
+        msg = 'MOST WANTED #3';
+        threatClass = 'known-offender';
+        threatText = 'KNOWN OFFENDER';
+      } else if (rank <= Math.ceil(allBests.length / 2)) {
+        verdict = 'BOOKING REPORT';
+        msg = 'KNOWN OFFENDER #' + rank;
+        threatClass = 'known-offender';
+        threatText = 'KNOWN OFFENDER';
+      } else {
+        verdict = 'INCIDENT REPORT';
+        msg = 'PERSON OF INTEREST #' + rank;
+        threatClass = 'person-of-interest';
+        threatText = 'PERSON OF INTEREST';
+      }
+
+      verdictEl.textContent = verdict;
       document.getElementById('lbText').textContent = msg;
-      document.getElementById('lbDetail').textContent = data.time.toFixed(3) + 's | ' + (data.scale_mph || 0).toFixed(0) + ' scale mph';
+      document.getElementById('lbDetail').textContent =
+        (activeCar ? activeCar.name : 'Unknown') + ' | ' +
+        data.time.toFixed(3) + 's | ' + (data.scale_mph || 0).toFixed(0) + ' scale mph';
+
+      threatEl.textContent = threatText;
+      threatEl.className = '';
+      threatEl.style.background = threatClass === 'armed-dangerous' ? 'rgba(220,53,69,0.2)' :
+                                   threatClass === 'known-offender' ? 'rgba(212,175,55,0.15)' :
+                                   'rgba(136,136,170,0.1)';
+      threatEl.style.border = '1px solid ' + (threatClass === 'armed-dangerous' ? 'var(--mass-red)' :
+                               threatClass === 'known-offender' ? 'var(--mass-gold)' : 'var(--mass-muted)');
+      threatEl.style.color = threatClass === 'armed-dangerous' ? 'var(--mass-red)' :
+                              threatClass === 'known-offender' ? 'var(--mass-gold)' : 'var(--mass-muted)';
 
       overlay.classList.add('show');
-      setTimeout(() => { overlay.classList.remove('show'); }, 4000);
+      setTimeout(() => { overlay.classList.remove('show'); }, 5000);
+
+      // Refresh the Most Wanted board
+      renderMostWanted();
+    }
+
+    // ========================================================================
+    // MOST WANTED — Criminal Leaderboard
+    // ========================================================================
+    let mwSortMode = 'time';
+    let mwCollapsed = false;
+
+    function toggleMostWanted() {
+      mwCollapsed = !mwCollapsed;
+      document.getElementById('mwBoard').style.display = mwCollapsed ? 'none' : 'grid';
+      document.querySelector('.mw-sort-controls').style.display = mwCollapsed ? 'none' : 'flex';
+      document.getElementById('mwToggle').innerHTML = mwCollapsed ? 'Expand &#x25BC;' : 'Collapse &#x25B2;';
+    }
+
+    function sortMostWanted(mode) {
+      mwSortMode = mode;
+      document.querySelectorAll('.mw-sort-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('mwSort' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+      renderMostWanted();
+    }
+
+    function getMostWantedData() {
+      // Build ranked list from garage stats + history
+      return garage
+        .filter(c => c.stats && c.stats.runs > 0)
+        .map(c => {
+          const s = c.stats;
+          // Get best KE from history for this car
+          const carHistory = history.filter(h => h.car === c.name);
+          const bestKE = carHistory.length > 0 ? Math.max(...carHistory.map(h => h.ke || 0)) : 0;
+          const bestScaleMph = carHistory.length > 0 ? Math.max(...carHistory.map(h => h.scale_mph || 0)) : 0;
+          return {
+            name: c.name,
+            color: c.color || 'N/A',
+            weight: c.weight,
+            bestTime: s.bestTime,
+            bestSpeed: s.bestSpeed || 0,
+            bestScaleMph: bestScaleMph,
+            runs: s.runs || 0,
+            bestKE: bestKE,
+            id: c.id
+          };
+        });
+    }
+
+    function sortMWData(data) {
+      switch (mwSortMode) {
+        case 'time':
+          return data.sort((a, b) => {
+            if (a.bestTime == null) return 1;
+            if (b.bestTime == null) return -1;
+            return a.bestTime - b.bestTime;
+          });
+        case 'speed':
+          return data.sort((a, b) => b.bestSpeed - a.bestSpeed);
+        case 'runs':
+          return data.sort((a, b) => b.runs - a.runs);
+        case 'ke':
+          return data.sort((a, b) => b.bestKE - a.bestKE);
+        default:
+          return data;
+      }
+    }
+
+    function getThreatLevel(rank, total) {
+      if (rank <= 3) return { cls: 'armed-dangerous', text: 'ARMED & DANGEROUS' };
+      if (rank <= Math.max(5, Math.ceil(total * 0.5))) return { cls: 'known-offender', text: 'KNOWN OFFENDER' };
+      return { cls: 'person-of-interest', text: 'PERSON OF INTEREST' };
+    }
+
+    function getRankTitle(rank) {
+      if (rank === 1) return 'PUBLIC ENEMY #1';
+      if (rank <= 3) return 'MOST WANTED';
+      return 'APB #' + rank;
+    }
+
+    function getSortValue(item) {
+      switch (mwSortMode) {
+        case 'time': return item.bestTime != null ? item.bestTime.toFixed(3) + 's' : '--';
+        case 'speed': return item.bestSpeed.toFixed(1) + ' mph';
+        case 'runs': return item.runs + ' offense' + (item.runs !== 1 ? 's' : '');
+        case 'ke': return item.bestKE.toFixed(4) + ' J';
+        default: return '';
+      }
+    }
+
+    function renderMostWanted() {
+      const board = document.getElementById('mwBoard');
+      let data = getMostWantedData();
+
+      if (data.length === 0) {
+        board.innerHTML = '<div class="mw-empty">No suspects in the system. Add cars to the garage and run races to populate the Most Wanted list.</div>';
+        return;
+      }
+
+      data = sortMWData(data);
+      const total = data.length;
+
+      board.innerHTML = data.map((item, i) => {
+        const rank = i + 1;
+        const threat = getThreatLevel(rank, total);
+        const rankTitle = getRankTitle(rank);
+        const rankClass = rank <= 3 ? ' rank-' + rank : '';
+        const isActive = activeCar && activeCar.id === item.id;
+
+        return '<div class="mw-card' + rankClass + (isActive ? ' mw-new-record' : '') + '">' +
+          '<div class="mw-rank">' + rankTitle + '</div>' +
+          '<div class="mw-name">' + item.name + '</div>' +
+          '<div class="mw-stats">' +
+            '<div>Time: <strong>' + (item.bestTime != null ? item.bestTime.toFixed(3) + 's' : '--') + '</strong></div>' +
+            '<div>Speed: <strong>' + item.bestSpeed.toFixed(1) + ' mph</strong></div>' +
+            '<div>Scale: <strong>' + item.bestScaleMph.toFixed(0) + ' mph</strong></div>' +
+            '<div>Mass: <strong>' + item.weight + 'g</strong></div>' +
+            '<div>Offenses: <strong>' + item.runs + '</strong></div>' +
+            '<div>KE: <strong>' + item.bestKE.toFixed(4) + ' J</strong></div>' +
+          '</div>' +
+          '<div class="mw-threat ' + threat.cls + '">' + threat.text + '</div>' +
+        '</div>';
+      }).join('');
     }
 
     // ========================================================================
@@ -1390,6 +1712,7 @@
       connectWebSocket();
       loadVersion();
       if (activeCar) { setCurrentCarDisplay(activeCar); }
+      renderMostWanted();
     };
 
     window.addEventListener('beforeunload', () => {
