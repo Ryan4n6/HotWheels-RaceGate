@@ -4,6 +4,9 @@
 #include <Arduino.h>
 #include "espnow_comm.h"
 
+// Mutex protecting 64-bit timing variables (ISR ↔ main loop ↔ ESP-NOW task)
+extern portMUX_TYPE finishTimerMux;
+
 // Timing variables (volatile for ISR access)
 extern volatile uint64_t startTime_us;
 extern volatile uint64_t finishTime_us;

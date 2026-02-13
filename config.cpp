@@ -15,7 +15,12 @@ void setDefaults(DeviceConfig& c) {
   strncpy(c.network_mode, "wifi", sizeof(c.network_mode) - 1);
 
   strncpy(c.role, "finish", sizeof(c.role) - 1);
-  c.device_id = 1;
+
+  // Derive default device ID from MAC address to avoid collisions
+  // when multiple devices all default to ID 1
+  uint8_t mac[6];
+  esp_efuse_mac_get_default(mac);
+  c.device_id = (mac[5] % 253) + 1;  // 1-254 range
 
   c.sensor_pin = 4;
   c.sensor_pin_2 = 5;    // Speed trap second sensor
@@ -48,6 +53,10 @@ void setDefaults(DeviceConfig& c) {
   c.wled_effect_armed = 28;
   c.wled_effect_racing = 49;
   c.wled_effect_finished = 11;
+
+  // Regional / Display
+  strncpy(c.units, "imperial", sizeof(c.units) - 1);      // Default: imperial (mph, ft) — US users
+  strncpy(c.timezone, "EST5EDT,M3.2.0,M11.1.0", sizeof(c.timezone) - 1);  // Default: US Eastern
 
   strncpy(c.ota_password, "admin", sizeof(c.ota_password) - 1);
 }
@@ -149,7 +158,7 @@ bool validateConfig(const DeviceConfig& c) {
 }
 
 String configToJson() {
-  StaticJsonDocument<1536> doc;
+  StaticJsonDocument<2048> doc;
 
   doc["configured"] = cfg.configured;
   doc["version"] = cfg.version;
@@ -199,6 +208,10 @@ String configToJson() {
   wled_fx["racing"] = cfg.wled_effect_racing;
   wled_fx["finished"] = cfg.wled_effect_finished;
 
+  JsonObject regional = doc.createNestedObject("regional");
+  regional["units"] = cfg.units;
+  regional["timezone"] = cfg.timezone;
+
   JsonObject ota = doc.createNestedObject("ota");
   ota["password"] = cfg.ota_password;
 
@@ -208,7 +221,7 @@ String configToJson() {
 }
 
 bool configFromJson(const String& json) {
-  StaticJsonDocument<1536> doc;
+  StaticJsonDocument<2048> doc;
   DeserializationError err = deserializeJson(doc, json);
   if (err) {
     LOG.printf("[CONFIG] JSON parse error: %s\n", err.c_str());
@@ -283,6 +296,12 @@ bool configFromJson(const String& json) {
     }
   }
 
+  JsonObject regional = doc["regional"];
+  if (regional) {
+    strncpy(cfg.units, regional["units"] | "imperial", sizeof(cfg.units) - 1);
+    strncpy(cfg.timezone, regional["timezone"] | "EST5EDT,M3.2.0,M11.1.0", sizeof(cfg.timezone) - 1);
+  }
+
   JsonObject ota = doc["ota"];
   if (ota) {
     strncpy(cfg.ota_password, ota["password"] | "admin", sizeof(cfg.ota_password) - 1);
@@ -300,7 +319,7 @@ void resetConfig() {
   LOG.println("[CONFIG] Factory reset - deleting config and rebooting");
   LittleFS.remove(CONFIG_FILE);
   LittleFS.remove("/runs.csv");
-  delay(500);
+  delay(1500);  // Allow TCP stack to flush response before reboot
   ESP.restart();
 }
 
@@ -356,6 +375,6 @@ void generateHostname(const char* role, const char* macSuffix, char* outBuf, siz
 const char* getRoleEmoji(const char* role) {
   if (strcmp(role, "finish") == 0)    return "\xF0\x9F\x8F\x81";  // 🏁 checkered flag
   if (strcmp(role, "start") == 0)     return "\xF0\x9F\x9A\xA6";  // 🚦 traffic light
-  if (strcmp(role, "speedtrap") == 0) return "\xF0\x9F\x93\xA1";  // 📡 satellite dish
-  return "\xF0\x9F\x9A\x94";                                      // 🚔 police car (setup/unknown)
+  if (strcmp(role, "speedtrap") == 0) return "\xF0\x9F\x9A\x93";  // 🚓 police car
+  return "\xF0\x9F\x91\xAE";                                      // 👮 cop (setup/unknown)
 }

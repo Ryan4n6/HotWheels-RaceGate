@@ -35,7 +35,6 @@
 #include "config.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
-#include <WiFi.h>
 
 // ============================================================================
 // GLOBAL STATE
@@ -72,7 +71,7 @@ static bool isCompatibleRole(const char* myRole, const char* theirRole) {
 // ============================================================================
 // MICROSECOND TIMER
 // ============================================================================
-uint64_t nowUs() {
+uint64_t IRAM_ATTR nowUs() {
   return esp_timer_get_time();
 }
 
@@ -142,8 +141,8 @@ int findPeerByRole(const char* role) {
 PeerStatus getPeerStatus(const KnownPeer& peer) {
   if (peer.lastSeen == 0) return PEER_OFFLINE;  // Never seen this session
   unsigned long age = millis() - peer.lastSeen;
-  if (age < 15000) return PEER_ONLINE;
-  if (age < 60000) return PEER_STALE;
+  if (age < PEER_ONLINE_THRESH_MS) return PEER_ONLINE;
+  if (age < PEER_STALE_THRESH_MS) return PEER_STALE;
   return PEER_OFFLINE;
 }
 
@@ -535,21 +534,6 @@ void sendToMac(const uint8_t* mac, uint8_t type, uint64_t timestamp, int64_t off
   esp_now_send(mac, (uint8_t*)&msg, sizeof(msg));
 }
 
-int sendToRole(const char* role, uint8_t type, uint64_t timestamp, int64_t offset) {
-  int sent = 0;
-  ESPMessage msg;
-  buildMessage(msg, type, timestamp, offset);
-
-  for (int i = 0; i < peerCount; i++) {
-    if (peers[i].paired && strcmp(peers[i].role, role) == 0) {
-      ensureESPNowPeer(peers[i].mac);
-      esp_now_send(peers[i].mac, (uint8_t*)&msg, sizeof(msg));
-      sent++;
-    }
-  }
-  return sent;
-}
-
 void sendToPeer(uint8_t type, uint64_t timestamp, int64_t offset) {
   // Legacy convenience: send to the primary complementary peer
   //   start gate    → finish gate
@@ -592,7 +576,7 @@ void discoveryLoop() {
   unsigned long now = millis();
 
   // ---- Beacon every 3 seconds ----
-  if (now - lastBeaconTime > 3000) {
+  if (now - lastBeaconTime > BEACON_INTERVAL_MS) {
     ESPMessage msg;
     buildMessage(msg, MSG_BEACON, nowUs(), 0);
     uint8_t broadcastAddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
@@ -601,7 +585,7 @@ void discoveryLoop() {
   }
 
   // ---- Peer health check every 5 seconds ----
-  if (now - lastPeerCheck > 5000) {
+  if (now - lastPeerCheck > PEER_HEALTH_CHECK_MS) {
     lastPeerCheck = now;
 
     // Update legacy peerConnected flag
@@ -610,7 +594,7 @@ void discoveryLoop() {
   }
 
   // ---- Deferred save (debounce 2s to reduce flash wear) ----
-  if (needsSave && now - saveRequestedAt > 2000) {
+  if (needsSave && now - saveRequestedAt > PEER_SAVE_DEBOUNCE_MS) {
     needsSave = false;
     savePeers();
   }

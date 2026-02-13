@@ -66,15 +66,6 @@ void setWLEDOff() {
   wledActive = false;
 }
 
-void resetWLEDActivity() {
-  lastWLEDActivity = millis();
-  // If WLED was asleep, wake it up to idle state
-  if (!wledActive && strlen(cfg.wled_host) > 0) {
-    wledActive = true;
-    setWLEDState("idle");
-  }
-}
-
 void checkWLEDTimeout() {
   if (!wledActive) return;
   if (strlen(cfg.wled_host) == 0) return;
@@ -82,18 +73,4 @@ void checkWLEDTimeout() {
     LOG.println("[WLED] Inactivity timeout - turning off");
     setWLEDOff();
   }
-}
-
-bool testWLEDConnection() {
-  if (strlen(cfg.wled_host) == 0) return false;
-
-  HTTPClient http;
-  String url = "http://" + String(cfg.wled_host) + "/json/info";
-  http.begin(url);
-  http.setTimeout(2000); // Config page call - 2s is fine here
-
-  int httpCode = http.GET();
-  http.end();
-
-  return (httpCode == 200);
 }

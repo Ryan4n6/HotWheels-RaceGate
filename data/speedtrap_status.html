@@ -3,51 +3,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>M.A.S.S. Trap - Speed Trap Node</title>
-  <style>
-    :root { --gold: #d4af37; --blue: #4a90d9; --green: #28a745; --red: #dc3545; --navy: #1a1a2e; --card: #16213e; --border: #2a2a4a; --text: #e0e0e0; --muted: #8888aa; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--navy); color: var(--text); min-height: 100vh; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; }
-    .header { text-align: center; margin-bottom: 25px; }
-    .header h1 { color: var(--gold); font-size: 1.8rem; letter-spacing: 3px; font-weight: 900; }
-    .header p { color: var(--muted); font-size: 0.85rem; letter-spacing: 2px; margin-top: 4px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 15px; }
-    .card-title { font-size: 0.75rem; text-transform: uppercase; color: var(--muted); font-weight: 800; letter-spacing: 1px; margin-bottom: 10px; }
-    .big-value { font-size: 3rem; font-weight: 900; font-family: 'Courier New', monospace; color: var(--gold); line-height: 1; }
-    .unit { font-size: 1rem; color: var(--muted); margin-left: 4px; }
-    .status-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
-    .status-dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
-    .status-dot.err { background: var(--red); box-shadow: 0 0 8px var(--red); }
-    .status-dot.wait { background: var(--gold); animation: blink 1s infinite; }
-    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-    .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-    .info-row:last-child { border: none; }
-    .info-label { color: var(--muted); }
-    .info-value { color: var(--text); font-weight: 700; font-family: monospace; }
-    .nav-links { text-align: center; margin-top: 20px; }
-    .nav-links a { color: var(--gold); text-decoration: none; margin: 0 10px; font-weight: 700; font-size: 0.9rem; }
-    .nav-links a:hover { color: var(--blue); }
-  </style>
+  <meta name="fw-version" content="2.5.0">
+  <title>Speed Trap - M.A.S.S. Trap</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <div id="navContainer"></div>
   <div class="container">
-    <div class="header">
-      <h1>SPEED TRAP NODE</h1>
-      <p>M.A.S.S. Trap - Velocity Sensor</p>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Last Measured Speed</div>
-      <div><span id="lastSpeed" class="big-value">--</span><span class="unit">mph</span></div>
-      <div style="margin-top:8px; color:var(--muted); font-size:0.85rem;">
-        <span id="lastSpeedMs">-- m/s</span> | Scale: <span id="lastSpeedScale" style="color:var(--gold);">-- mph</span>
+    <div class="page-header">
+      <div class="page-header-shield"></div>
+      <h1>M.A.S.S. TRAP</h1>
+      <div class="subtitle">Motion Analysis &amp; Speed System</div>
+      <div class="role-badge speedtrap">Speed Trap Node</div>
+      <div class="theme-selector">
+        Theme: <select id="themePicker" onchange="setTheme(this.value)">
+          <option value="interceptor">Interceptor</option>
+          <option value="classic">Classic</option>
+          <option value="daytona">Daytona</option>
+          <option value="casefile">Case File</option>
+          <option value="cyber">Cyber</option>
+        </select>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">System Status</div>
-      <div class="info-row">
+    <!-- Last Measured Speed -->
+    <div class="section">
+      <div class="section-title">LAST MEASURED SPEED</div>
+      <div style="text-align:center; padding-top:12px;">
+        <span id="lastSpeed" class="big-value">--</span><span class="unit" id="speedUnitLabel">mph</span>
+      </div>
+      <div class="text-center text-muted mt-8" style="font-size:0.85rem;">
+        <span id="lastSpeedMs">-- m/s</span> | Scale: <span id="lastSpeedScale" class="text-accent">--</span> <span id="scaleUnitLabel">mph</span>
+      </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="section">
+      <div class="section-title">SYSTEM STATUS</div>
+      <div class="info-row" style="padding-top:8px;">
         <span class="info-label">Peer Connection</span>
         <span class="info-value" id="peerStatus"><span class="status-dot wait"></span>Checking...</span>
       </div>
@@ -77,43 +70,105 @@
       </div>
     </div>
 
-    <div class="nav-links">
-      <a href="/config">Configuration</a>
-      <a href="/console">Console</a>
+    <!-- Peer Network -->
+    <div class="section" id="peerCard">
+      <div class="section-title secondary">PEER NETWORK</div>
+      <div id="peerList" style="padding-top:8px;">
+        <div class="info-row">
+          <span class="info-label"><span class="status-dot wait"></span>Searching...</span>
+          <span class="info-value text-muted">Searching for peers</span>
+        </div>
+      </div>
     </div>
   </div>
 
+  <div id="versionBadge" class="version-badge">v--</div>
+
+  <script src="/main.js"></script>
   <script>
-    async function refresh() {
-      try {
-        const resp = await fetch('/api/info');
-        const info = await resp.json();
+    // ====================================================================
+    // REFRESH DEVICE INFO + CONFIG
+    // ====================================================================
+    function refresh() {
+      fetch('/api/info').then(function(r) { return r.json(); }).then(function(info) {
         document.getElementById('ipAddr').textContent = info.ip || 'N/A';
-        document.getElementById('freeHeap').textContent = info.free_heap ? (info.free_heap / 1024).toFixed(1) + ' KB' : '--';
-        const s = info.uptime_s || 0;
-        const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
-        document.getElementById('uptime').textContent = h + 'h ' + m + 'm ' + (s%60) + 's';
-        const peerEl = document.getElementById('peerStatus');
+        document.getElementById('freeHeap').textContent = formatBytes(info.free_heap);
+        document.getElementById('uptime').textContent = formatUptime(info.uptime_s);
+
+        var peerEl = document.getElementById('peerStatus');
         if (info.peer_connected) {
           peerEl.innerHTML = '<span class="status-dot ok"></span>Connected';
         } else {
           peerEl.innerHTML = '<span class="status-dot err"></span>Disconnected';
         }
-      } catch(e) {}
+      }).catch(function() {});
 
-      try {
-        const resp = await fetch('/api/config');
-        const cfg = await resp.json();
-        const pins = cfg.pins || {};
+      fetch('/api/config').then(function(r) { return r.json(); }).then(function(cfg) {
+        var pins = cfg.pins || {};
         document.getElementById('sensor1Pin').textContent = 'GPIO ' + (pins.sensor_pin || '--');
         document.getElementById('sensor2Pin').textContent = 'GPIO ' + (pins.sensor_pin_2 || '--');
-        const track = cfg.track || {};
+        var track = cfg.track || {};
         document.getElementById('sensorSpacing').textContent = (track.sensor_spacing_m || 0.10) + ' m';
-      } catch(e) {}
+      }).catch(function() {});
     }
 
-    refresh();
-    setInterval(refresh, 3000);
+    // ====================================================================
+    // PEER NETWORK STATUS
+    // ====================================================================
+    function loadPeers() {
+      fetch('/api/peers').then(function(r) { return r.json(); }).then(function(peers) {
+        var container = document.getElementById('peerList');
+        if (!peers || peers.length === 0) {
+          container.innerHTML = '<div class="info-row">' +
+            '<span class="info-label">No peers found</span>' +
+            '<span class="info-value text-muted">Beaconing...</span></div>';
+          return;
+        }
+
+        var html = '';
+        for (var i = 0; i < peers.length; i++) {
+          var p = peers[i];
+          var dotClass = p.status || 'offline';
+          var statusText = p.status === 'online' ? 'ONLINE' :
+                          p.status === 'stale' ? 'STALE' : 'OFFLINE';
+          var statusStyle = p.status === 'online' ? 'color:var(--success)' :
+                           p.status === 'stale' ? '' : 'color:var(--danger)';
+          var role = p.role || 'unknown';
+          var name = p.hostname || p.mac || '--';
+          var pairedBadge = p.paired ? ' *' : '';
+          var nameHtml = p.hostname ? '<a href="http://' + escHtml(p.hostname) + '.local/" target="_blank" style="color:var(--accent);text-decoration:underline;">' + escHtml(name) + '</a>' : escHtml(name);
+
+          html += '<div class="info-row">' +
+            '<span class="info-label">' +
+              '<span class="peer-dot ' + dotClass + '"></span>' +
+              nameHtml + pairedBadge +
+              '<span class="peer-role ' + role + '">' + role + '</span>' +
+            '</span>' +
+            '<span class="info-value" style="' + statusStyle + '">' + statusText + '</span>' +
+          '</div>';
+        }
+        container.innerHTML = html;
+      }).catch(function() {});
+    }
+
+    // ====================================================================
+    // INIT
+    // ====================================================================
+    window.onload = function() {
+      document.getElementById('navContainer').innerHTML = getNavHTML();
+      // Fetch units from config
+      fetch('/api/config').then(function(r) { return r.json(); }).then(function(cfg) {
+        if (cfg.regional) setUnits(cfg.regional.units || 'imperial');
+        var su = speedUnit();
+        var el1 = document.getElementById('speedUnitLabel'); if (el1) el1.textContent = su;
+        var el2 = document.getElementById('scaleUnitLabel'); if (el2) el2.textContent = su;
+      }).catch(function(){});
+      massInit({ws: false});
+      refresh();
+      loadPeers();
+      setInterval(refresh, 3000);
+      setInterval(loadPeers, 5000);
+    };
   </script>
 </body>
 </html>

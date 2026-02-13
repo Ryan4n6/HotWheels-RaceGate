@@ -804,17 +804,18 @@
       const list = document.getElementById('deviceList');
       list.innerHTML = '<div class="hint">Scanning for devices...</div>';
       try {
-        const resp = await fetch('/api/discover');
+        const resp = await fetch('/api/peers');
         const devices = await resp.json();
         if (devices.length === 0) {
           list.innerHTML = '<div class="hint">No devices found. Make sure other devices are powered on.</div>';
           return;
         }
-        list.innerHTML = devices.map(d =>
-          '<div class="device-item" onclick="document.getElementById(\'peerMac\').value=\'' + d.mac + '\'">' +
-          '<div><span class="device-role">' + d.role.toUpperCase() + '</span><span> - ' + d.hostname + '</span></div>' +
-          '<span class="device-mac">' + d.mac + '</span></div>'
-        ).join('');
+        list.innerHTML = devices.map(d => {
+          const link = d.hostname ? '<a href="http://' + d.hostname + '.local/" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:underline;">' + d.hostname + '</a>' : d.mac;
+          return '<div class="device-item" onclick="document.getElementById(\'peerMac\').value=\'' + d.mac + '\'" style="cursor:pointer;">' +
+          '<div><span class="device-role">' + d.role.toUpperCase() + '</span><span> - ' + link + '</span></div>' +
+          '<span class="device-mac">' + d.mac + '</span></div>';
+        }).join('');
       } catch (e) {
         list.innerHTML = '<div class="hint">Discovery failed. Try again.</div>';
       }

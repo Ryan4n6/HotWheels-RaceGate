@@ -3,322 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="fw-version" content="2.4.0">
+  <meta name="fw-version" content="2.5.0">
   <title>Start Gate - M.A.S.S. Trap</title>
-  <style>
-    :root {
-      --mass-navy: #1a1a2e;
-      --mass-gold: #d4af37;
-      --mass-blue: #4a90d9;
-      --mass-green: #28a745;
-      --mass-red: #dc3545;
-      --mass-dark: #0f0f1e;
-      --mass-card: #16213e;
-      --mass-card-border: #2a2a4a;
-      --mass-text: #e0e0e0;
-      --mass-muted: #8888aa;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: var(--mass-navy);
-      min-height: 100vh;
-      padding: 15px;
-      color: var(--mass-text);
-    }
-    .container { max-width: 600px; margin: 0 auto; }
-
-    /* ===== HEADER ===== */
-    .header {
-      text-align: center;
-      margin-bottom: 20px;
-      padding: 15px 0;
-    }
-    .header-shield {
-      display: inline-block;
-      width: 50px; height: 58px;
-      background: var(--mass-gold);
-      clip-path: polygon(50% 0%, 100% 15%, 100% 65%, 50% 100%, 0% 65%, 0% 15%);
-      margin-bottom: 8px;
-      position: relative;
-    }
-    .header-shield::after {
-      content: 'M';
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 1.5rem;
-      font-weight: 900;
-      color: var(--mass-navy);
-    }
-    .header h1 {
-      font-size: 1.6rem;
-      font-weight: 900;
-      letter-spacing: 3px;
-      color: var(--mass-gold);
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-    }
-    .header .subtitle {
-      font-size: 0.7rem;
-      letter-spacing: 5px;
-      color: var(--mass-muted);
-      text-transform: uppercase;
-      margin-top: 2px;
-    }
-    .header .role-badge {
-      display: inline-block;
-      margin-top: 8px;
-      padding: 4px 18px;
-      background: var(--mass-green);
-      color: white;
-      font-weight: 800;
-      font-size: 0.75rem;
-      letter-spacing: 2px;
-      border-radius: 4px;
-      text-transform: uppercase;
-    }
-    .nav-links {
-      text-align: center;
-      margin-bottom: 18px;
-    }
-    .nav-links a {
-      color: var(--mass-blue);
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 0.8rem;
-      letter-spacing: 1px;
-      margin: 0 10px;
-      border-bottom: 2px solid transparent;
-      padding-bottom: 2px;
-      transition: all 0.2s;
-    }
-    .nav-links a:hover {
-      color: var(--mass-gold);
-      border-bottom-color: var(--mass-gold);
-    }
-
-    /* ===== STATE BANNER ===== */
-    .state-banner {
-      background: var(--mass-card);
-      border: 2px solid var(--mass-card-border);
-      padding: 28px 20px;
-      border-radius: 10px;
-      text-align: center;
-      font-size: 2.2rem;
-      font-weight: 900;
-      letter-spacing: 4px;
-      text-transform: uppercase;
-      margin-bottom: 18px;
-      transition: all 0.3s;
-      color: var(--mass-muted);
-    }
-    .state-banner.idle {
-      border-color: var(--mass-card-border);
-      color: var(--mass-muted);
-    }
-    .state-banner.armed {
-      background: rgba(40,167,69,0.15);
-      border-color: var(--mass-green);
-      color: var(--mass-green);
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-    .state-banner.racing {
-      background: rgba(220,53,69,0.15);
-      border-color: var(--mass-red);
-      color: var(--mass-red);
-      animation: flash 0.4s infinite;
-    }
-    .state-banner.finished {
-      background: rgba(212,175,55,0.1);
-      border-color: var(--mass-gold);
-      color: var(--mass-gold);
-    }
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgba(40,167,69,0); }
-      50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(40,167,69,0.3); }
-    }
-    @keyframes flash {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-
-    /* ===== CARDS ===== */
-    .card {
-      background: var(--mass-card);
-      border: 1px solid var(--mass-card-border);
-      border-radius: 10px;
-      padding: 18px;
-      margin-bottom: 14px;
-    }
-    .card-title {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      color: var(--mass-gold);
-      font-weight: 800;
-      margin-bottom: 12px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid var(--mass-card-border);
-    }
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 7px 0;
-      border-bottom: 1px solid rgba(42,42,74,0.5);
-      font-size: 0.88rem;
-    }
-    .info-row:last-child { border-bottom: none; }
-    .info-label { color: var(--mass-muted); font-weight: 600; }
-    .info-value { font-weight: 700; font-family: 'Courier New', monospace; }
-    .info-value.connected { color: var(--mass-green); }
-    .info-value.disconnected { color: var(--mass-red); }
-
-    /* ===== LIDAR CARD ===== */
-    .lidar-card { display: none; }
-    .lidar-card.visible { display: block; }
-    .lidar-bar-container {
-      background: var(--mass-dark);
-      border-radius: 4px;
-      height: 20px;
-      margin-top: 8px;
-      overflow: hidden;
-      position: relative;
-    }
-    .lidar-bar {
-      height: 100%;
-      background: var(--mass-gold);
-      border-radius: 4px;
-      transition: width 0.3s;
-      min-width: 2px;
-    }
-    .lidar-bar.staged {
-      background: var(--mass-green);
-      animation: lidarPulse 1s infinite;
-    }
-    @keyframes lidarPulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-    .lidar-reading {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-top: 6px;
-    }
-    .lidar-distance {
-      font-size: 1.8rem;
-      font-weight: 900;
-      font-family: 'Courier New', monospace;
-      color: var(--mass-gold);
-    }
-    .lidar-state-label {
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      padding: 3px 10px;
-      border-radius: 4px;
-      background: rgba(42,42,74,0.5);
-    }
-    .lidar-state-label.empty { color: var(--mass-muted); }
-    .lidar-state-label.staged { color: var(--mass-green); background: rgba(40,167,69,0.15); }
-    .lidar-state-label.launched { color: var(--mass-red); background: rgba(220,53,69,0.15); }
-
-    /* ===== MESSAGE BOX ===== */
-    .message {
-      background: var(--mass-card);
-      border: 1px solid var(--mass-card-border);
-      border-radius: 10px;
-      padding: 18px;
-      text-align: center;
-      font-size: 0.88rem;
-      line-height: 1.7;
-      color: var(--mass-muted);
-    }
-    .message strong { color: var(--mass-gold); }
-
-    /* ===== VERSION BADGE ===== */
-    .version-badge {
-      position: fixed;
-      bottom: 8px;
-      right: 8px;
-      background: rgba(0,0,0,0.7);
-      color: var(--mass-muted);
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 0.7rem;
-      z-index: 1000;
-      font-family: monospace;
-    }
-
-    /* ===== WEBSOCKET STATUS ===== */
-    .ws-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin-right: 6px;
-      background: var(--mass-red);
-    }
-    .ws-dot.live {
-      background: var(--mass-green);
-      box-shadow: 0 0 6px var(--mass-green);
-    }
-
-    /* ===== PEER STATUS ===== */
-    .peer-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin-right: 6px;
-    }
-    .peer-dot.online {
-      background: var(--mass-green);
-      box-shadow: 0 0 6px var(--mass-green);
-    }
-    .peer-dot.stale {
-      background: var(--mass-gold);
-      box-shadow: 0 0 4px var(--mass-gold);
-    }
-    .peer-dot.offline {
-      background: var(--mass-red);
-    }
-    .peer-role {
-      font-size: 0.65rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      padding: 2px 8px;
-      border-radius: 3px;
-      font-weight: 700;
-      margin-left: 6px;
-    }
-    .peer-role.finish { background: rgba(74,144,217,0.2); color: var(--mass-blue); }
-    .peer-role.start { background: rgba(40,167,69,0.2); color: var(--mass-green); }
-    .peer-role.speedtrap { background: rgba(212,175,55,0.2); color: var(--mass-gold); }
-  </style>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <div id="navContainer"></div>
   <div class="container">
-    <div class="header">
-      <div class="header-shield"></div>
+    <div class="page-header">
+      <div class="page-header-shield"></div>
       <h1>M.A.S.S. TRAP</h1>
-      <div class="subtitle">Motion Analysis & Speed System</div>
-      <div class="role-badge">Start Gate</div>
+      <div class="subtitle">Motion Analysis &amp; Speed System</div>
+      <div class="role-badge start">Start Gate</div>
+      <div class="theme-selector">
+        Theme: <select id="themePicker" onchange="setTheme(this.value)">
+          <option value="interceptor">Interceptor</option>
+          <option value="classic">Classic</option>
+          <option value="daytona">Daytona</option>
+          <option value="casefile">Case File</option>
+          <option value="cyber">Cyber</option>
+        </select>
+      </div>
     </div>
 
-    <div class="nav-links">
-      <a href="/config">Settings</a>
-      <a href="/console">Debug Console</a>
-    </div>
-
-    <div id="stateBanner" class="state-banner idle">INITIALIZING</div>
+    <!-- State Banner -->
+    <div id="stateBanner" class="state-banner">INITIALIZING</div>
 
     <!-- System Status -->
-    <div class="card">
-      <div class="card-title">System Status</div>
-      <div class="info-row">
+    <div class="section">
+      <div class="section-title">SYSTEM STATUS</div>
+      <div class="info-row" style="padding-top:12px;">
         <span class="info-label"><span id="wsDot" class="ws-dot"></span>WebSocket</span>
         <span class="info-value" id="wsStatus">Connecting...</span>
       </div>
@@ -328,22 +42,22 @@
       </div>
     </div>
 
-    <!-- Brother's Six — Peer Network -->
-    <div class="card" id="peerCard">
-      <div class="card-title">Brother's Six — Peer Network</div>
-      <div id="peerList">
+    <!-- Peer Network -->
+    <div class="section" id="peerCard">
+      <div class="section-title secondary">PEER NETWORK</div>
+      <div id="peerList" style="padding-top:8px;">
         <div class="info-row">
           <span class="info-label">Scanning...</span>
-          <span class="info-value" style="color:var(--mass-muted);">Searching for peers</span>
+          <span class="info-value text-muted">Searching for peers</span>
         </div>
       </div>
     </div>
 
-    <!-- LiDAR Card (hidden if not enabled) -->
-    <div id="lidarCard" class="card lidar-card">
-      <div class="card-title">LiDAR Staging Sensor</div>
-      <div class="lidar-reading">
-        <div><span id="lidarDist" class="lidar-distance">--</span><span style="color:var(--mass-muted); font-size:0.9rem;"> mm</span></div>
+    <!-- LiDAR Card -->
+    <div id="lidarCard" class="section" style="display:none;">
+      <div class="section-title">LIDAR STAGING SENSOR</div>
+      <div class="lidar-reading" style="padding-top:8px;">
+        <div><span id="lidarDist" class="lidar-distance">--</span><span class="unit"> mm</span></div>
         <span id="lidarLabel" class="lidar-state-label empty">NO TARGET</span>
       </div>
       <div class="lidar-bar-container">
@@ -352,9 +66,9 @@
     </div>
 
     <!-- Device Info -->
-    <div class="card">
-      <div class="card-title">Device Information</div>
-      <div class="info-row">
+    <div class="section">
+      <div class="section-title">DEVICE INFORMATION</div>
+      <div class="info-row" style="padding-top:8px;">
         <span class="info-label">IP Address</span>
         <span class="info-value" id="ipAddr">--</span>
       </div>
@@ -372,117 +86,77 @@
       </div>
     </div>
 
-    <div class="message">
+    <!-- Info Message -->
+    <div class="message-box">
       This is the <strong>Start Gate</strong> sensor node.<br>
       Race data, garage, and history are managed by the <strong>Finish Gate</strong>.<br>
       Open the Finish Gate dashboard to control races and view results.
     </div>
   </div>
 
-  <div class="version-badge" id="versionBadge">v--</div>
+  <div id="versionBadge" class="version-badge">v--</div>
 
+  <script src="/main.js"></script>
   <script>
     // ====================================================================
-    // WEBSOCKET
+    // WEBSOCKET — uses shared connectWebSocket from main.js
     // ====================================================================
-    var ws = null;
-    var wsConnected = false;
+    onWsMessage(function(d) {
+      // Update state banner
+      var banner = document.getElementById('stateBanner');
+      var state = (d.state || 'UNKNOWN').toLowerCase();
+      banner.className = 'state-banner ' + state;
+      banner.textContent = d.state || 'UNKNOWN';
+      document.getElementById('raceState').textContent = d.state || '--';
 
-    function connectWS() {
-      ws = new WebSocket('ws://' + window.location.hostname + ':81');
+      // LiDAR data
+      if (d.lidar) {
+        var lidarCard = document.getElementById('lidarCard');
+        lidarCard.style.display = 'block';
 
-      ws.onopen = function() {
-        wsConnected = true;
-        document.getElementById('wsDot').classList.add('live');
-        document.getElementById('wsStatus').textContent = 'Connected';
-        document.getElementById('wsStatus').className = 'info-value connected';
-      };
+        var dist = d.lidar.distance_mm;
+        document.getElementById('lidarDist').textContent = dist != null ? dist : '--';
 
-      ws.onclose = function() {
-        wsConnected = false;
-        document.getElementById('wsDot').classList.remove('live');
-        document.getElementById('wsStatus').textContent = 'Disconnected';
-        document.getElementById('wsStatus').className = 'info-value disconnected';
-        setTimeout(connectWS, 2000);
-      };
+        var lidarState = d.lidar.state || 'empty';
+        var label = document.getElementById('lidarLabel');
+        label.className = 'lidar-state-label ' + lidarState;
+        if (lidarState === 'staged') label.textContent = 'CAR STAGED';
+        else if (lidarState === 'launched') label.textContent = 'LAUNCHED';
+        else label.textContent = 'NO TARGET';
 
-      ws.onmessage = function(e) {
-        try {
-          var d = JSON.parse(e.data);
-
-          // Update state banner
-          var banner = document.getElementById('stateBanner');
-          var state = (d.state || 'UNKNOWN').toLowerCase();
-          banner.className = 'state-banner ' + state;
-          banner.textContent = d.state || 'UNKNOWN';
-          document.getElementById('raceState').textContent = d.state || '--';
-
-          // LiDAR data
-          if (d.lidar) {
-            var lidarCard = document.getElementById('lidarCard');
-            lidarCard.classList.add('visible');
-
-            var dist = d.lidar.distance_mm;
-            document.getElementById('lidarDist').textContent = dist != null ? dist : '--';
-
-            var lidarState = d.lidar.state || 'empty';
-            var label = document.getElementById('lidarLabel');
-            label.className = 'lidar-state-label ' + lidarState;
-            if (lidarState === 'staged') label.textContent = 'CAR STAGED';
-            else if (lidarState === 'launched') label.textContent = 'LAUNCHED';
-            else label.textContent = 'NO TARGET';
-
-            // Bar visualization (closer = more fill, max 300mm range)
-            var bar = document.getElementById('lidarBar');
-            var pct = dist != null ? Math.max(0, Math.min(100, (1 - dist / 300) * 100)) : 0;
-            bar.style.width = pct + '%';
-            bar.className = 'lidar-bar' + (lidarState === 'staged' ? ' staged' : '');
-          }
-        } catch (err) {}
-      };
-    }
+        var bar = document.getElementById('lidarBar');
+        var pct = dist != null ? Math.max(0, Math.min(100, (1 - dist / 300) * 100)) : 0;
+        bar.style.width = pct + '%';
+        bar.className = 'lidar-bar' + (lidarState === 'staged' ? ' staged' : '');
+      }
+    });
 
     // ====================================================================
     // DEVICE INFO (polled)
     // ====================================================================
-    async function loadInfo() {
-      try {
-        var resp = await fetch('/api/info');
-        var info = await resp.json();
+    function loadInfo() {
+      fetch('/api/info').then(function(r) { return r.json(); }).then(function(info) {
         document.getElementById('ipAddr').textContent = info.ip || '--';
-
-        var s = info.uptime_s || 0;
-        if (s >= 3600) {
-          document.getElementById('uptime').textContent = Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
-        } else if (s >= 60) {
-          document.getElementById('uptime').textContent = Math.floor(s / 60) + 'm ' + (s % 60) + 's';
-        } else {
-          document.getElementById('uptime').textContent = s + 's';
-        }
-
-        document.getElementById('freeHeap').textContent = (info.free_heap || 0).toLocaleString() + ' B';
+        document.getElementById('uptime').textContent = formatUptime(info.uptime_s);
+        document.getElementById('freeHeap').textContent = formatBytes(info.free_heap);
         document.getElementById('wifiRssi').textContent = (info.wifi_rssi || 0) + ' dBm';
 
-        // Show LiDAR card if enabled
         if (info.lidar_enabled) {
-          document.getElementById('lidarCard').classList.add('visible');
+          document.getElementById('lidarCard').style.display = 'block';
         }
-      } catch (e) {}
+      }).catch(function() {});
     }
 
     // ====================================================================
-    // PEER NETWORK STATUS (polled)
+    // PEER NETWORK STATUS
     // ====================================================================
-    async function loadPeers() {
-      try {
-        var resp = await fetch('/api/peers');
-        var peers = await resp.json();
+    function loadPeers() {
+      fetch('/api/peers').then(function(r) { return r.json(); }).then(function(peers) {
         var container = document.getElementById('peerList');
-
         if (!peers || peers.length === 0) {
           container.innerHTML = '<div class="info-row">' +
             '<span class="info-label">No peers found</span>' +
-            '<span class="info-value" style="color:var(--mass-muted);">Beaconing...</span></div>';
+            '<span class="info-value text-muted">Beaconing...</span></div>';
           return;
         }
 
@@ -492,36 +166,40 @@
           var dotClass = p.status || 'offline';
           var statusText = p.status === 'online' ? 'ONLINE' :
                           p.status === 'stale' ? 'STALE' : 'OFFLINE';
-          var statusClass = p.status === 'online' ? 'connected' :
-                           p.status === 'stale' ? '' : 'disconnected';
+          var statusStyle = p.status === 'online' ? 'color:var(--success)' :
+                           p.status === 'stale' ? '' : 'color:var(--danger)';
           var role = p.role || 'unknown';
           var name = p.hostname || p.mac || '--';
-          var pairedBadge = p.paired ? ' ★' : '';
+          var pairedBadge = p.paired ? ' *' : '';
+          var nameHtml = p.hostname ? '<a href="http://' + escHtml(p.hostname) + '.local/" target="_blank" style="color:var(--accent);text-decoration:underline;">' + escHtml(name) + '</a>' : escHtml(name);
 
           html += '<div class="info-row">' +
             '<span class="info-label">' +
               '<span class="peer-dot ' + dotClass + '"></span>' +
-              name + pairedBadge +
+              nameHtml + pairedBadge +
               '<span class="peer-role ' + role + '">' + role + '</span>' +
             '</span>' +
-            '<span class="info-value ' + statusClass + '">' + statusText + '</span>' +
+            '<span class="info-value" style="' + statusStyle + '">' + statusText + '</span>' +
           '</div>';
         }
         container.innerHTML = html;
-      } catch (e) {}
+      }).catch(function() {});
     }
 
     // ====================================================================
-    // VERSION
+    // WS STATUS INDICATOR — sync with shared wsConnected state
     // ====================================================================
-    async function loadVersion() {
-      try {
-        var resp = await fetch('/api/version');
-        var v = await resp.json();
-        document.getElementById('versionBadge').textContent = 'FW v' + v.firmware + ' | UI v' + v.web_ui;
-      } catch (e) {
-        var meta = document.querySelector('meta[name="fw-version"]');
-        if (meta) document.getElementById('versionBadge').textContent = 'v' + meta.content;
+    function updateWsIndicator() {
+      var dot = document.getElementById('wsDot');
+      var label = document.getElementById('wsStatus');
+      if (wsConnected) {
+        dot.classList.add('live');
+        label.textContent = 'Connected';
+        label.style.color = 'var(--success)';
+      } else {
+        dot.classList.remove('live');
+        label.textContent = 'Disconnected';
+        label.style.color = 'var(--danger)';
       }
     }
 
@@ -529,12 +207,13 @@
     // INIT
     // ====================================================================
     window.onload = function() {
-      connectWS();
+      document.getElementById('navContainer').innerHTML = getNavHTML();
+      massInit();
       loadInfo();
       loadPeers();
-      loadVersion();
       setInterval(loadInfo, 15000);
       setInterval(loadPeers, 5000);
+      setInterval(updateWsIndicator, 1000);
     };
   </script>
 </body>

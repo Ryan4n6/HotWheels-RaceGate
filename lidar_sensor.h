@@ -13,17 +13,11 @@ void lidarSetup();
 // Broadcasts state changes to WebSocket clients.
 void lidarLoop();
 
-// Returns true if a car is currently detected at the sensor.
-bool isCarPresent();
-
 // Get raw distance reading in millimeters (0 = no reading).
 uint16_t getDistanceMM();
 
 // Get current LiDAR state.
 LidarState getLidarState();
-
-// Get LiDAR data as JSON string for WebSocket broadcast.
-String getLidarJson();
 
 // Returns true ONCE when car has been staged for >1 second (for auto-arm).
 // Safe to call even if LiDAR is disabled — returns false.

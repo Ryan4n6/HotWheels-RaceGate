@@ -3,303 +3,85 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="fw-version" content="2.4.0">
-  <title>M.A.S.S. Trap - Debug Console</title>
-  <style>
-    :root {
-      --mass-navy: #1a1a2e;
-      --mass-gold: #d4af37;
-      --mass-blue: #4a90d9;
-      --mass-green: #28a745;
-      --mass-red: #dc3545;
-      --mass-dark: #0f0f1e;
-      --mass-card: #16213e;
-      --mass-card-border: #2a2a4a;
-      --mass-text: #e0e0e0;
-      --mass-muted: #8888aa;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #1a1a2e;
-      color: #eee;
-      min-height: 100vh;
-      padding: 10px;
-    }
-    .container { max-width: 1400px; margin: 0 auto; }
-
-    /* Header */
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 0;
-      margin-bottom: 10px;
-      border-bottom: 2px solid var(--mass-gold);
-    }
-    .header h1 { color: var(--mass-gold); font-size: 1.4rem; font-weight: 900; letter-spacing: 2px; }
-    .header-links a {
-      color: var(--mass-blue);
-      text-decoration: none;
-      margin-left: 15px;
-      font-weight: 700;
-      font-size: 0.9rem;
-    }
-    .header-links a:hover { color: var(--mass-gold); }
-
-    /* Tabs */
-    .tabs { display: flex; gap: 2px; margin-bottom: 0; }
-    .tab-btn {
-      padding: 10px 20px;
-      background: var(--mass-card);
-      color: var(--mass-muted);
-      border: 1px solid var(--mass-card-border);
-      border-bottom: none;
-      border-radius: 8px 8px 0 0;
-      cursor: pointer;
-      font-weight: 700;
-      font-size: 0.85rem;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-    .tab-btn:hover { color: var(--mass-text); }
-    .tab-btn.active { background: var(--mass-card); color: var(--mass-gold); border-color: var(--mass-gold); border-bottom: 1px solid var(--mass-card); }
-    .tab-panel { display: none; background: var(--mass-card); border: 1px solid var(--mass-card-border); border-radius: 0 8px 8px 8px; padding: 15px; margin-top: -1px; }
-    .tab-panel.active { display: block; }
-
-    /* Serial Monitor */
-    #serialOutput {
-      background: #0d0d1a;
-      color: #0f0;
-      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-      font-size: 0.82rem;
-      line-height: 1.4;
-      padding: 12px;
-      border-radius: 6px;
-      height: 55vh;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-      border: 1px solid var(--mass-card-border);
-    }
-    #serialOutput .ts { color: #666; }
-    #serialOutput .err { color: #f55; }
-    #serialOutput .warn { color: #fa0; }
-    #serialOutput .esp { color: #0af; }
-    #serialOutput .boot { color: #f0f; }
-
-    /* Controls bar */
-    .controls {
-      display: flex;
-      gap: 8px;
-      margin: 10px 0;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .controls label {
-      font-size: 0.85rem;
-      color: #aaa;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    /* Buttons */
-    .btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      font-weight: 700;
-      font-size: 0.85rem;
-      cursor: pointer;
-      text-transform: uppercase;
-    }
-    .btn:active { transform: translateY(1px); }
-    .btn-blue { background: var(--mass-blue); color: white; }
-    .btn-green { background: var(--mass-green); color: white; }
-    .btn-red { background: var(--mass-red); color: white; }
-    .btn-gold { background: var(--mass-gold); color: var(--mass-navy); }
-    .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
-
-    /* File Browser */
-    .file-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 8px;
-      margin: 10px 0;
-    }
-    .file-item {
-      background: var(--mass-dark);
-      border: 2px solid var(--mass-card-border);
-      border-radius: 8px;
-      padding: 12px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .file-item:hover { border-color: var(--mass-blue); }
-    .file-item.active { border-color: var(--mass-gold); background: rgba(212,175,55,0.05); }
-    .file-item .fname { font-weight: 700; color: var(--mass-blue); font-size: 0.9rem; word-break: break-all; }
-    .file-item .fsize { font-size: 0.75rem; color: var(--mass-muted); margin-top: 4px; }
-
-    /* Editor */
-    #fileEditor {
-      background: #0d0d1a;
-      color: #ddd;
-      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-      font-size: 0.82rem;
-      line-height: 1.4;
-      padding: 12px;
-      border-radius: 6px;
-      width: 100%;
-      height: 45vh;
-      border: 1px solid var(--mass-card-border);
-      resize: vertical;
-    }
-    #fileEditor:focus { outline: none; border-color: var(--mass-gold); }
-
-    /* Status bar */
-    .status-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: var(--mass-dark);
-      color: var(--mass-muted);
-      padding: 6px 15px;
-      font-size: 0.75rem;
-      display: flex;
-      justify-content: space-between;
-      border-top: 1px solid var(--mass-card-border);
-      z-index: 100;
-    }
-    .status-bar .heap { color: var(--mass-green); }
-    .status-bar .uptime { color: var(--mass-gold); }
-
-    /* Device info grid */
-    .info-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 10px;
-      margin: 10px 0;
-    }
-    .info-card {
-      background: var(--mass-dark);
-      border: 1px solid var(--mass-card-border);
-      border-radius: 8px;
-      padding: 12px;
-    }
-    .info-card .label { font-size: 0.7rem; color: var(--mass-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
-    .info-card .value { font-size: 1.2rem; color: var(--mass-gold); font-weight: 700; margin-top: 4px; }
-
-    @media (max-width: 600px) {
-      #serialOutput, #fileEditor { height: 40vh; }
-      .file-list { grid-template-columns: 1fr 1fr; }
-    }
-  </style>
+  <meta name="fw-version" content="2.5.0">
+  <title>M.A.S.S. Trap - Terminal</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
-<body>
+<body class="console-page">
+  <div id="navContainer"></div>
   <div class="container">
-    <div class="header">
-      <h1>M.A.S.S. TRAP - DEBUG CONSOLE</h1>
-      <div class="header-links">
-        <a href="/">Dashboard</a>
-        <a href="/config">Config</a>
-      </div>
-    </div>
-
-    <!-- Device Info -->
-    <div id="deviceInfoBar" class="info-grid">
+    <!-- Device Info Bar -->
+    <div class="info-grid">
       <div class="info-card"><div class="label">Role</div><div class="value" id="infoRole">--</div></div>
       <div class="info-card"><div class="label">IP Address</div><div class="value" id="infoIP">--</div></div>
-      <div class="info-card"><div class="label">Free Heap</div><div class="value heap" id="infoHeap">--</div></div>
-      <div class="info-card"><div class="label">Uptime</div><div class="value uptime" id="infoUptime">--</div></div>
+      <div class="info-card"><div class="label">Free Heap</div><div class="value" id="infoHeap">--</div></div>
+      <div class="info-card"><div class="label">Uptime</div><div class="value" id="infoUptime">--</div></div>
       <div class="info-card"><div class="label">WiFi RSSI</div><div class="value" id="infoRSSI">--</div></div>
       <div class="info-card"><div class="label">Peer</div><div class="value" id="infoPeer">--</div></div>
     </div>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <button class="tab-btn active" onclick="showTab('serial')">Serial Monitor</button>
-      <button class="tab-btn" onclick="showTab('files')">File Browser</button>
+    <!-- Tabs: Serial Monitor | File Browser -->
+    <div class="config-tabs">
+      <button class="config-tab active" onclick="showTab('serial')">Serial Monitor</button>
+      <button class="config-tab" onclick="showTab('files')">File Browser</button>
     </div>
 
-    <!-- Tab: Serial Monitor -->
-    <div id="tab-serial" class="tab-panel active">
-      <div class="controls">
-        <button class="btn btn-green" onclick="fetchLog()">Refresh</button>
-        <button class="btn btn-red" onclick="clearLog()">Clear Log</button>
-        <label>
-          <input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()">
-          Auto-refresh (2s)
-        </label>
-        <label>
-          <input type="checkbox" id="autoScroll" checked>
-          Auto-scroll
-        </label>
-        <label>
-          Filter: <input type="text" id="logFilter" placeholder="e.g. WIFI, ESP-NOW" style="background:#0d0d1a; color:#ddd; border:1px solid #444; border-radius:4px; padding:4px 8px; font-size:0.85rem; width:150px;">
-        </label>
-        <button class="btn btn-gold btn-sm" onclick="downloadLog()">Download</button>
+    <!-- Serial Monitor -->
+    <div id="tab-serial" class="config-tab-content active">
+      <div class="console-controls">
+        <button class="btn btn-success btn-sm" onclick="fetchLog()">Refresh</button>
+        <button class="btn btn-danger btn-sm" onclick="clearLog()">Clear Log</button>
+        <label><input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()"> Auto-refresh (2s)</label>
+        <label><input type="checkbox" id="autoScroll" checked> Auto-scroll</label>
+        <label>Filter: <input type="text" id="logFilter" placeholder="e.g. WIFI, ESP-NOW" style="width:140px;"></label>
+        <button class="btn btn-accent btn-sm" onclick="downloadLog()">Download</button>
       </div>
-      <div id="serialOutput">Connecting...</div>
+      <div id="serialOutput" class="serial-output">Connecting...</div>
     </div>
 
-    <!-- Tab: File Browser -->
-    <div id="tab-files" class="tab-panel">
-      <div class="controls">
-        <button class="btn btn-green" onclick="loadFileList()">Refresh Files</button>
-        <span id="currentFile" style="color:var(--mass-gold); font-weight:700; margin-left:10px;">No file selected</span>
+    <!-- File Browser -->
+    <div id="tab-files" class="config-tab-content">
+      <div class="console-controls">
+        <button class="btn btn-success btn-sm" onclick="loadFileList()">Refresh Files</button>
+        <span id="currentFile" class="text-accent" style="font-weight:700; margin-left:10px;">No file selected</span>
         <span style="flex:1;"></span>
-        <button class="btn btn-blue" id="btnSaveFile" onclick="saveFile()" style="display:none;">Save File</button>
-        <button class="btn btn-red btn-sm" id="btnDeleteFile" onclick="deleteFile()" style="display:none;">Delete</button>
+        <button class="btn btn-primary btn-sm" id="btnSaveFile" onclick="saveFile()" style="display:none;">Save File</button>
+        <button class="btn btn-danger btn-sm" id="btnDeleteFile" onclick="deleteFile()" style="display:none;">Delete</button>
       </div>
-      <div id="fileListGrid" class="file-list">
-        <p style="color:#888;">Loading files...</p>
+      <div id="fileListGrid" class="file-grid">
+        <p class="text-muted">Loading files...</p>
       </div>
-      <textarea id="fileEditor" style="display:none;" placeholder="Select a file to edit..."></textarea>
+      <textarea id="fileEditor" class="file-editor" style="display:none;" placeholder="Select a file to edit..."></textarea>
     </div>
   </div>
 
-  <!-- Status Bar -->
-  <div class="status-bar">
+  <!-- Console Status Bar (fixed bottom) -->
+  <div class="console-status-bar">
     <span id="statusMsg">Initializing...</span>
     <span>
-      <span style="color:#666;" id="statusVersion">v--</span> |
+      <span class="text-muted" id="statusVersion">v--</span> |
       <span class="heap" id="statusHeap">--</span> free |
       <span class="uptime" id="statusUptime">--</span>
     </span>
   </div>
 
+  <script src="/main.js"></script>
   <script>
     // ====================================================================
-    // API AUTHENTICATION HELPER
+    // M.A.S.S. TRAP — TERMINAL / DEBUG CONSOLE  v2.5.0
     // ====================================================================
-    function getApiKey() {
-      if (!window._apiKey) {
-        window._apiKey = localStorage.getItem('hw_api_key') || '';
-      }
-      if (!window._apiKey) {
-        window._apiKey = prompt('Enter API key (OTA password):') || '';
-        if (window._apiKey) localStorage.setItem('hw_api_key', window._apiKey);
-      }
-      return window._apiKey;
-    }
-    function authHeaders(extra) {
-      return Object.assign({ 'X-API-Key': getApiKey() }, extra || {});
-    }
 
     // ====================================================================
     // DEVICE INFO
     // ====================================================================
-    async function loadDeviceInfo() {
-      try {
-        const resp = await fetch('/api/info');
-        const info = await resp.json();
-
-        // Tab title
+    function loadDeviceInfo() {
+      fetch('/api/info').then(function(resp) {
+        return resp.json();
+      }).then(function(info) {
+        // Update tab title with role
         if (info.role) {
-          const rn = info.role.charAt(0).toUpperCase() + info.role.slice(1);
-          document.title = rn + ' - M.A.S.S. Trap Console';
+          var rn = info.role.charAt(0).toUpperCase() + info.role.slice(1);
+          document.title = rn + ' - M.A.S.S. Trap Terminal';
         }
 
         document.getElementById('infoRole').textContent = (info.role || 'unknown').toUpperCase();
@@ -310,65 +92,51 @@
         document.getElementById('infoPeer').textContent = info.peer_connected ? 'Connected' : 'Disconnected';
         document.getElementById('infoPeer').style.color = info.peer_connected ? '#28a745' : '#dc3545';
 
+        // Status bar
         document.getElementById('statusHeap').textContent = formatBytes(info.free_heap);
         document.getElementById('statusUptime').textContent = formatUptime(info.uptime_s);
         document.getElementById('statusMsg').textContent = 'Connected to ' + (info.hostname || 'device');
-      } catch (e) {
+      }).catch(function() {
         document.getElementById('statusMsg').textContent = 'Connection error';
-      }
-    }
-
-    function formatBytes(b) {
-      if (!b) return '--';
-      if (b > 1024 * 1024) return (b / 1024 / 1024).toFixed(1) + ' MB';
-      if (b > 1024) return (b / 1024).toFixed(1) + ' KB';
-      return b + ' B';
-    }
-
-    function formatUptime(s) {
-      if (!s && s !== 0) return '--';
-      const h = Math.floor(s / 3600);
-      const m = Math.floor((s % 3600) / 60);
-      const sec = s % 60;
-      if (h > 0) return h + 'h ' + m + 'm ' + sec + 's';
-      if (m > 0) return m + 'm ' + sec + 's';
-      return sec + 's';
+      });
     }
 
     // ====================================================================
     // SERIAL MONITOR
     // ====================================================================
-    let rawLog = '';
-    let autoRefreshTimer = null;
+    var rawLog = '';
+    var autoRefreshTimer = null;
 
-    async function fetchLog() {
-      try {
-        const resp = await fetch('/api/log');
-        rawLog = await resp.text();
+    function fetchLog() {
+      fetch('/api/log').then(function(resp) {
+        return resp.text();
+      }).then(function(text) {
+        rawLog = text;
         renderLog();
-      } catch (e) {
+      }).catch(function(e) {
         document.getElementById('serialOutput').textContent = 'Failed to fetch log: ' + e.message;
-      }
+      });
     }
 
     function renderLog() {
-      const output = document.getElementById('serialOutput');
-      const filter = document.getElementById('logFilter').value.trim().toUpperCase();
-      let lines = rawLog.split('\n');
+      var output = document.getElementById('serialOutput');
+      var filter = document.getElementById('logFilter').value.trim().toUpperCase();
+      var lines = rawLog.split('\n');
 
       if (filter) {
-        lines = lines.filter(l => l.toUpperCase().includes(filter));
+        lines = lines.filter(function(l) {
+          return l.toUpperCase().indexOf(filter) !== -1;
+        });
       }
 
       // Colorize output
-      output.innerHTML = lines.map(line => {
-        // Highlight different log categories
-        if (line.includes('[WIFI]') || line.includes('WiFi')) return '<span class="esp">' + esc(line) + '</span>';
-        if (line.includes('[ESP-NOW]') || line.includes('[DISCOVER]')) return '<span class="esp">' + esc(line) + '</span>';
-        if (line.includes('[BOOT]') || line.includes('========')) return '<span class="boot">' + esc(line) + '</span>';
-        if (line.includes('ERROR') || line.includes('FAIL') || line.includes('error')) return '<span class="err">' + esc(line) + '</span>';
-        if (line.includes('WARN') || line.includes('warn')) return '<span class="warn">' + esc(line) + '</span>';
-        return esc(line);
+      output.innerHTML = lines.map(function(line) {
+        if (line.indexOf('[WIFI]') !== -1 || line.indexOf('WiFi') !== -1) return '<span class="esp">' + escHtml(line) + '</span>';
+        if (line.indexOf('[ESP-NOW]') !== -1 || line.indexOf('[DISCOVER]') !== -1) return '<span class="esp">' + escHtml(line) + '</span>';
+        if (line.indexOf('[BOOT]') !== -1 || line.indexOf('========') !== -1) return '<span class="boot">' + escHtml(line) + '</span>';
+        if (line.indexOf('ERROR') !== -1 || line.indexOf('FAIL') !== -1 || line.indexOf('error') !== -1) return '<span class="err">' + escHtml(line) + '</span>';
+        if (line.indexOf('WARN') !== -1 || line.indexOf('warn') !== -1) return '<span class="warn">' + escHtml(line) + '</span>';
+        return escHtml(line);
       }).join('\n');
 
       if (document.getElementById('autoScroll').checked) {
@@ -376,22 +144,17 @@
       }
     }
 
-    function esc(s) {
-      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    async function clearLog() {
-      try {
-        await fetch('/api/log', { method: 'DELETE', headers: authHeaders() });
+    function clearLog() {
+      fetch('/api/log', { method: 'DELETE', headers: authHeaders() }).then(function() {
         rawLog = '';
         document.getElementById('serialOutput').textContent = '(log cleared)';
-      } catch (e) {}
+      }).catch(function() {});
     }
 
     function downloadLog() {
-      const blob = new Blob([rawLog], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      var blob = new Blob([rawLog], { type: 'text/plain' });
+      var url = window.URL.createObjectURL(blob);
+      var a = document.createElement('a');
       a.href = url;
       a.download = 'masstrap_serial_' + Date.now() + '.log';
       a.click();
@@ -399,13 +162,15 @@
     }
 
     function toggleAutoRefresh() {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+      }
       if (document.getElementById('autoRefresh').checked) {
-        autoRefreshTimer = setInterval(() => {
+        autoRefreshTimer = setInterval(function() {
           fetchLog();
           loadDeviceInfo();
         }, 2000);
-      } else {
-        clearInterval(autoRefreshTimer);
       }
     }
 
@@ -415,38 +180,39 @@
     // ====================================================================
     // FILE BROWSER
     // ====================================================================
-    let currentFilePath = '';
-    let fileList = [];
+    var currentFilePath = '';
+    var fileList = [];
 
-    async function loadFileList() {
-      try {
-        const resp = await fetch('/api/files?path=/');
-        fileList = await resp.json();
+    function loadFileList() {
+      fetch('/api/files?path=/').then(function(resp) {
+        return resp.json();
+      }).then(function(data) {
+        fileList = data;
         renderFileList();
-      } catch (e) {
-        document.getElementById('fileListGrid').innerHTML = '<p style="color:#f55;">Failed to load files</p>';
-      }
+      }).catch(function() {
+        document.getElementById('fileListGrid').innerHTML = '<p class="text-danger">Failed to load files</p>';
+      });
     }
 
     function renderFileList() {
-      const grid = document.getElementById('fileListGrid');
+      var grid = document.getElementById('fileListGrid');
       if (fileList.length === 0) {
-        grid.innerHTML = '<p style="color:#888;">No files found on filesystem</p>';
+        grid.innerHTML = '<p class="text-muted">No files found on filesystem</p>';
         return;
       }
-      grid.innerHTML = fileList.map(f => {
-        const isActive = currentFilePath === '/' + f.name;
-        return '<div class="file-item' + (isActive ? ' active' : '') + '" onclick="openFile(\'/' + f.name + '\')">' +
-          '<div class="fname">' + f.name + '</div>' +
+      grid.innerHTML = fileList.map(function(f) {
+        var isActive = currentFilePath === '/' + f.name;
+        return '<div class="file-item' + (isActive ? ' active' : '') + '" onclick="openFile(\'/' + escHtml(f.name) + '\')">' +
+          '<div class="fname">' + escHtml(f.name) + '</div>' +
           '<div class="fsize">' + formatBytes(f.size) + '</div>' +
         '</div>';
       }).join('');
     }
 
-    async function openFile(path) {
-      try {
-        const resp = await fetch('/api/files?path=' + encodeURIComponent(path));
-        const data = await resp.json();
+    function openFile(path) {
+      fetch('/api/files?path=' + encodeURIComponent(path)).then(function(resp) {
+        return resp.json();
+      }).then(function(data) {
         if (data.error) {
           alert('Error: ' + data.error);
           return;
@@ -457,43 +223,43 @@
         document.getElementById('fileEditor').style.display = 'block';
         document.getElementById('btnSaveFile').style.display = 'inline-block';
         document.getElementById('btnDeleteFile').style.display = 'inline-block';
-        renderFileList(); // Update active state
-      } catch (e) {
+        renderFileList();
+      }).catch(function(e) {
         alert('Failed to open file: ' + e.message);
-      }
+      });
     }
 
-    async function saveFile() {
+    function saveFile() {
       if (!currentFilePath) return;
-      const content = document.getElementById('fileEditor').value;
-      try {
-        const resp = await fetch('/api/files?path=' + encodeURIComponent(currentFilePath), {
-          method: 'POST',
-          headers: authHeaders({ 'Content-Type': 'application/octet-stream' }),
-          body: content
-        });
-        const result = await resp.json();
+      var content = document.getElementById('fileEditor').value;
+      fetch('/api/files?path=' + encodeURIComponent(currentFilePath), {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/octet-stream' }),
+        body: content
+      }).then(function(resp) {
+        return resp.json();
+      }).then(function(result) {
         if (result.status === 'ok') {
           document.getElementById('currentFile').textContent = currentFilePath + ' (saved - ' + formatBytes(result.size) + ')';
           document.getElementById('statusMsg').textContent = 'Saved ' + currentFilePath;
-          loadFileList(); // Refresh sizes
+          loadFileList();
         } else {
           alert('Save failed: ' + (result.error || 'unknown'));
         }
-      } catch (e) {
+      }).catch(function(e) {
         alert('Save failed: ' + e.message);
-      }
+      });
     }
 
-    async function deleteFile() {
+    function deleteFile() {
       if (!currentFilePath) return;
       if (!confirm('Delete ' + currentFilePath + '? This cannot be undone.')) return;
-      try {
-        const resp = await fetch('/api/files?path=' + encodeURIComponent(currentFilePath), {
-          method: 'DELETE',
-          headers: authHeaders()
-        });
-        const result = await resp.json();
+      fetch('/api/files?path=' + encodeURIComponent(currentFilePath), {
+        method: 'DELETE',
+        headers: authHeaders()
+      }).then(function(resp) {
+        return resp.json();
+      }).then(function(result) {
         if (result.status === 'ok') {
           currentFilePath = '';
           document.getElementById('currentFile').textContent = 'File deleted';
@@ -504,17 +270,20 @@
         } else {
           alert('Delete failed: ' + (result.error || 'unknown'));
         }
-      } catch (e) {
+      }).catch(function(e) {
         alert('Delete failed: ' + e.message);
-      }
+      });
     }
 
     // ====================================================================
     // TABS
     // ====================================================================
     function showTab(name) {
-      document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+      var panels = document.querySelectorAll('.config-tab-content');
+      for (var i = 0; i < panels.length; i++) panels[i].classList.remove('active');
+      var tabs = document.querySelectorAll('.config-tab');
+      for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+
       document.getElementById('tab-' + name).classList.add('active');
       event.target.classList.add('active');
 
@@ -522,25 +291,25 @@
     }
 
     // ====================================================================
-    // VERSION
+    // CONSOLE STATUS BAR VERSION
     // ====================================================================
-    async function loadVersion() {
-      try {
-        const resp = await fetch('/api/version');
-        const v = await resp.json();
+    function loadConsoleVersion() {
+      fetch('/api/version').then(function(r) { return r.json(); }).then(function(v) {
         document.getElementById('statusVersion').textContent = 'FW v' + v.firmware;
-      } catch (e) {
-        const meta = document.querySelector('meta[name="fw-version"]');
+      }).catch(function() {
+        var meta = document.querySelector('meta[name="fw-version"]');
         if (meta) document.getElementById('statusVersion').textContent = 'v' + meta.content;
-      }
+      });
     }
 
     // ====================================================================
     // INIT
     // ====================================================================
-    window.onload = () => {
+    window.onload = function() {
+      document.getElementById('navContainer').innerHTML = getNavHTML();
+      massInit({ws: false});
       loadDeviceInfo();
-      loadVersion();
+      loadConsoleVersion();
       fetchLog();
       toggleAutoRefresh();
     };

@@ -2,6 +2,83 @@
 
 All notable changes to The M.A.S.S. Trap (Motion Analysis & Speed System) will be documented in this file.
 
+## [2.5.0] - 2026-02-13
+
+### Thread Safety & Timing Integrity (Critical)
+- **Spinlock protection for 64-bit timing variables** — All `startTime_us`, `finishTime_us`, `triggerTime_us`, and speed trap timestamps are now protected by `portMUX_TYPE` spinlocks. On the dual-core ESP32-S3, ISRs, the main loop, and the ESP-NOW receive callback run on different cores — without locking, 64-bit reads/writes can be torn (half-old, half-new), causing phantom timing errors. Affected modules: `finish_gate`, `start_gate`, `speed_trap`.
+- **Atomic snapshots in `broadcastState()`** — WebSocket state broadcast now takes a consistent snapshot of both timing variables under lock before calculating elapsed time, preventing inconsistent reads during active races.
+- **`nowUs()` marked `IRAM_ATTR`** — The microsecond timer function is now safe to call from ISR context (previously relied on compiler inlining).
+
+### Added
+- **NTP Wall-Clock Timestamps in Serial Log** — The `SerialTee` ring buffer now prepends `[HH:MM:SS.mmm]` timestamps to every log line using NTP time. Before NTP sync completes, uses uptime with `+` prefix (e.g., `[+01:23.456]`) to distinguish from wall-clock. Timestamps appear in the ring buffer (web console) only — UART output is unmodified. NTP sync is non-blocking and best-effort via `pool.ntp.org`.
+- **Regional/Display Preferences** — Two new config fields:
+  - `units`: `"imperial"` (mph, ft) or `"metric"` (km/h, m) — broadcast in WebSocket state for client-side unit switching
+  - `timezone`: POSIX TZ string (e.g., `"EST5EDT,M3.2.0,M11.1.0"`) — drives NTP local time and log timestamps
+- **WiFi Diagnostic Endpoint** — `GET /api/wifi-status` returns connection state, SSID, IP, RSSI, WiFi mode, and human-readable failure reason (e.g., "Wrong password", "SSID not found").
+- **Captive Portal OS-Specific Handlers** — Explicit redirect handlers for iOS (`/hotspot-detect.html`), Android (`/generate_204`), and Windows (`/connecttest.txt`, `/fwlink`) probe URLs. Uses absolute `http://192.168.4.1/` Location headers and no-cache directives to prevent CNA caching issues.
+- **Modular Web UI (LittleFS-first)** — New file-based UI architecture:
+  - `dashboard.html` — Redesigned command center (replaces monolithic `index.html`)
+  - `history.html` — Dedicated evidence log page
+  - `system.html` — Redesigned system configuration (replaces `config.html`)
+  - `main.js` — Shared JavaScript utilities
+  - `style.css` — Shared stylesheet
+  - All page routes now prefer LittleFS files, falling back to PROGMEM if missing. Existing PROGMEM pages remain as firmware-embedded fallback.
+- **Theme Engine (5 Themes)** — Selectable via dropdown in footer, persisted to `localStorage`:
+  - **Interceptor** (default) — Navy + gold, monospace fonts, forensic graph paper grid background
+  - **Classic** — Hot Wheels branding: vibrant orange gradient, Hot Wheels yellow/blue, Arial Black/Impact font
+  - **Daytona** — NASCAR-inspired: Impact font, yellow/red colors, checkered flag + tire skid CSS background
+  - **Case File** — Police detective aesthetic: aged paper background with ruled lines and coffee stain ring, Courier typewriter font, red margin line, pushpin dots, auto-prepends "CASE #2026-" to subtitle
+  - **Cyber** — Terminal green on black, CRT scan lines + green glow background
+- **Dual-Layout Navigation** — Responsive nav system replaces inconsistent per-page links:
+  - Desktop (>768px): Sticky top manila folder tabs
+  - Mobile (<768px): Fixed bottom thumb bar (48px min touch targets)
+  - Four sections: Live Monitor, Evidence Log, System Config, Terminal
+- **Kiosk / Display-Only Mode** — For science fair presentation to judges:
+  - Activate via `?kiosk` URL parameter or `Ctrl+K` keyboard toggle
+  - Hides interactive controls (ARM/RESET/SYNC, garage, operations, navigation, theme selector)
+  - Keeps visible: state banner, LED bar, race stats, physics, leaderboard, speed profile, charts, formulas, history
+  - Tiny "Ctrl+K to exit" hint in bottom-right corner
+- **Peer Hotlinks** — Peer hostnames are now clickable `http://{hostname}.local/` links in config, dashboard, start gate, and speed trap status pages. Speed trap status page now includes a peer network section (was missing).
+- **`push_ui.sh`** — Shell script to convert `data/*.html` files into PROGMEM `html_*.h` headers.
+- **Static asset routes** — `/style.css` and `/main.js` served with 1-hour cache headers. `/history.html` route for the evidence log page.
+
+### Changed
+- **Named Constants** — 20+ magic numbers extracted to `#define` constants in `config.h`: unit conversions (`MPS_TO_MPH`, `MPS_TO_KPH`, `METERS_TO_FEET`), timing limits (`MAX_RACE_DURATION_US`, `MAX_TRAP_DURATION_US`, `TRAP_SENSOR_TIMEOUT_US`), reset delays (`FINISH_RESET_DELAY_MS`, `START_RESET_DELAY_MS`), ESP-NOW intervals (`PING_INTERVAL_MS`, `PING_BACKOFF_MS`, `CLOCK_SYNC_INTERVAL_MS`, `PEER_HEALTH_CHECK_MS`, `BEACON_INTERVAL_MS`), peer thresholds (`PEER_ONLINE_THRESH_MS`, `PEER_STALE_THRESH_MS`, `PEER_SAVE_DEBOUNCE_MS`).
+- **Clock sync drift filtering** — Finish gate only logs clock sync updates when drift exceeds 500µs or on first sync, reducing console noise during stable operation.
+- **WiFi AP channel pinning** — After STA connection, `softAP()` is called with the STA channel to prevent channel-hopping that disrupts ESP-NOW.
+- **WiFi failure diagnostics** — Human-readable failure reasons ("SSID not found", "Wrong password", "Connection timeout") logged and exposed via `/api/wifi-status`.
+- **Default device_id from MAC** — `device_id` now defaults to `(mac[5] % 253) + 1` instead of hardcoded `1`, avoiding ID collisions when multiple unconfigured devices power up.
+- **Non-blocking speed trap LED** — Replaced blocking `delay()` loop with millis-based 500ms blink pattern.
+- **OTA auth flag** — Added `--auth=admin` to PlatformIO OTA upload flags in `platformio.ini`.
+- **`broadcastState()` JSON** — Buffer increased 768 → 1024 bytes; now includes `units`, `midTrack_mps`, and `speed_mps` fields.
+- **Config JSON buffer** — Increased 1536 → 2048 bytes to accommodate regional settings.
+- **Cache-Control headers** — All dynamic HTML pages served with `no-cache, no-store, must-revalidate`; static assets cached appropriately.
+- **Reboot reliability** — All reboot paths (`/api/config` POST, `/api/reset`, `/api/system/restore`, `/api/restore`) now flush TCP, disconnect AP clients, then delay before `ESP.restart()` — fixes CNA "config saved but page hangs" issue.
+- **Version bump** — Firmware: 2.4.0 → 2.5.0
+
+### Fixed
+- **Peer discovery "Discovery failed" error** — JavaScript called non-existent `/api/discover` endpoint; corrected to `/api/peers` in config page, system page, and PROGMEM headers.
+- **Track length initialization race condition** — Dashboard showed hardcoded "2.0 M" default until WebSocket connected. Now fetches `/api/config` on page load to get the real track length immediately.
+- **Connection badge hidden behind nav** — Badge z-index bumped above navigation layer; desktop position adjusted to clear sticky header.
+- **Config page content hidden behind save bar** — Added bottom padding to page container so fixed-position save bar doesn't cover the last config section.
+- **CSS/JS externalization** — Extracted all inline styles (~1,200 lines) and scripts (~180 lines) from monolithic HTML files into shared `style.css` and `main.js`, eliminating duplication across 5 pages.
+
+### Removed
+- **Dead code cleanup** — `isCarPresent()`, `getLidarJson()` (lidar_sensor), `resetWLEDActivity()`, `testWLEDConnection()` (wled_integration), `sendToRole()` (espnow_comm).
+- **Redundant includes** — `#include <esp_now.h>`, `#include <ArduinoJson.h>`, `#include <esp_mac.h>`, `#include <WiFi.h>` removed from files that get them transitively through headers.
+
+### Technical Notes
+- All spinlocks use `portENTER_CRITICAL` / `portENTER_CRITICAL_ISR` as appropriate for the calling context (main loop vs ISR). This is the ESP-IDF prescribed pattern for protecting shared state on dual-core chips.
+- `SerialTee::writeTimestamp()` writes to the ring buffer only (not UART), so physical serial output format is unchanged.
+- NTP uses `configTzTime()` which is non-blocking — the first call fires off a UDP request, and `getLocalTime()` returns false until a response arrives. The `ntpSynced` flag latches true once `tm_year > 100` (year 2000+).
+- Config struct grows by 52 bytes (`units[12]` + `timezone[40]`) — well within the JSON document budget.
+- New LittleFS UI files add ~180KB to the filesystem but remain within the 9.9MB partition. PROGMEM fallbacks ensure the device works even without uploading the new data files.
+- Captive portal handlers use absolute URLs (`http://192.168.4.1/`) instead of relative (`/`) because some CNA implementations cache relative redirects incorrectly.
+- All JavaScript uses ES5 (`var`, not `let`/`const`) for maximum browser compatibility on embedded web servers.
+- Theme selection persists to `localStorage` and applies on page load before first paint.
+
+---
+
 ## [2.4.0] - 2026-02-11
 
 ### The M.A.S.S. Trap Rebrand

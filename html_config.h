@@ -452,7 +452,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
       <label>Device Role</label>
       <div class="role-cards">
         <div class="role-card" id="role-start" onclick="selectRole('start')">
-          <div class="role-icon">&#x1F7E2;</div>
+          <div class="role-icon">&#x1F6A6;</div>
           <h3>START GATE</h3>
           <p>Detects car release, sends start signal</p>
         </div>
@@ -462,7 +462,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
           <p>Logs time, calculates speed &amp; physics</p>
         </div>
         <div class="role-card" id="role-speedtrap" onclick="selectRole('speedtrap')">
-          <div class="role-icon">&#x1F6A8;</div>
+          <div class="role-icon">&#x1F693;</div>
           <h3>SPEED TRAP</h3>
           <p>Mid-track velocity via dual IR sensors</p>
         </div>
@@ -470,8 +470,8 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
       <input type="hidden" id="role" value="finish">
 
       <label>Device ID</label>
-      <input type="number" id="deviceId" value="1" min="1" max="254">
-      <div class="hint">Unique number for this device (1-254). Use different IDs for each device.</div>
+      <input type="number" id="deviceId" value="" min="1" max="254">
+      <div class="hint">Auto-assigned from MAC address. Use different IDs for each device (1-254).</div>
     </div>
 
     <!-- Tab: Pins -->
@@ -809,17 +809,18 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
       const list = document.getElementById('deviceList');
       list.innerHTML = '<div class="hint">Scanning for devices...</div>';
       try {
-        const resp = await fetch('/api/discover');
+        const resp = await fetch('/api/peers');
         const devices = await resp.json();
         if (devices.length === 0) {
           list.innerHTML = '<div class="hint">No devices found. Make sure other devices are powered on.</div>';
           return;
         }
-        list.innerHTML = devices.map(d =>
-          '<div class="device-item" onclick="document.getElementById(\'peerMac\').value=\'' + d.mac + '\'">' +
-          '<div><span class="device-role">' + d.role.toUpperCase() + '</span><span> - ' + d.hostname + '</span></div>' +
-          '<span class="device-mac">' + d.mac + '</span></div>'
-        ).join('');
+        list.innerHTML = devices.map(d => {
+          const link = d.hostname ? '<a href="http://' + d.hostname + '.local/" target="_blank" onclick="event.stopPropagation()" style="color:var(--accent);text-decoration:underline;">' + d.hostname + '</a>' : d.mac;
+          return '<div class="device-item" onclick="document.getElementById(\'peerMac\').value=\'' + d.mac + '\'" style="cursor:pointer;">' +
+          '<div><span class="device-role">' + d.role.toUpperCase() + '</span><span> - ' + link + '</span></div>' +
+          '<span class="device-mac">' + d.mac + '</span></div>';
+        }).join('');
       } catch (e) {
         list.innerHTML = '<div class="hint">Discovery failed. Try again.</div>';
       }
@@ -976,7 +977,14 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
           showStatus('Error: ' + (result.error || 'Save failed'), 'error');
         }
       } catch (e) {
-        showStatus('Error: ' + e.message, 'error');
+        // Network error during save usually means the device is rebooting (connection dropped).
+        // Treat this as success and attempt redirect to the new hostname.
+        const host = config.network.hostname || 'masstrap';
+        showStatus('Device rebooting as ' + host + '... (connection lost, this is normal)', 'success');
+        setTimeout(() => {
+          showStatus('Reconnecting to http://' + host + '.local ...', '');
+          setTimeout(() => { window.location.href = 'http://' + host + '.local/'; }, 5000);
+        }, 3000);
       }
     }
 
@@ -1103,7 +1111,7 @@ static const char CONFIG_HTML[] PROGMEM = R"rawliteral(
           }
           if (cfg.device) {
             selectRole(cfg.device.role || 'finish');
-            document.getElementById('deviceId').value = cfg.device.id || 1;
+            document.getElementById('deviceId').value = cfg.device.id || '';
           }
           if (cfg.pins) {
             document.getElementById('sensorPin').value = cfg.pins.sensor_pin || 4;

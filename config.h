@@ -5,12 +5,48 @@
 
 #define CONFIG_FILE "/config.json"
 #define CONFIG_VERSION 2
-#define FIRMWARE_VERSION "2.4.0"
-#define WEB_UI_VERSION  "2.4.0"
+#define FIRMWARE_VERSION "2.5.0"
+#define WEB_UI_VERSION  "2.5.0"
 #define BUILD_DATE      __DATE__
 #define BUILD_TIME      __TIME__
 #define PROJECT_NAME    "M.A.S.S. Trap"
 #define PROJECT_FULL    "Motion Analysis & Speed System"
+
+// ============================================================================
+// NAMED CONSTANTS — Replaces magic numbers scattered across the codebase
+// ============================================================================
+
+// Unit conversion
+#define MPS_TO_MPH              2.23694     // metres/second → miles/hour
+#define MPS_TO_KPH              3.6         // metres/second → kilometres/hour
+#define METERS_TO_FEET          3.28084     // metres → feet
+
+// ESP-NOW speed data encoding (fixed-point in int64_t offset field)
+#define SPEED_FIXED_POINT_SCALE 10000.0
+
+// Race timing sanity limits (microseconds)
+#define MAX_RACE_DURATION_US    60000000LL  // 60 seconds — reject anything longer
+#define MAX_TRAP_DURATION_US    10000000LL  // 10 seconds — speed trap max
+#define TRAP_SENSOR_TIMEOUT_US  5000000LL   // 5 seconds  — single sensor timeout
+
+// Auto-reset delays after FINISHED state (milliseconds)
+#define FINISH_RESET_DELAY_MS   5000        // Finish gate: 5s display then IDLE
+#define START_RESET_DELAY_MS    2000        // Start gate: 2s then IDLE
+
+// Race timeout (milliseconds)
+#define RACE_TIMEOUT_MS         30000       // 30s — abort if no finish
+
+// ESP-NOW peer health intervals (milliseconds)
+#define PING_INTERVAL_MS        2000        // Keepalive when peer is online
+#define PING_BACKOFF_MS         10000       // Keepalive when peer is offline
+#define CLOCK_SYNC_INTERVAL_MS  30000       // Finish→start time sync request (30s)
+#define PEER_HEALTH_CHECK_MS    5000        // Peer status scan interval
+
+// ESP-NOW discovery (milliseconds)
+#define BEACON_INTERVAL_MS      3000        // Broadcast "I'm here"
+#define PEER_ONLINE_THRESH_MS   15000       // <15s since last heard = ONLINE
+#define PEER_STALE_THRESH_MS    60000       // <60s = STALE, >60s = OFFLINE
+#define PEER_SAVE_DEBOUNCE_MS   2000        // Delay before writing /peers.json
 
 // Global log output — all Serial.printf calls should use LOG.printf instead
 // This captures output for the web serial monitor (/console)
@@ -74,6 +110,10 @@ struct DeviceConfig {
   uint8_t wled_effect_racing;
   uint8_t wled_effect_finished;
 
+  // Regional / Display preferences
+  char units[12];       // "imperial" (mph, ft) or "metric" (km/h, m)
+  char timezone[40];    // POSIX TZ string, e.g. "EST5EDT,M3.2.0,M11.1.0" or "UTC"
+
   // OTA
   char ota_password[32];
 };
@@ -119,7 +159,7 @@ void getMacSuffix(char* buf, size_t len);
 void generateHostname(const char* role, const char* macSuffix, char* outBuf, size_t outLen);
 
 // Returns UTF-8 emoji string for a role's AP SSID personality
-// finish → 🏁  start → 🚦  speedtrap → 📡  default/setup → 🚔
+// finish → 🏁  start → 🚦  speedtrap → 🚓  default/setup → 👮
 const char* getRoleEmoji(const char* role);
 
 #endif

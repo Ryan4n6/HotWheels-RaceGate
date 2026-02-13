@@ -87,7 +87,7 @@ extern int peerCount;
 // ============================================================================
 // MICROSECOND TIMER
 // ============================================================================
-uint64_t nowUs();
+uint64_t nowUs();  // Definition in .cpp is IRAM_ATTR (ISR-safe)
 
 // ============================================================================
 // INITIALIZATION
@@ -100,10 +100,6 @@ void initESPNow();
 // ============================================================================
 // Send to a specific MAC address
 void sendToMac(const uint8_t* mac, uint8_t type, uint64_t timestamp, int64_t offset);
-
-// Send to all paired peers that match a given role (e.g., "finish")
-// Returns number of messages sent
-int sendToRole(const char* role, uint8_t type, uint64_t timestamp, int64_t offset);
 
 // Send to the primary peer (legacy — sends to first paired complementary role)
 void sendToPeer(uint8_t type, uint64_t timestamp, int64_t offset);

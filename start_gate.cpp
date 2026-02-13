@@ -6,6 +6,7 @@
 // Only the finish gate controls WLED to avoid HTTP conflicts.
 
 // Trigger detection
+static portMUX_TYPE startMux = portMUX_INITIALIZER_UNLOCKED;
 static volatile bool triggerDetected = false;
 static volatile uint64_t triggerTime_us = 0;
 
@@ -19,10 +20,12 @@ static bool waitingToReset = false;
 // START TRIGGER INTERRUPT
 // ============================================================================
 void IRAM_ATTR startTriggerISR() {
+  portENTER_CRITICAL_ISR(&startMux);
   if (!triggerDetected) {
     triggerTime_us = esp_timer_get_time();
     triggerDetected = true;
   }
+  portEXIT_CRITICAL_ISR(&startMux);
 }
 
 // ============================================================================
@@ -51,13 +54,13 @@ static void breatheLED() {
 // ============================================================================
 void startGateLoop() {
   // Check peer connectivity timeout
-  if (peerConnected && millis() - lastPeerSeen > 10000) {
+  if (peerConnected && millis() - lastPeerSeen > PING_BACKOFF_MS) {
     peerConnected = false;
     LOG.println("[START] Peer disconnected - reducing ping rate");
   }
 
   // Ping finish gate - back off to 10s when disconnected
-  unsigned long pingInterval = peerConnected ? 2000 : 10000;
+  unsigned long pingInterval = peerConnected ? PING_INTERVAL_MS : PING_BACKOFF_MS;
   if (millis() - lastPingTime > pingInterval) {
     sendToPeer(MSG_PING, nowUs(), 0);
     lastPingTime = millis();
@@ -67,7 +70,7 @@ void startGateLoop() {
   // The start gate just responds to SYNC_REQ with MSG_OFFSET.
 
   // Non-blocking reset after FINISHED state
-  if (waitingToReset && millis() - finishedAt > 2000) {
+  if (waitingToReset && millis() - finishedAt > START_RESET_DELAY_MS) {
     waitingToReset = false;
     raceState = IDLE;
     LOG.println("[START] Auto-reset to IDLE");
@@ -80,7 +83,9 @@ void startGateLoop() {
       if (lidarAutoArmReady()) {
         raceState = ARMED;
         triggerDetected = false;
+        portENTER_CRITICAL(&startMux);
         triggerTime_us = 0;
+        portEXIT_CRITICAL(&startMux);
         attachInterrupt(digitalPinToInterrupt(cfg.sensor_pin), startTriggerISR, FALLING);
         sendToPeer(MSG_ARM_CMD, nowUs(), 0);
         playSound("armed.wav");
@@ -98,10 +103,16 @@ void startGateLoop() {
         triggerDetected = false;
         triggeredTime = millis();
 
+        // Atomic read of 64-bit trigger timestamp
+        uint64_t safeTrigger;
+        portENTER_CRITICAL(&startMux);
+        safeTrigger = triggerTime_us;
+        portEXIT_CRITICAL(&startMux);
+
         // Send START with our LOCAL precise timestamp to finish gate.
         // The finish gate will convert this to its timebase using clockOffset.
-        LOG.printf("[START] TRIGGERED at %llu us\n", triggerTime_us);
-        sendToPeer(MSG_START, triggerTime_us, 0);
+        LOG.printf("[START] TRIGGERED at %llu us\n", safeTrigger);
+        sendToPeer(MSG_START, safeTrigger, 0);
 
         // Play "go" sound on start gate speaker
         playSound("go.wav");
@@ -118,7 +129,7 @@ void startGateLoop() {
       digitalWrite(cfg.led_pin, (millis() / 100) % 2);
 
       // Timeout: if no CONFIRM after 30 seconds, reset
-      if (millis() - triggeredTime > 30000) {
+      if (millis() - triggeredTime > RACE_TIMEOUT_MS) {
         LOG.println("[START] Race timeout - no finish confirmation");
         raceState = IDLE;
       }
@@ -166,7 +177,9 @@ void onStartGateESPNow(const ESPMessage& msg, uint64_t receiveTime) {
       if (raceState == IDLE) {
         raceState = ARMED;
         triggerDetected = false;
+        portENTER_CRITICAL(&startMux);
         triggerTime_us = 0;
+        portEXIT_CRITICAL(&startMux);
         // Attach interrupt to detect beam break
         attachInterrupt(digitalPinToInterrupt(cfg.sensor_pin), startTriggerISR, FALLING);
         // Play armed chime on start gate speaker

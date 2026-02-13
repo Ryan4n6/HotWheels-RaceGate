@@ -82,6 +82,16 @@ static const char SPEEDTRAP_STATUS_HTML[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-title">Peer Network</div>
+      <div id="peerList">
+        <div class="info-row">
+          <span class="info-label"><span class="status-dot wait"></span>Searching...</span>
+          <span class="info-value" style="color:var(--muted);">Beaconing</span>
+        </div>
+      </div>
+    </div>
+
     <div class="nav-links">
       <a href="/config">Configuration</a>
       <a href="/console">Console</a>
@@ -117,8 +127,34 @@ static const char SPEEDTRAP_STATUS_HTML[] PROGMEM = R"rawliteral(
       } catch(e) {}
     }
 
+    async function loadPeers() {
+      try {
+        const resp = await fetch('/api/peers');
+        const peers = await resp.json();
+        const container = document.getElementById('peerList');
+        if (!peers || peers.length === 0) {
+          container.innerHTML = '<div class="info-row"><span class="info-label">No peers found</span><span class="info-value" style="color:var(--muted);">Beaconing...</span></div>';
+          return;
+        }
+        let html = '';
+        for (let i = 0; i < peers.length; i++) {
+          const p = peers[i];
+          const dotClass = p.status === 'online' ? 'ok' : p.status === 'stale' ? 'wait' : 'err';
+          const statusText = p.status === 'online' ? 'ONLINE' : p.status === 'stale' ? 'STALE' : 'OFFLINE';
+          const role = p.role || 'unknown';
+          const name = p.hostname || p.mac || '--';
+          const pairedBadge = p.paired ? ' ★' : '';
+          const nameHtml = p.hostname ? '<a href="http://' + p.hostname + '.local/" target="_blank" style="color:var(--gold);text-decoration:underline;">' + name + '</a>' : name;
+          html += '<div class="info-row"><span class="info-label"><span class="status-dot ' + dotClass + '"></span>' + nameHtml + pairedBadge + '</span><span class="info-value">' + statusText + '</span></div>';
+        }
+        container.innerHTML = html;
+      } catch(e) {}
+    }
+
     refresh();
+    loadPeers();
     setInterval(refresh, 3000);
+    setInterval(loadPeers, 5000);
   </script>
 </body>
 </html>

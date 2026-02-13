@@ -48,13 +48,10 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WebSocketsServer.h>
-#include <esp_now.h>
-#include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
 #include <DNSServer.h>
-#include <esp_mac.h>
 
 #include "config.h"
 #include "espnow_comm.h"
@@ -77,6 +74,10 @@
 // DNS server for captive portal in setup mode
 DNSServer dnsServer;
 bool setupMode = false;
+
+// WiFi status tracking for diagnostics (/api/wifi-status)
+bool wifiConnected = false;
+char wifiFailReason[64] = "";
 
 // Global log output — defaults to Serial, switched to serialTee in setup()
 Print* logOutput = &Serial;
@@ -116,17 +117,41 @@ static bool connectWiFi(const char* ssid, const char* pass, const char* hostname
 
   if (WiFi.status() == WL_CONNECTED) {
     digitalWrite(ledPin, HIGH);
-    LOG.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+    LOG.printf("[WIFI] Connected! IP: %s, RSSI: %d dBm\n",
+               WiFi.localIP().toString().c_str(), WiFi.RSSI());
 
     // NOW switch to AP_STA so ESP-NOW can work alongside WiFi.
     // Do this AFTER successful connection to avoid confusing the driver.
+    // Pin AP to the same channel as the STA connection to prevent channel-hopping.
     WiFi.mode(WIFI_AP_STA);
+    WiFi.softAP(hostname, NULL, WiFi.channel());
     delay(100);
+
+    wifiConnected = true;
+    memset(wifiFailReason, 0, sizeof(wifiFailReason));
+
+    // Kick off NTP time sync (non-blocking, best-effort)
+    // Uses POSIX TZ string from config for local time display in logs
+    serialTee.syncNTP(cfg.timezone);
+    LOG.printf("[NTP] Time sync requested (pool.ntp.org, TZ=%s)\n", cfg.timezone);
 
     return true;
   }
 
-  LOG.printf("[WIFI] Failed to connect to '%s' (status=%d)\n", ssid, (int)WiFi.status());
+  // Translate WiFi status code to human-readable reason
+  wifiConnected = false;
+  int status = (int)WiFi.status();
+  const char* reason = "Unknown";
+  switch (status) {
+    case 1:  reason = "SSID not found"; break;
+    case 4:  reason = "Wrong password"; break;
+    case 5:  reason = "Connection lost"; break;
+    case 6:  reason = "Disconnected"; break;
+    case 7:  reason = "No SSID configured"; break;
+    default: reason = "Connection timeout"; break;
+  }
+  snprintf(wifiFailReason, sizeof(wifiFailReason), "%s (status=%d)", reason, status);
+  LOG.printf("[WIFI] Failed to connect to '%s': %s\n", ssid, wifiFailReason);
   return false;
 }
 
@@ -180,7 +205,9 @@ void setup() {
     setupMode = true;
     LOG.println("[BOOT] No config found - entering SETUP MODE");
 
-    // Create AP with emoji SSID: "🚔 MassTrap Setup XXXX"
+    // Create AP with emoji SSID: "👮 MassTrap Setup XXXX"
+    // Note: macOS WiFi scanner may not render UTF-8 emoji in SSIDs.
+    // iOS and Android display them correctly. The SSID bytes are valid.
     char suffix[5];
     getMacSuffix(suffix, sizeof(suffix));
     char apName[48];

@@ -75,8 +75,10 @@ static void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t 
 
       if (strcmp(cmd, "arm") == 0) {
         raceState = ARMED;
+        portENTER_CRITICAL(&finishTimerMux);
         startTime_us = 0;
         finishTime_us = 0;
+        portEXIT_CRITICAL(&finishTimerMux);
         // Tell start gate to arm too
         sendToPeer(MSG_ARM_CMD, nowUs(), 0);
         setWLEDState("armed");
@@ -84,8 +86,10 @@ static void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t 
       }
       else if (strcmp(cmd, "reset") == 0) {
         raceState = IDLE;
+        portENTER_CRITICAL(&finishTimerMux);
         startTime_us = 0;
         finishTime_us = 0;
+        portEXIT_CRITICAL(&finishTimerMux);
         // Tell start gate to disarm
         sendToPeer(MSG_DISARM_CMD, nowUs(), 0);
         setWLEDState("idle");
@@ -122,7 +126,7 @@ static void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t 
 // BROADCAST STATE
 // ============================================================================
 void broadcastState() {
-  StaticJsonDocument<768> doc;
+  StaticJsonDocument<1024> doc;
 
   const char* stateStr;
   switch (raceState) {
@@ -141,12 +145,14 @@ void broadcastState() {
   doc["scaleFactor"] = cfg.scale_factor;
   doc["totalRuns"] = totalRuns;
   doc["role"] = cfg.role;
+  doc["units"] = cfg.units;
   doc["google_sheets_url"] = cfg.google_sheets_url;
 
   // Speed trap mid-track velocity (if available)
   if (midTrackSpeed_mps > 0) {
-    doc["midTrack_mph"] = midTrackSpeed_mps * 2.23694;
-    doc["midTrack_scale_mph"] = midTrackSpeed_mps * 2.23694 * (double)cfg.scale_factor;
+    doc["midTrack_mps"] = midTrackSpeed_mps;
+    doc["midTrack_mph"] = midTrackSpeed_mps * MPS_TO_MPH;
+    doc["midTrack_scale_mph"] = midTrackSpeed_mps * MPS_TO_MPH * (double)cfg.scale_factor;
   }
 
   // LiDAR sensor data (if enabled)
@@ -166,18 +172,26 @@ void broadcastState() {
   doc["peerCount"] = peerCount;
   doc["onlinePeers"] = onlinePeers;
 
-  if (raceState == FINISHED && startTime_us > 0 && finishTime_us > 0) {
+  // Atomic snapshot of 64-bit timing vars (shared with ISR and ESP-NOW task)
+  uint64_t bcastFinish, bcastStart;
+  portENTER_CRITICAL(&finishTimerMux);
+  bcastFinish = finishTime_us;
+  bcastStart = startTime_us;
+  portEXIT_CRITICAL(&finishTimerMux);
+
+  if (raceState == FINISHED && bcastStart > 0 && bcastFinish > 0) {
     // Use SIGNED math to detect underflows instead of wrapping to huge values
-    int64_t elapsed_us = (int64_t)finishTime_us - (int64_t)startTime_us;
+    int64_t elapsed_us = (int64_t)bcastFinish - (int64_t)bcastStart;
 
     // Sanity check: must be positive and < 60 seconds
-    if (elapsed_us > 0 && elapsed_us < 60000000LL) {
+    if (elapsed_us > 0 && elapsed_us < MAX_RACE_DURATION_US) {
       double elapsed_s = elapsed_us / 1000000.0;
       double speed_ms = cfg.track_length_m / elapsed_s;
 
       doc["time"] = elapsed_s;
-      doc["speed_mph"] = speed_ms * 2.23694;
-      doc["scale_mph"] = speed_ms * 2.23694 * (double)cfg.scale_factor;
+      doc["speed_mps"] = speed_ms;
+      doc["speed_mph"] = speed_ms * MPS_TO_MPH;
+      doc["scale_mph"] = speed_ms * MPS_TO_MPH * (double)cfg.scale_factor;
 
       double mass_kg = currentWeight / 1000.0;
       doc["momentum"] = mass_kg * speed_ms;
@@ -252,6 +266,9 @@ static void handleApiConfig() {
     resp += cfg.hostname;
     resp += "\"}";
     server.send(200, "application/json", resp);
+    server.client().flush();          // Force TCP send buffer drain
+    delay(1000);
+    WiFi.softAPdisconnect(true);      // Kick AP clients so CNA sheet closes
     delay(500);
     ESP.restart();
   }
@@ -418,6 +435,9 @@ static void handleApiSystemRestore() {
 
   server.send(200, "application/json",
     "{\"status\":\"ok\",\"message\":\"System snapshot restored. Rebooting...\"}");
+  server.client().flush();
+  delay(1000);
+  WiFi.softAPdisconnect(true);
   delay(500);
   ESP.restart();
 }
@@ -453,6 +473,9 @@ static void handleApiRestore() {
   f.close();
 
   server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Config restored. Rebooting...\"}");
+  server.client().flush();
+  delay(1000);
+  WiFi.softAPdisconnect(true);
   delay(500);
   ESP.restart();
 }
@@ -460,6 +483,9 @@ static void handleApiRestore() {
 static void handleApiReset() {
   if (!requireAuth()) return;
   server.send(200, "application/json", "{\"status\":\"ok\",\"message\":\"Factory reset. Rebooting...\"}");
+  server.client().flush();
+  delay(1000);
+  WiFi.softAPdisconnect(true);
   delay(500);
   resetConfig();
 }
@@ -478,6 +504,28 @@ static void handleApiInfo() {
   doc["ip"] = WiFi.localIP().toString();
   doc["audio_enabled"] = cfg.audio_enabled;
   doc["lidar_enabled"] = cfg.lidar_enabled;
+
+  String output;
+  serializeJson(doc, output);
+  server.send(200, "application/json", output);
+}
+
+// WiFi diagnostic status — extern from MASS_Trap.ino
+extern bool wifiConnected;
+extern char wifiFailReason[64];
+
+static void handleApiWifiStatus() {
+  StaticJsonDocument<256> doc;
+  doc["connected"] = (WiFi.status() == WL_CONNECTED);
+  doc["ssid"] = cfg.wifi_ssid;
+  doc["ip"] = WiFi.localIP().toString();
+  doc["rssi"] = WiFi.RSSI();
+  doc["mode"] = (WiFi.getMode() == WIFI_AP) ? "AP" :
+                (WiFi.getMode() == WIFI_STA) ? "STA" :
+                (WiFi.getMode() == WIFI_AP_STA) ? "AP_STA" : "OFF";
+  if (strlen(wifiFailReason) > 0) {
+    doc["fail_reason"] = wifiFailReason;
+  }
 
   String output;
   serializeJson(doc, output);
@@ -769,28 +817,61 @@ void initWebServer() {
   const char* headerKeys[] = {"X-API-Key"};
   server.collectHeaders(headerKeys, 1);
 
-  // Main page: serve role-appropriate page from PROGMEM
+  // Main page: serve role-appropriate page
+  // v2.5.0: Prefer LittleFS files, fall back to PROGMEM if missing
   // Finish gate gets the full dashboard (garage, history, physics)
   // Start gate gets a lightweight status page (no data recording)
   server.on("/", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     if (strcmp(cfg.role, "start") == 0) {
-      server.send_P(200, "text/html", START_STATUS_HTML);
+      if (LittleFS.exists("/start_status.html")) {
+        serveFile("/start_status.html", "text/html");
+      } else {
+        server.send_P(200, "text/html", START_STATUS_HTML);
+      }
     } else if (strcmp(cfg.role, "speedtrap") == 0) {
-      server.send_P(200, "text/html", SPEEDTRAP_STATUS_HTML);
+      if (LittleFS.exists("/speedtrap_status.html")) {
+        serveFile("/speedtrap_status.html", "text/html");
+      } else {
+        server.send_P(200, "text/html", SPEEDTRAP_STATUS_HTML);
+      }
+    } else {
+      if (LittleFS.exists("/dashboard.html")) {
+        serveFile("/dashboard.html", "text/html");
+      } else {
+        server.send_P(200, "text/html", INDEX_HTML);
+      }
+    }
+  });
+
+  // Dashboard alias (direct URL access)
+  server.on("/dashboard.html", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    if (LittleFS.exists("/dashboard.html")) {
+      serveFile("/dashboard.html", "text/html");
     } else {
       server.send_P(200, "text/html", INDEX_HTML);
     }
   });
 
-  // Chart.js library from PROGMEM (cached by browser)
+  // Chart.js library: prefer LittleFS, fall back to PROGMEM
   server.on("/chart.min.js", HTTP_GET, []() {
     server.sendHeader("Cache-Control", "public, max-age=86400"); // Cache 24h
-    server.send_P(200, "application/javascript", CHARTJS_MIN);
+    if (LittleFS.exists("/chart.min.js")) {
+      serveFile("/chart.min.js", "application/javascript");
+    } else {
+      server.send_P(200, "application/javascript", CHARTJS_MIN);
+    }
   });
 
-  // Config page from PROGMEM
+  // Config page: prefer LittleFS system.html, fall back to PROGMEM
   server.on("/config", HTTP_GET, []() {
-    server.send_P(200, "text/html", CONFIG_HTML);
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    if (LittleFS.exists("/system.html")) {
+      serveFile("/system.html", "text/html");
+    } else {
+      server.send_P(200, "text/html", CONFIG_HTML);
+    }
   });
 
   // Config API
@@ -803,6 +884,7 @@ void initWebServer() {
   server.on("/api/system/restore", HTTP_POST, handleApiSystemRestore);
   server.on("/api/reset", HTTP_POST, handleApiReset);
   server.on("/api/info", HTTP_GET, handleApiInfo);
+  server.on("/api/wifi-status", HTTP_GET, handleApiWifiStatus);
   server.on("/api/version", HTTP_GET, handleApiVersion);
   server.on("/api/peers", HTTP_GET, handleApiPeers);
   server.on("/api/peers/forget", HTTP_POST, handleApiPeersForget);
@@ -827,9 +909,14 @@ void initWebServer() {
   server.on("/api/files", HTTP_POST, handleApiFiles);
   server.on("/api/files", HTTP_DELETE, handleApiFiles);
 
-  // Console page from PROGMEM
+  // Console page: prefer LittleFS, fall back to PROGMEM
   server.on("/console", HTTP_GET, []() {
-    server.send_P(200, "text/html", CONSOLE_HTML);
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    if (LittleFS.exists("/console.html")) {
+      serveFile("/console.html", "text/html");
+    } else {
+      server.send_P(200, "text/html", CONSOLE_HTML);
+    }
   });
 
   // WLED proxy endpoints (for config page to fetch WLED data without CORS issues)
@@ -867,6 +954,23 @@ void initWebServer() {
     http.end();
   });
 
+  // Static CSS/JS assets from LittleFS with cache headers
+  server.on("/style.css", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "public, max-age=3600"); // Cache 1h
+    serveFile("/style.css", "text/css");
+  });
+
+  server.on("/main.js", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "public, max-age=3600"); // Cache 1h
+    serveFile("/main.js", "application/javascript");
+  });
+
+  // Evidence Log page (new v2.5.0 page)
+  server.on("/history.html", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    serveFile("/history.html", "text/html");
+  });
+
   // Catch-all: try to serve from LittleFS
   server.onNotFound([]() {
     String path = server.uri();
@@ -896,6 +1000,7 @@ void initSetupServer() {
 
   // In setup mode, serve config page from PROGMEM at root
   server.on("/", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     server.send_P(200, "text/html", CONFIG_HTML);
   });
 
@@ -904,15 +1009,56 @@ void initSetupServer() {
   server.on("/api/scan", HTTP_GET, handleApiScan);
   server.on("/api/mac", HTTP_GET, handleApiMac);
   server.on("/api/info", HTTP_GET, handleApiInfo);
+  server.on("/api/wifi-status", HTTP_GET, handleApiWifiStatus);
 
-  // Captive portal redirect: any other request goes to root
+  // ---- Captive portal detection handlers ----
+  // Explicit handlers for OS-level probe URLs ensure reliable detection.
+  // Using full URL in Location header (not relative "/") and no-cache headers
+  // prevents CNA caching issues that cause "forget network and try again."
+
+  // Apple (iOS/macOS) probe
+  server.on("/hotspot-detect.html", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.send(302, "text/html", "");
+  });
+
+  // Android probe
+  server.on("/generate_204", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.send(302, "text/html", "");
+  });
+
+  // Windows probe
+  server.on("/connecttest.txt", HTTP_GET, []() {
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.send(302, "text/html", "");
+  });
+
+  // Additional known probe paths
+  server.on("/redirect", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.send(302, "text/html", "");
+  });
+  server.on("/success.txt", HTTP_GET, []() {
+    server.send(200, "text/plain", "");  // Empty body != expected → triggers portal
+  });
+  server.on("/fwlink", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.send(302, "text/html", "");
+  });
+
+  // Catch-all: redirect any other request to the config page
   server.onNotFound([]() {
     String path = server.uri();
     if (LittleFS.exists(path)) {
       serveFile(path, getContentType(path));
     } else {
-      server.sendHeader("Location", "/", true);
-      server.send(302, "text/plain", "");
+      server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      server.sendHeader("Location", "http://192.168.4.1/", true);
+      server.send(302, "text/html", "");
     }
   });
 

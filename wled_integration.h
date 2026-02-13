@@ -10,13 +10,7 @@ void setWLEDState(const char* raceState);
 // Turn WLED off (for auto-sleep timer)
 void setWLEDOff();
 
-// Test WLED connection. Returns true if reachable.
-bool testWLEDConnection();
-
 // Call from main loop() to auto-sleep WLED after inactivity
 void checkWLEDTimeout();
-
-// Reset the WLED activity timer (called on any race activity)
-void resetWLEDActivity();
 
 #endif

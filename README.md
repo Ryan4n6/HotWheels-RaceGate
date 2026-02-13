@@ -36,7 +36,7 @@ Unlike civilian-grade Arduino projects, The M.A.S.S. Trap runs on the **Intercep
 
 The system hosts its own web app (no internet required), turning any phone, tablet, or laptop into the **M.A.S.S. Trap Command Center**.
 
-* **Tacticool UI:** A dark mode interface styled with a police shield badge (Navy + Gold color scheme).
+* **5 Selectable Themes:** Interceptor (navy+gold default), Classic (Hot Wheels orange), Daytona (NASCAR racing), Case File (police detective), Cyber (terminal green).
 * **Real-Time Telemetry:** Instant display of Scale MPH, Actual MPH, Finish Time (ms), Momentum, KE, G-Force.
 * **Suspect Tracking:**
   * **"Staged":** LiDAR confirms vehicle presence at the start gate.
@@ -48,6 +48,8 @@ The system hosts its own web app (no internet required), turning any phone, tabl
 * **Ghost Car Comparison:** Personal best delta display with new record/slower indicators.
 * **Physics Explainer:** Live formula cards showing actual race values.
 * **Speed Profile:** Start/mid/finish velocity comparison when speed trap data is available.
+* **Kiosk Mode:** `?kiosk` URL parameter or `Ctrl+K` hides controls for science fair display — judges see data only.
+* **Dual-Layout Navigation:** Desktop manila folder tabs + mobile bottom thumb bar. Consistent across all pages.
 
 ---
 
@@ -55,11 +57,13 @@ The system hosts its own web app (no internet required), turning any phone, tabl
 
 ### Race Timing & Physics
 - **Microsecond-precision timing** via hardware interrupts on IR break-beam sensors
+- **Thread-safe ISR timing** -- spinlock-protected 64-bit timestamps prevent torn reads on dual-core ESP32-S3
 - **ESP-NOW peer-to-peer communication** between gates (sub-millisecond latency)
-- **Clock synchronization** between devices for accurate cross-gate timing
+- **Clock synchronization** between devices with drift-filtered logging
 - **Automatic race detection** -- arm the system, release the car, results appear instantly
-- **Real-time physics calculations:** elapsed time, speed (mph), scale speed, momentum (kg*m/s), kinetic energy (Joules), G-force
+- **Real-time physics calculations:** elapsed time, speed (mph/km/h), scale speed, momentum (kg*m/s), kinetic energy (Joules), G-force
 - **Mid-track velocity profiling** via optional speed trap node (demonstrates acceleration/deceleration)
+- **Imperial/Metric units** -- configurable display units with WebSocket broadcast
 
 ### LiDAR Staging (Benewake TF-Luna)
 - **Automatic car staging** -- solid-state LiDAR detects car at start gate
@@ -92,19 +96,25 @@ The system hosts its own web app (no internet required), turning any phone, tabl
 - **OTA updates** -- flash new firmware over WiFi, no USB cable needed
 - **Full system snapshot** -- one-click backup/restore of config + garage + history
 - **Clone mode** -- restore snapshot to a new device (strips network identity)
+- **5 visual themes** -- switch look-and-feel from Interceptor to Hot Wheels Classic, Daytona, Case File, or Cyber
+- **Kiosk mode** -- presentation mode for science fairs hides controls, shows data only
+- **Imperial/Metric units** -- configurable display units (mph or km/h) with timezone selection
 
 ### Debug Console
 - **Web-based serial monitor** -- view device logs over WiFi at `/console`
+- **NTP-stamped log lines** -- `[HH:MM:SS.mmm]` wall-clock timestamps (uptime fallback before NTP sync)
 - **Ring buffer capture** -- 8KB of recent serial output, auto-refreshing
+- **WiFi diagnostics** -- `/api/wifi-status` with RSSI, connection state, and failure reasons
 - **File browser** -- inspect, edit, and manage files on the device filesystem
 - **Device info** -- IP, uptime, free memory, peer status at a glance
 
 ### Architecture
 - **Unified firmware** -- single codebase runs as start gate, finish gate, or speed trap
 - **Role-appropriate UI** -- finish gate serves full dashboard; start gate and speed trap serve lightweight status pages
-- **Embedded web pages** -- HTML/CSS/JS compiled into firmware via PROGMEM (no LittleFS upload needed for web UI)
+- **LittleFS-first web serving** -- pages served from filesystem with PROGMEM fallback (no upload needed, but LittleFS files take priority when present)
 - **Custom 16MB partition** -- 3MB app (with OTA) + ~9.9MB LittleFS for data/audio + 64KB coredump
 - **Graceful degradation** -- audio, LiDAR, and speed trap are optional; existing gates work without them
+- **Reliable captive portal** -- OS-specific handlers for iOS, Android, and Windows CNA detection
 
 ---
 
@@ -218,22 +228,24 @@ The OTA password defaults to `admin` — change it in the config page for securi
 
 | URL | Page | Description |
 |-----|------|-------------|
-| `/` | Command Center | Live race data, garage, history (finish gate) or status page (start/speed trap) |
-| `/config` | Configuration | WiFi, pins, peer, track, audio, LiDAR, WLED, OTA settings |
-| `/console` | Debug Console | Serial log viewer, file browser, device info |
+| `/` | Command Center | Live race data, garage, physics (finish gate) or status page (start/speed trap) |
+| `/history.html` | Evidence Log | Race history with full physics data |
+| `/config` | System Config | WiFi, pins, peer, track, audio, LiDAR, WLED, OTA settings |
+| `/console` | Debug Console | Timestamped serial log viewer, file browser, device info |
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/info` | GET | Device info (role, IP, uptime, heap, peer status) |
+| `/api/wifi-status` | GET | WiFi diagnostics (RSSI, mode, failure reason) |
 | `/api/version` | GET | Firmware version, build date, board type |
 | `/api/config` | GET/POST | Read or write device configuration |
 | `/api/garage` | GET/POST | Read or write car garage data |
 | `/api/history` | GET/POST | Read or write race history |
 | `/api/scan` | GET | Scan for WiFi networks |
 | `/api/mac` | GET | Get device MAC address |
-| `/api/discover` | GET | Discover peer devices on network |
+| `/api/peers` | GET | List discovered peer devices |
 | `/api/log` | GET/DELETE | Read or clear serial log buffer |
 | `/api/files` | GET/POST/DELETE | File browser (list, read, write, delete) |
 | `/api/system/backup` | GET | Full system snapshot (config + garage + history) |
@@ -254,25 +266,31 @@ The OTA password defaults to `admin` — change it in the config page for securi
 MASS-Trap/
 ├── platformio.ini             # PlatformIO build configuration (recommended)
 ├── partitions.csv             # Custom 16MB partition table (3MB OTA + 9.9MB LittleFS + 64KB coredump)
-├── MASS_Trap.ino              # Main entry point: WiFi, OTA, boot logic
-├── config.h / .cpp            # Configuration struct, persistence, JSON serialization
+├── MASS_Trap.ino              # Main entry point: WiFi, NTP, OTA, boot logic
+├── config.h / .cpp            # Configuration struct, named constants, JSON persistence
 ├── web_server.h / .cpp        # HTTP routes, WebSocket, API handlers, SerialTee ring buffer
-├── espnow_comm.h / .cpp       # ESP-NOW protocol: 12 message types, discovery, clock sync
-├── finish_gate.h / .cpp       # Finish gate: timing, race results, physics calculations
+├── espnow_comm.h / .cpp       # ESP-NOW protocol: 14 message types, discovery, clock sync
+├── finish_gate.h / .cpp       # Finish gate: spinlock-protected timing, race results, physics
 ├── start_gate.h / .cpp        # Start gate: IR trigger, LiDAR auto-arm
 ├── speed_trap.h / .cpp        # Speed trap: dual ISR velocity measurement, ESP-NOW send
 ├── lidar_sensor.h / .cpp      # TF-Luna UART: frame parsing, presence state machine
 ├── audio_manager.h / .cpp     # MAX98357A I2S: WAV loading, non-blocking DMA playback
 ├── wled_integration.h / .cpp  # WLED HTTP API: effect control, auto-sleep
-├── html_index.h               # Dashboard HTML (PROGMEM)
-├── html_config.h              # Config page HTML (PROGMEM)
-├── html_console.h             # Console page HTML (PROGMEM)
-├── html_start_status.h        # Start gate status page (PROGMEM)
-├── html_speedtrap_status.h    # Speed trap status page (PROGMEM)
+├── html_index.h               # Dashboard HTML (PROGMEM fallback)
+├── html_config.h              # Config page HTML (PROGMEM fallback)
+├── html_console.h             # Console page HTML (PROGMEM fallback)
+├── html_start_status.h        # Start gate status page (PROGMEM fallback)
+├── html_speedtrap_status.h    # Speed trap status page (PROGMEM fallback)
 ├── html_chartjs.h             # Chart.js v4.4.7 (PROGMEM)
+├── push_ui.sh                 # Convert data/*.html to PROGMEM html_*.h headers
 ├── data/                      # LittleFS source files (uploaded via pio run -t uploadfs)
-│   ├── index.html             # Command Center dashboard source
-│   ├── config.html            # Config page source
+│   ├── dashboard.html         # Command Center (primary, served from LittleFS)
+│   ├── history.html           # Evidence Log page
+│   ├── system.html            # System configuration page
+│   ├── main.js                # Shared JavaScript utilities
+│   ├── style.css              # Shared stylesheet
+│   ├── index.html             # Legacy dashboard source
+│   ├── config.html            # Legacy config page source
 │   ├── console.html           # Console page source
 │   ├── start_status.html      # Start gate status source
 │   └── speedtrap_status.html  # Speed trap status source
@@ -285,8 +303,8 @@ MASS-Trap/
 
 | File | Storage | Survives OTA? | Purpose |
 |------|---------|---------------|---------|
-| Web pages | PROGMEM (firmware) | Updated with firmware | Dashboard, config, console UI |
-| `/config.json` | LittleFS | Yes | Device configuration |
+| Web pages | LittleFS + PROGMEM fallback | LittleFS: yes, PROGMEM: updated with firmware | Dashboard, config, console, history UI |
+| `/config.json` | LittleFS | Yes | Device configuration (incl. units, timezone) |
 | `/garage.json` | LittleFS | Yes | Car database with mechanic's notes |
 | `/history.json` | LittleFS | Yes | Race history (last 100) |
 | `/runs.csv` | LittleFS | Yes | Race log with full physics data |
@@ -304,6 +322,8 @@ MASS-Trap/
 | No LiDAR readings | Enable LiDAR in config, verify UART pins (TX/RX), check 5V power to TF-Luna |
 | No audio output | Enable audio in config, verify I2S pins, upload WAV files |
 | Speed trap no data | Verify speed trap node is connected (check peer status), check sensor spacing |
+| Captive portal won't open | Forget the WiFi network and reconnect — v2.5.0 adds OS-specific CNA handlers |
+| WiFi connection failing | Check `/api/wifi-status` for diagnostic details (RSSI, failure reason) |
 
 ## Roadmap
 
@@ -314,6 +334,20 @@ MASS-Trap/
 - [ ] **GitHub Version Check** -- Compare running firmware against latest release, notify when updates available
 - [ ] **Multi-Lane Support** -- Multiple finish sensors for parallel lane timing
 - [ ] **Tournament Bracket Mode** -- Head-to-head elimination bracket with automatic advancement
+
+### Completed (v2.5.0)
+- [x] **Theme Engine** -- 5 selectable themes (Interceptor, Classic, Daytona, Case File, Cyber) with localStorage persistence
+- [x] **Dual-Layout Navigation** -- Desktop manila folder tabs + mobile bottom thumb bar across all pages
+- [x] **Kiosk Mode** -- Science fair presentation mode via `?kiosk` or `Ctrl+K` (hides controls, shows data only)
+- [x] **Modular Web UI** -- LittleFS-first serving with PROGMEM fallback; new dashboard, history, and system pages
+- [x] **Thread-Safe Timing** -- Spinlock protection for all 64-bit ISR timing variables across dual-core ESP32-S3
+- [x] **NTP Timestamps** -- Wall-clock time in serial log ring buffer with timezone support
+- [x] **Captive Portal Fix** -- OS-specific handlers for iOS/Android/Windows CNA detection
+- [x] **Regional Settings** -- Imperial/metric units and configurable timezone
+- [x] **WiFi Diagnostics** -- `/api/wifi-status` endpoint, RSSI logging, human-readable failure reasons
+- [x] **Peer Hotlinks** -- Clickable `hostname.local` links for peer devices in all status pages
+- [x] **Named Constants** -- 20+ magic numbers extracted to `#define` constants
+- [x] **Dead Code Cleanup** -- Removed unused functions from lidar, WLED, and ESP-NOW modules
 
 ### Completed (v2.4.0)
 - [x] **M.A.S.S. Trap Rebrand** -- Full project rebrand with police shield/badge themed Command Center

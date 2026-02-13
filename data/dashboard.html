@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="fw-version" content="2.5.0">
+  <title>M.A.S.S. Trap Command Center</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Navigation (populated by main.js getNavHTML + initNav) -->
+  <nav class="mass-nav" id="mainNav">
+    <ul class="mass-nav-list">
+      <li><a href="/"><span class="mass-nav-icon">&#x1F3C1;</span><span class="mass-nav-label">Live Monitor</span></a></li>
+      <li><a href="/history.html"><span class="mass-nav-icon">&#x1F4CB;</span><span class="mass-nav-label">Evidence Log</span></a></li>
+      <li><a href="/config"><span class="mass-nav-icon">&#x2699;&#xFE0F;</span><span class="mass-nav-label">System Config</span></a></li>
+      <li><a href="/console"><span class="mass-nav-icon">&#x1F4DF;</span><span class="mass-nav-label">Terminal</span></a></li>
+    </ul>
+  </nav>
+
+  <!-- Connection Badge (fixed, top-right) -->
+  <div id="connBadge" class="conn-badge disconnected">OFFLINE</div>
+
+  <div class="container">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="page-header-shield"></div>
+      <h1>M.A.S.S. TRAP</h1>
+      <div class="subtitle">MOTION ANALYSIS &amp; SPEED SYSTEM</div>
+      <div class="tagline">COMMAND CENTER</div>
+      <div class="theme-selector">
+        <label for="themePicker">Theme:</label>
+        <select id="themePicker" onchange="setTheme(this.value)">
+          <option value="interceptor">Interceptor</option>
+          <option value="classic">Classic</option>
+          <option value="daytona">Daytona</option>
+          <option value="casefile">Case File</option>
+          <option value="cyber">Cyber</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- State Banner -->
+    <div id="stateBanner" class="state-banner">INITIALIZING...</div>
+
+    <!-- LED Visualizer Bar -->
+    <div id="ledBar" class="led-bar"></div>
+
+    <!-- LiDAR Sensor Indicator -->
+    <div id="lidarIndicator" class="lidar-indicator"></div>
+
+    <!-- Quick Actions (hidden in kiosk mode) -->
+    <div class="grid grid-3 kiosk-hide" id="quickActions">
+      <button id="btnArm" class="btn btn-success" onclick="armRace()">ARM SYSTEM</button>
+      <button id="btnReset" class="btn btn-accent" onclick="resetRace()">RESET</button>
+      <button id="btnSync" class="btn btn-primary" onclick="syncClock()">SYNC CLOCK</button>
+    </div>
+
+    <!-- Live Stats -->
+    <div class="grid">
+      <div class="card">
+        <div class="card-label">Time</div>
+        <div><span id="statTime" class="card-value">--</span><span class="card-unit">s</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Real Speed</div>
+        <div><span id="statSpeed" class="card-value">--</span><span class="card-unit" id="speedUnitLabel">mph</span></div>
+      </div>
+      <div class="card card-accent">
+        <div class="card-label" id="scaleLabel">Scale Speed (1:64)</div>
+        <div><span id="statScale" class="card-value">--</span><span class="card-unit" id="scaleUnitLabel">mph</span></div>
+      </div>
+    </div>
+
+    <!-- Physics -->
+    <div class="grid">
+      <div class="card">
+        <div class="card-label">Momentum</div>
+        <div><span id="statMomentum" class="card-value">--</span><span class="card-unit">kg*m/s</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Kinetic Energy</div>
+        <div><span id="statKE" class="card-value">--</span><span class="card-unit">J</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Total Runs</div>
+        <div><span id="statRuns" class="card-value">0</span></div>
+      </div>
+    </div>
+
+    <!-- Most Wanted -- Criminal Leaderboard -->
+    <div class="section most-wanted" id="mostWantedSection">
+      <div class="section-title">MOST WANTED</div>
+      <div class="mw-header">
+        <div class="mw-sort-controls">
+          <button class="mw-sort-btn active" onclick="sortMostWanted('time')" id="mwSortTime">Fastest</button>
+          <button class="mw-sort-btn" onclick="sortMostWanted('speed')" id="mwSortSpeed">Top Speed</button>
+          <button class="mw-sort-btn" onclick="sortMostWanted('runs')" id="mwSortRuns">Most Offenses</button>
+          <button class="mw-sort-btn" onclick="sortMostWanted('ke')" id="mwSortKe">Most Dangerous</button>
+        </div>
+        <span class="mw-toggle" onclick="toggleMostWanted()" id="mwToggle">Collapse &#x25B2;</span>
+      </div>
+      <div id="mwBoard" class="mw-board">
+        <div class="mw-empty">No suspects in the system. Add cars to the garage and run races to populate the Most Wanted list.</div>
+      </div>
+    </div>
+
+    <!-- Speed Profile (mid-track data from speed trap) -->
+    <div id="speedProfileSection" class="section speed-profile">
+      <div class="section-title">SPEED PROFILE</div>
+      <div class="pt-8">
+        <div class="speed-bar">
+          <div class="speed-bar-label">Finish</div>
+          <div class="speed-bar-fill"><div id="speedBarFinish" style="width:0; background:var(--accent);"></div></div>
+          <span id="speedValFinish" class="font-data" style="font-size:0.85rem; width:70px;">-- mph</span>
+        </div>
+        <div class="speed-bar">
+          <div class="speed-bar-label">Mid-Track</div>
+          <div class="speed-bar-fill"><div id="speedBarMid" style="width:0; background:var(--secondary);"></div></div>
+          <span id="speedValMid" class="font-data" style="font-size:0.85rem; width:70px;">-- mph</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ghost Car Comparison -->
+    <div id="ghostSection" class="section">
+      <div class="section-title">VS PERSONAL BEST</div>
+      <div class="text-center" style="padding:15px;">
+        <div id="ghostDelta" style="font-size:3rem; font-weight:900; line-height:1.2;"></div>
+        <div id="ghostLabel" class="text-muted" style="font-size:1rem; margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- Evidence Lab (Charts) -->
+    <div class="section" id="chartsSection">
+      <div class="section-title">EVIDENCE LAB</div>
+      <div class="grid grid-2 mt-8">
+        <div class="chart-container"><canvas id="speedChart" height="250"></canvas></div>
+        <div class="chart-container"><canvas id="keChart" height="250"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Forensic Analysis (Physics Explainer) -->
+    <div class="section" id="physicsExplainer">
+      <div class="section-title">FORENSIC ANALYSIS</div>
+      <div id="explainerToggle" onclick="toggleExplainer()" class="text-center text-accent" style="cursor:pointer; padding:8px; font-weight:bold;">
+        Show Formulas &#x25BC;
+      </div>
+      <div id="explainerContent" style="display:none;">
+        <div class="formula-grid">
+          <div class="formula-card">
+            <div class="formula-title">SPEED (Velocity)</div>
+            <div class="formula-eq">v = d / t</div>
+            <div class="formula-desc">velocity = distance &divide; time</div>
+            <div id="formulaSpeed" class="formula-values">Run a race to see values!</div>
+          </div>
+          <div class="formula-card">
+            <div class="formula-title">MOMENTUM</div>
+            <div class="formula-eq">p = m &times; v</div>
+            <div class="formula-desc">momentum = mass &times; velocity</div>
+            <div id="formulaMomentum" class="formula-values">Run a race to see values!</div>
+          </div>
+          <div class="formula-card">
+            <div class="formula-title">KINETIC ENERGY</div>
+            <div class="formula-eq">KE = &frac12; m v&sup2;</div>
+            <div class="formula-desc">kinetic energy = one half &times; mass &times; velocity squared</div>
+            <div id="formulaKE" class="formula-values">Run a race to see values!</div>
+          </div>
+          <div class="formula-card">
+            <div class="formula-title">G-FORCE</div>
+            <div class="formula-eq">a = v / t</div>
+            <div class="formula-desc">acceleration = velocity &divide; time, then &divide; 9.8 for G's</div>
+            <div id="formulaGForce" class="formula-values">Run a race to see values!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- The Garage (hidden in kiosk mode) -->
+    <div class="section kiosk-hide">
+      <div class="section-title">THE GARAGE</div>
+      <div class="grid grid-3">
+        <input type="text" id="carName" placeholder="Suspect Vehicle (e.g. Twin Mill)">
+        <input type="text" id="carColor" placeholder="Color">
+        <input type="number" id="carWeight" placeholder="Mass (g)" min="0" step="0.1">
+      </div>
+      <button id="addCarBtn" class="btn btn-accent" onclick="addCar()">ADD TO GARAGE</button>
+      <div id="currentCar" class="text-center text-muted" style="margin:15px 0; font-size:1.2rem; font-weight:bold;">
+        No suspect vehicle selected
+      </div>
+      <div id="garageGrid" class="garage-grid"></div>
+      <div id="garageStatus" class="text-center" style="margin:8px 0; font-size:0.85rem; font-weight:bold; min-height:1.2em;"></div>
+      <div class="grid grid-4">
+        <button class="btn btn-success" onclick="manualSaveGarage()">SAVE GARAGE</button>
+        <button class="btn btn-primary" onclick="exportGarage()">EXPORT</button>
+        <label class="btn btn-accent" style="text-align:center; cursor:pointer;">
+          IMPORT
+          <input type="file" accept=".json" onchange="importGarage(event)" style="display:none;">
+        </label>
+        <button class="btn btn-danger" onclick="clearGarage()">CLEAR</button>
+      </div>
+    </div>
+
+    <!-- Operations (hidden in kiosk mode) -->
+    <div class="section kiosk-hide">
+      <div class="section-title">OPERATIONS</div>
+      <div class="grid">
+        <div>
+          <div class="card-label" id="trackLengthLabel">Track Length (meters)</div>
+          <input type="number" id="trackLength" value="2.0" min="0" step="0.01" onchange="updateTrackLength()">
+        </div>
+        <div>
+          <div class="card-label">Google Sheets URL (optional)</div>
+          <input type="text" id="sheetsUrl" placeholder="https://script.google.com/..." onchange="saveSheetsUrl()">
+          <div id="sheetsStatus" class="text-muted" style="font-size:0.8rem; margin-top:4px;"></div>
+        </div>
+      </div>
+      <div class="grid grid-3">
+        <button class="btn btn-primary" onclick="exportCSV()">DOWNLOAD CSV</button>
+        <button class="btn btn-success" onclick="testSheetsUpload()">TEST SHEETS</button>
+        <button class="btn btn-danger" onclick="clearHistory()">CLEAR HISTORY</button>
+      </div>
+    </div>
+
+    <!-- Case File (History) -->
+    <div class="section">
+      <div class="section-title">CASE FILE</div>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Run</th><th>Suspect</th><th>Mass</th><th>Time</th>
+              <th id="thRealSpeed">Real MPH</th><th id="thScaleSpeed">Scale MPH</th><th>Momentum</th><th>KE</th>
+            </tr>
+          </thead>
+          <tbody id="historyTable">
+            <tr><td colspan="8" class="text-center text-muted">No evidence recorded yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Overlay (Criminal Verdict) -->
+  <div id="leaderboardOverlay" class="leaderboard-overlay" onclick="this.classList.remove('show');">
+    <div class="leaderboard-card" onclick="event.stopPropagation();">
+      <div id="lbVerdict" style="font-size:0.85rem; font-weight:900; letter-spacing:2px; color:var(--danger); text-transform:uppercase; margin-bottom:4px;"></div>
+      <div id="lbRank" class="leaderboard-rank">#1</div>
+      <div id="lbText" class="leaderboard-text"></div>
+      <div id="lbDetail" class="leaderboard-detail"></div>
+      <div id="lbThreat" style="margin-top:12px; padding:6px 14px; border-radius:6px; font-size:0.8rem; font-weight:900; display:inline-block;"></div>
+    </div>
+  </div>
+
+  <!-- Version Badge -->
+  <div class="version-badge" id="versionBadge">v--</div>
+
+  <script src="/main.js"></script>
+  <script src="/chart.min.js"></script>
+  <script>
+    // ========================================================================
+    // DASHBOARD-SPECIFIC STATE
+    // ========================================================================
+    var currentScaleFactor = 64;
+    var configSheetsUrl = '';
+
+    // Update all unit labels on the page when units change
+    function updateUnitLabels() {
+      var su = speedUnit();
+      var el;
+      el = document.getElementById('speedUnitLabel'); if (el) el.textContent = su;
+      el = document.getElementById('scaleUnitLabel'); if (el) el.textContent = su;
+      el = document.getElementById('trackLengthLabel'); if (el) el.textContent = 'Track Length (meters)';
+      el = document.getElementById('thRealSpeed'); if (el) el.textContent = 'Real ' + su.toUpperCase();
+      el = document.getElementById('thScaleSpeed'); if (el) el.textContent = 'Scale ' + su.toUpperCase();
+    }
+
+    // ========================================================================
+    // STATE HANDLING
+    // ========================================================================
+    function handleStateUpdate(data) {
+      if (data.role) {
+        var roleName = data.role.charAt(0).toUpperCase() + data.role.slice(1);
+        document.title = roleName + ' - M.A.S.S. Trap Command Center';
+      }
+      // Unit system from firmware config
+      if (data.units) {
+        setUnits(data.units);
+        updateUnitLabels();
+      }
+      if (data.scaleFactor) {
+        currentScaleFactor = data.scaleFactor;
+        document.getElementById('scaleLabel').textContent = 'Scale Speed (1:' + currentScaleFactor + ')';
+      }
+      if (data.google_sheets_url && !document.getElementById('sheetsUrl').value) {
+        document.getElementById('sheetsUrl').value = data.google_sheets_url;
+        configSheetsUrl = data.google_sheets_url;
+      }
+      if (data.trackLength) {
+        document.getElementById('trackLength').value = data.trackLength;
+      }
+
+      // LiDAR indicator
+      if (data.lidar) {
+        var lidarEl = document.getElementById('lidarIndicator');
+        if (data.lidar.state === 'staged') {
+          lidarEl.className = 'lidar-indicator staged';
+          lidarEl.textContent = 'LIDAR TARGET ACQUIRED (' + data.lidar.distance_mm + 'mm)';
+        } else {
+          lidarEl.className = 'lidar-indicator';
+        }
+      }
+
+      // State banner
+      var banner = document.getElementById('stateBanner');
+      banner.className = 'state-banner ' + data.state.toLowerCase();
+      var bannerText = { IDLE: 'AWAITING SUSPECTS', ARMED: 'TRAP SET', RACING: 'IN PURSUIT', FINISHED: 'SUSPECT CLOCKED' };
+      banner.textContent = bannerText[data.state] || data.state;
+
+      // LED visualizer
+      document.getElementById('ledBar').className = 'led-bar ' + data.state.toLowerCase();
+
+      // Hide ghost when not finished
+      if (data.state !== 'FINISHED') { document.getElementById('ghostSection').style.display = 'none'; }
+
+      // Stats — unit-aware speed display
+      document.getElementById('statTime').textContent = data.time ? data.time.toFixed(3) : '--';
+      if (data.speed_mps) {
+        document.getElementById('statSpeed').textContent = formatSpeed(data.speed_mps, 1);
+        document.getElementById('statScale').textContent = formatSpeed(data.speed_mps * currentScaleFactor, 0);
+      } else {
+        document.getElementById('statSpeed').textContent = data.speed_mph ? mphToDisplaySpeed(data.speed_mph) : '--';
+        document.getElementById('statScale').textContent = data.scale_mph ? mphToDisplaySpeed(data.scale_mph).split('.')[0] : '--';
+      }
+      document.getElementById('statMomentum').textContent = data.momentum ? data.momentum.toFixed(4) : '--';
+      document.getElementById('statKE').textContent = data.ke ? data.ke.toFixed(4) : '--';
+      document.getElementById('statRuns').textContent = data.totalRuns || 0;
+
+      // Speed profile (mid-track from speed trap node) — unit-aware
+      if (data.speed_mps && data.midTrack_mps) {
+        updateSpeedProfile(data.speed_mps, data.midTrack_mps);
+      } else if (data.midTrack_mph && data.speed_mph) {
+        // Fallback: convert mph back to mps for consistent display
+        updateSpeedProfile(data.speed_mph / MPS_TO_MPH, data.midTrack_mph / MPS_TO_MPH);
+      }
+
+      // Race finished
+      if (data.state === 'FINISHED' && data.time !== undefined) {
+        showGhostComparison(data);
+        updateGarageStats(data);
+        addToHistory(data);
+        addRaceToCharts(data);
+        updateExplainerValues(data);
+        showLeaderboardOverlay(data);
+
+        var sheetsUrl = document.getElementById('sheetsUrl').value || configSheetsUrl;
+        if (sheetsUrl && data.time > 0) { uploadToSheets(data, sheetsUrl); }
+      }
+
+      // Button states
+      var btnArm = document.getElementById('btnArm');
+      if (data.state === 'IDLE') {
+        btnArm.disabled = false;
+        btnArm.textContent = 'ARM SYSTEM';
+      } else {
+        btnArm.disabled = true;
+        btnArm.textContent = data.state;
+      }
+    }
+
+    // ========================================================================
+    // SPEED PROFILE
+    // ========================================================================
+    // Speed profile now takes m/s values and converts to display unit
+    function updateSpeedProfile(finishMps, midMps) {
+      var section = document.getElementById('speedProfileSection');
+      section.classList.add('visible');
+      var finishDisplay = parseFloat(formatSpeed(finishMps, 1));
+      var midDisplay = parseFloat(formatSpeed(midMps, 1));
+      var maxVal = Math.max(finishDisplay, midDisplay) * 1.2;
+      document.getElementById('speedBarFinish').style.width = (finishDisplay / maxVal * 100) + '%';
+      document.getElementById('speedBarMid').style.width = (midDisplay / maxVal * 100) + '%';
+      document.getElementById('speedValFinish').textContent = finishDisplay.toFixed(1) + ' ' + speedUnit();
+      document.getElementById('speedValMid').textContent = midDisplay.toFixed(1) + ' ' + speedUnit();
+    }
+
+    // ========================================================================
+    // LEADERBOARD OVERLAY (Criminal Verdict)
+    // ========================================================================
+    function showLeaderboardOverlay(data) {
+      if (!data.time || data.time <= 0) return;
+      // Find rank among all cars
+      var allBests = garage.filter(function(c) { return c.stats && c.stats.bestTime != null && isFinite(c.stats.bestTime); })
+                          .map(function(c) { return { name: c.name, time: c.stats.bestTime }; });
+      allBests.sort(function(a, b) { return a.time - b.time; });
+      var rank = allBests.findIndex(function(b) { return b.name === (activeCar ? activeCar.name : ''); }) + 1;
+      if (rank <= 0 || allBests.length < 2) return;
+
+      var overlay = document.getElementById('leaderboardOverlay');
+      var rankText = '#' + rank;
+      document.getElementById('lbRank').textContent = rankText;
+      document.getElementById('lbRank').style.color = rank === 1 ? 'var(--accent)' : rank <= 3 ? 'var(--secondary)' : 'var(--text-muted)';
+
+      // Criminal verdict text
+      var verdictEl = document.getElementById('lbVerdict');
+      var threatEl = document.getElementById('lbThreat');
+      var msg = '', verdict = '', threatClass = '', threatText = '';
+
+      if (rank === 1) {
+        verdict = 'ALL POINTS BULLETIN';
+        msg = 'PUBLIC ENEMY #1';
+        threatClass = 'armed-dangerous';
+        threatText = 'ARMED & DANGEROUS';
+      } else if (rank === 2) {
+        verdict = 'WARRANT ISSUED';
+        msg = 'MOST WANTED #2';
+        threatClass = 'armed-dangerous';
+        threatText = 'ARMED & DANGEROUS';
+      } else if (rank === 3) {
+        verdict = 'SUSPECT IDENTIFIED';
+        msg = 'MOST WANTED #3';
+        threatClass = 'known-offender';
+        threatText = 'KNOWN OFFENDER';
+      } else if (rank <= Math.ceil(allBests.length / 2)) {
+        verdict = 'BOOKING REPORT';
+        msg = 'KNOWN OFFENDER #' + rank;
+        threatClass = 'known-offender';
+        threatText = 'KNOWN OFFENDER';
+      } else {
+        verdict = 'INCIDENT REPORT';
+        msg = 'PERSON OF INTEREST #' + rank;
+        threatClass = 'person-of-interest';
+        threatText = 'PERSON OF INTEREST';
+      }
+
+      verdictEl.textContent = verdict;
+      document.getElementById('lbText').textContent = msg;
+      var scaleDisplay = data.speed_mps ? formatSpeed(data.speed_mps * currentScaleFactor, 0) : (data.scale_mph || 0).toFixed(0);
+      document.getElementById('lbDetail').textContent =
+        (activeCar ? activeCar.name : 'Unknown') + ' | ' +
+        data.time.toFixed(3) + 's | ' + scaleDisplay + ' scale ' + speedUnit();
+
+      threatEl.textContent = threatText;
+      threatEl.className = '';
+      threatEl.style.background = threatClass === 'armed-dangerous' ? 'rgba(var(--danger-rgb),0.2)' :
+                                   threatClass === 'known-offender' ? 'rgba(var(--accent-rgb),0.15)' :
+                                   'rgba(128,128,128,0.1)';
+      threatEl.style.border = '1px solid ' + (threatClass === 'armed-dangerous' ? 'var(--danger)' :
+                               threatClass === 'known-offender' ? 'var(--accent)' : 'var(--text-muted)');
+      threatEl.style.color = threatClass === 'armed-dangerous' ? 'var(--danger)' :
+                              threatClass === 'known-offender' ? 'var(--accent)' : 'var(--text-muted)';
+
+      overlay.classList.add('show');
+      setTimeout(function() { overlay.classList.remove('show'); }, 5000);
+
+      // Refresh the Most Wanted board
+      renderMostWanted();
+    }
+
+    // ========================================================================
+    // MOST WANTED -- Criminal Leaderboard
+    // ========================================================================
+    var mwSortMode = 'time';
+    var mwCollapsed = false;
+
+    function toggleMostWanted() {
+      mwCollapsed = !mwCollapsed;
+      document.getElementById('mwBoard').style.display = mwCollapsed ? 'none' : 'grid';
+      document.querySelector('.mw-sort-controls').style.display = mwCollapsed ? 'none' : 'flex';
+      document.getElementById('mwToggle').innerHTML = mwCollapsed ? 'Expand &#x25BC;' : 'Collapse &#x25B2;';
+    }
+
+    function sortMostWanted(mode) {
+      mwSortMode = mode;
+      document.querySelectorAll('.mw-sort-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.getElementById('mwSort' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+      renderMostWanted();
+    }
+
+    function getMostWantedData() {
+      return garage
+        .filter(function(c) { return c.stats && c.stats.runs > 0; })
+        .map(function(c) {
+          var s = c.stats;
+          var carHistory = history.filter(function(h) { return h.car === c.name; });
+          var bestKE = carHistory.length > 0 ? Math.max.apply(null, carHistory.map(function(h) { return h.ke || 0; })) : 0;
+          var bestScaleMph = carHistory.length > 0 ? Math.max.apply(null, carHistory.map(function(h) { return h.scale_mph || 0; })) : 0;
+          return {
+            name: c.name,
+            color: c.color || 'N/A',
+            weight: c.weight,
+            bestTime: s.bestTime,
+            bestSpeed: s.bestSpeed || 0,
+            bestScaleMph: bestScaleMph,
+            runs: s.runs || 0,
+            bestKE: bestKE,
+            id: c.id
+          };
+        });
+    }
+
+    function sortMWData(data) {
+      switch (mwSortMode) {
+        case 'time':
+          return data.sort(function(a, b) {
+            if (a.bestTime == null) return 1;
+            if (b.bestTime == null) return -1;
+            return a.bestTime - b.bestTime;
+          });
+        case 'speed':
+          return data.sort(function(a, b) { return b.bestSpeed - a.bestSpeed; });
+        case 'runs':
+          return data.sort(function(a, b) { return b.runs - a.runs; });
+        case 'ke':
+          return data.sort(function(a, b) { return b.bestKE - a.bestKE; });
+        default:
+          return data;
+      }
+    }
+
+    function getThreatLevel(rank, total) {
+      if (rank <= 3) return { cls: 'armed-dangerous', text: 'ARMED & DANGEROUS' };
+      if (rank <= Math.max(5, Math.ceil(total * 0.5))) return { cls: 'known-offender', text: 'KNOWN OFFENDER' };
+      return { cls: 'person-of-interest', text: 'PERSON OF INTEREST' };
+    }
+
+    function getRankTitle(rank) {
+      if (rank === 1) return 'PUBLIC ENEMY #1';
+      if (rank <= 3) return 'MOST WANTED';
+      return 'APB #' + rank;
+    }
+
+    function getSortValue(item) {
+      switch (mwSortMode) {
+        case 'time': return item.bestTime != null ? item.bestTime.toFixed(3) + 's' : '--';
+        case 'speed': return mphToDisplaySpeed(item.bestSpeed) + ' ' + speedUnit();
+        case 'runs': return item.runs + ' offense' + (item.runs !== 1 ? 's' : '');
+        case 'ke': return item.bestKE.toFixed(4) + ' J';
+        default: return '';
+      }
+    }
+
+    function renderMostWanted() {
+      var board = document.getElementById('mwBoard');
+      var data = getMostWantedData();
+
+      if (data.length === 0) {
+        board.innerHTML = '<div class="mw-empty">No suspects in the system. Add cars to the garage and run races to populate the Most Wanted list.</div>';
+        return;
+      }
+
+      data = sortMWData(data);
+      var total = data.length;
+
+      board.innerHTML = data.map(function(item, i) {
+        var rank = i + 1;
+        var threat = getThreatLevel(rank, total);
+        var rankTitle = getRankTitle(rank);
+        var rankClass = rank <= 3 ? ' rank-' + rank : '';
+        var isActive = activeCar && activeCar.id === item.id;
+
+        return '<div class="mw-card' + rankClass + (isActive ? ' mw-new-record' : '') + '">' +
+          '<div class="mw-rank">' + rankTitle + '</div>' +
+          '<div class="mw-name">' + item.name + '</div>' +
+          '<div class="mw-stats">' +
+            '<div>Time: <strong>' + (item.bestTime != null ? item.bestTime.toFixed(3) + 's' : '--') + '</strong></div>' +
+            '<div>Speed: <strong>' + mphToDisplaySpeed(item.bestSpeed) + ' ' + speedUnit() + '</strong></div>' +
+            '<div>Scale: <strong>' + mphToDisplaySpeed(item.bestScaleMph).split('.')[0] + ' ' + speedUnit() + '</strong></div>' +
+            '<div>Mass: <strong>' + item.weight + 'g</strong></div>' +
+            '<div>Offenses: <strong>' + item.runs + '</strong></div>' +
+            '<div>KE: <strong>' + item.bestKE.toFixed(4) + ' J</strong></div>' +
+          '</div>' +
+          '<div class="mw-threat ' + threat.cls + '">' + threat.text + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    // ========================================================================
+    // RACE CONTROL
+    // ========================================================================
+    function armRace() { wsSend({ cmd: 'arm' }); }
+    function resetRace() { wsSend({ cmd: 'reset' }); }
+    function syncClock() { wsSend({ cmd: 'syncClock' }); alert('Clock sync requested!'); }
+    function updateTrackLength() {
+      var length = parseFloat(document.getElementById('trackLength').value);
+      if (length > 0 && length < 100) { wsSend({ cmd: 'setTrack', length: length }); }
+    }
+
+    // ========================================================================
+    // GARAGE MANAGEMENT
+    // ========================================================================
+    var garage = [];
+    var activeCar = JSON.parse(localStorage.getItem('hw_active_car') || 'null');
+    var editingCarIndex = -1;
+
+    function setCurrentCarDisplay(car) {
+      var el = document.getElementById('currentCar');
+      el.textContent = '';
+      el.appendChild(document.createTextNode('Active Suspect: '));
+      var span = document.createElement('span');
+      span.style.color = 'var(--accent)';
+      span.textContent = car.name;
+      el.appendChild(span);
+      el.appendChild(document.createTextNode(' (' + car.weight + 'g)'));
+    }
+
+    async function loadGarageFromESP() {
+      try {
+        var resp = await fetch('/api/garage');
+        var data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) { garage = data; }
+        else {
+          var local = JSON.parse(localStorage.getItem('hw_garage') || '[]');
+          if (local.length > 0) { garage = local; await saveGarageToESP(); }
+        }
+      } catch (e) {
+        garage = JSON.parse(localStorage.getItem('hw_garage') || '[]');
+      }
+      renderGarage();
+    }
+
+    async function saveGarageToESP() {
+      localStorage.setItem('hw_garage', JSON.stringify(garage));
+      var saved = false;
+      for (var attempt = 0; attempt < 2; attempt++) {
+        try {
+          var resp = await fetch('/api/garage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(garage) });
+          if (resp.ok) { saved = true; break; }
+        } catch (e) {}
+      }
+      return saved;
+    }
+
+    async function saveGarage() {
+      renderGarage();
+      var ok = await saveGarageToESP();
+      showGarageStatus(ok ? 'Garage saved!' : 'Save failed - try SAVE GARAGE button', ok);
+    }
+
+    function showGarageStatus(msg, success) {
+      var el = document.getElementById('garageStatus');
+      if (!el) return;
+      el.textContent = msg;
+      el.style.color = success ? 'var(--success)' : 'var(--danger)';
+      setTimeout(function() { el.textContent = ''; }, 3000);
+    }
+
+    async function manualSaveGarage() {
+      showGarageStatus('Saving...', true);
+      var ok = await saveGarageToESP();
+      showGarageStatus(ok ? 'Garage saved to ESP32!' : 'Failed to save', ok);
+    }
+
+    async function clearGarage() {
+      if (garage.length === 0) { alert('Garage is already empty!'); return; }
+      var c = prompt('Type CLEAR to delete all ' + garage.length + ' cars:');
+      if (c !== 'CLEAR') return;
+      garage = [];
+      activeCar = null;
+      localStorage.removeItem('hw_active_car');
+      localStorage.removeItem('hw_garage');
+      document.getElementById('currentCar').textContent = 'No suspect vehicle selected';
+      renderGarage();
+      var ok = await saveGarageToESP();
+      showGarageStatus(ok ? 'Garage cleared!' : 'Cleared locally but ESP32 save failed', ok);
+    }
+
+    function exportGarage() {
+      if (garage.length === 0) { alert('No cars to export!'); return; }
+      var blob = new Blob([JSON.stringify(garage, null, 2)], { type: 'application/json' });
+      var url = window.URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'masstrap_garage_' + Date.now() + '.json';
+      a.click();
+      window.URL.revokeObjectURL(url);
+      showGarageStatus('Garage exported!', true);
+    }
+
+    function importGarage(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          var imported = JSON.parse(e.target.result);
+          if (!Array.isArray(imported)) { alert('Invalid garage file'); return; }
+          for (var i = 0; i < imported.length; i++) {
+            var car = imported[i];
+            if (!car.name || !car.weight) { alert('Invalid car data'); return; }
+            if (!car.stats) car.stats = { runs: 0, bestTime: null, bestSpeed: 0 };
+            if (!car.id) car.id = Date.now() + Math.random();
+          }
+          if (garage.length > 0) {
+            var choice = confirm('Replace all? Cancel to merge.');
+            if (choice) { garage = imported; }
+            else {
+              var added = 0;
+              for (var j = 0; j < imported.length; j++) {
+                var ic = imported[j];
+                if (!garage.some(function(g) { return g.name.toLowerCase() === ic.name.toLowerCase(); })) { garage.push(ic); added++; }
+              }
+              showGarageStatus('Merged ' + added + ' new cars', true);
+            }
+          } else { garage = imported; }
+          await saveGarage();
+          showGarageStatus('Imported ' + imported.length + ' cars!', true);
+        } catch (err) { alert('Failed to parse: ' + err.message); }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    async function addCar() {
+      var name = document.getElementById('carName').value.trim();
+      var color = document.getElementById('carColor').value.trim();
+      var weight = parseFloat(document.getElementById('carWeight').value);
+      if (!name || name.length < 1 || name.length > 30) { alert('Name must be 1-30 characters!'); return; }
+      if (!weight || weight < 1 || weight > 200) { alert('Mass must be 1-200 grams!'); return; }
+
+      if (editingCarIndex >= 0) {
+        garage[editingCarIndex].name = name;
+        garage[editingCarIndex].color = color || 'N/A';
+        garage[editingCarIndex].weight = weight;
+        if (activeCar && activeCar.id === garage[editingCarIndex].id) {
+          activeCar = garage[editingCarIndex];
+          localStorage.setItem('hw_active_car', JSON.stringify(activeCar));
+          wsSend({ cmd: 'setCar', name: activeCar.name, weight: activeCar.weight });
+          setCurrentCarDisplay(activeCar);
+        }
+        editingCarIndex = -1;
+        document.getElementById('addCarBtn').textContent = 'ADD TO GARAGE';
+      } else {
+        if (garage.some(function(c) { return c.name.toLowerCase() === name.toLowerCase(); })) {
+          alert('Car already exists! Click pencil to edit.'); return;
+        }
+        garage.push({ id: Date.now(), name: name, color: color || 'N/A', weight: weight,
+          stats: { runs: 0, bestTime: null, bestSpeed: 0 }, notes: [] });
+      }
+      await saveGarage();
+      document.getElementById('carName').value = '';
+      document.getElementById('carColor').value = '';
+      document.getElementById('carWeight').value = '';
+    }
+
+    function editCar(index, event) {
+      event.stopPropagation();
+      editingCarIndex = index;
+      var car = garage[index];
+      document.getElementById('carName').value = car.name;
+      document.getElementById('carColor').value = car.color === 'N/A' ? '' : car.color;
+      document.getElementById('carWeight').value = car.weight;
+      document.getElementById('addCarBtn').textContent = 'SAVE CHANGES';
+      document.getElementById('carName').focus();
+    }
+
+    function selectCar(index) {
+      activeCar = garage[index];
+      localStorage.setItem('hw_active_car', JSON.stringify(activeCar));
+      wsSend({ cmd: 'setCar', name: activeCar.name, weight: activeCar.weight });
+      setCurrentCarDisplay(activeCar);
+      renderGarage();
+    }
+
+    async function deleteCar(index, event) {
+      event.stopPropagation();
+      if (confirm('Delete ' + garage[index].name + '?')) {
+        var deletedId = garage[index].id;
+        garage.splice(index, 1);
+        if (activeCar && activeCar.id === deletedId) {
+          activeCar = null;
+          localStorage.removeItem('hw_active_car');
+          document.getElementById('currentCar').textContent = 'No suspect vehicle selected';
+        }
+        if (editingCarIndex === index) editingCarIndex = -1;
+        await saveGarage();
+      }
+    }
+
+    // Mechanic's Log: add note to car
+    async function addNote(index) {
+      var input = document.getElementById('noteInput_' + index);
+      if (!input || !input.value.trim()) return;
+      if (!garage[index].notes) garage[index].notes = [];
+      garage[index].notes.push({ text: input.value.trim(), ts: Date.now() });
+      if (garage[index].notes.length > 20) garage[index].notes = garage[index].notes.slice(-20);
+      input.value = '';
+      await saveGarage();
+    }
+
+    function renderGarage() {
+      var grid = document.getElementById('garageGrid');
+      if (garage.length === 0) {
+        grid.innerHTML = '<p style="grid-column:1/-1;" class="text-center text-muted">No suspects in garage</p>';
+        return;
+      }
+      grid.innerHTML = garage.map(function(car, i) {
+        if (!car.stats) car.stats = { runs: 0, bestTime: null, bestSpeed: 0 };
+        var hasBest = car.stats.bestTime != null && car.stats.bestTime !== Infinity && isFinite(car.stats.bestTime);
+        var notes = car.notes || [];
+        var notesHtml = notes.slice(-3).map(function(n) {
+          return '<div class="mech-note">' + new Date(n.ts).toLocaleDateString() + ': ' + n.text + '</div>';
+        }).join('');
+        return '<div class="garage-car ' + (activeCar && activeCar.id === car.id ? 'active' : '') + '" onclick="selectCar(' + i + ')">' +
+          '<button class="delete-btn" onclick="deleteCar(' + i + ', event)" title="Delete">x</button>' +
+          '<button class="edit-btn" onclick="editCar(' + i + ', event)" title="Edit">&#9998;</button>' +
+          '<h3>' + car.name + '</h3>' +
+          '<p>' + (car.color || '') + '</p>' +
+          '<p>' + car.weight + 'g</p>' +
+          '<div class="garage-stats">' +
+            '<span>Runs: ' + (car.stats.runs || 0) + '</span>' +
+            '<span>Best: ' + (hasBest ? car.stats.bestTime.toFixed(3) : '--') + 's</span>' +
+          '</div>' +
+          '<div class="mech-notes">' +
+            notesHtml +
+            '<input type="text" id="noteInput_' + i + '" class="mech-note-input" placeholder="Add note..." onclick="event.stopPropagation();" onkeydown="if(event.key===\'Enter\')addNote(' + i + ')">' +
+            '<button class="btn btn-primary mech-add-btn" onclick="event.stopPropagation(); addNote(' + i + ');">+</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    async function updateGarageStats(raceData) {
+      if (!activeCar) return;
+      var carIndex = garage.findIndex(function(c) { return c.id === activeCar.id; });
+      if (carIndex === -1) return;
+      if (!garage[carIndex].stats) garage[carIndex].stats = { runs: 0, bestTime: null, bestSpeed: 0 };
+      garage[carIndex].stats.runs++;
+      var prevBest = garage[carIndex].stats.bestTime;
+      if (prevBest == null || raceData.time < prevBest) garage[carIndex].stats.bestTime = raceData.time;
+      if (raceData.speed_mph > (garage[carIndex].stats.bestSpeed || 0)) garage[carIndex].stats.bestSpeed = raceData.speed_mph;
+      await saveGarage();
+    }
+
+    // ========================================================================
+    // HISTORY MANAGEMENT
+    // ========================================================================
+    var history = [];
+
+    async function loadHistoryFromESP() {
+      try {
+        var resp = await fetch('/api/history');
+        var data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) { history = data; }
+        else {
+          var local = JSON.parse(localStorage.getItem('hw_history') || '[]');
+          if (local.length > 0) { history = local; await saveHistoryToESP(); }
+        }
+      } catch (e) {
+        history = JSON.parse(localStorage.getItem('hw_history') || '[]');
+      }
+      renderHistory();
+    }
+
+    async function saveHistoryToESP() {
+      localStorage.setItem('hw_history', JSON.stringify(history));
+      try {
+        await fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(history) });
+      } catch (e) {}
+    }
+
+    function addToHistory(raceData) {
+      var entry = {
+        timestamp: Date.now(),
+        run: raceData.totalRuns,
+        car: raceData.car,
+        weight: raceData.weight,
+        time: raceData.time,
+        speed_mps: raceData.speed_mps || (raceData.speed_mph / MPS_TO_MPH),
+        speed_mph: raceData.speed_mph,
+        scale_mph: raceData.scale_mph,
+        momentum: raceData.momentum,
+        ke: raceData.ke
+      };
+      if (raceData.midTrack_mph) entry.midTrack_mph = raceData.midTrack_mph;
+      if (raceData.midTrack_mps) entry.midTrack_mps = raceData.midTrack_mps;
+      history.unshift(entry);
+      if (history.length > 100) history = history.slice(0, 100);
+      saveHistoryToESP();
+      renderHistory();
+    }
+
+    function renderHistory() {
+      var tbody = document.getElementById('historyTable');
+      if (history.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No evidence recorded yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = history.slice(0, 20).map(function(h) {
+        var displaySpeed = h.speed_mps ? formatSpeed(h.speed_mps, 1) : mphToDisplaySpeed(h.speed_mph);
+        var displayScale = h.speed_mps ? formatSpeed(h.speed_mps * currentScaleFactor, 0) : mphToDisplaySpeed(h.scale_mph).split('.')[0];
+        return '<tr>' +
+          '<td>#' + h.run + '</td>' +
+          '<td><strong class="text-accent">' + h.car + '</strong></td>' +
+          '<td>' + h.weight + 'g</td>' +
+          '<td class="font-data">' + h.time.toFixed(3) + 's</td>' +
+          '<td>' + displaySpeed + '</td>' +
+          '<td><strong class="text-accent">' + displayScale + '</strong></td>' +
+          '<td>' + h.momentum.toFixed(3) + '</td>' +
+          '<td>' + (h.ke != null ? h.ke.toFixed(4) : '--') + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function clearHistory() {
+      var c = prompt('Type DELETE to clear all evidence:');
+      if (c === 'DELETE') { history = []; saveHistoryToESP(); renderHistory(); }
+    }
+
+    // ========================================================================
+    // DATA EXPORT
+    // ========================================================================
+    function exportCSV() {
+      if (history.length === 0) { alert('No data!'); return; }
+      var su = speedUnit();
+      var csv = 'Run,Timestamp,Car,Weight(g),Time(s),Speed(' + su + '),Scale(' + su + '),Speed(m/s),Momentum,KE\n';
+      history.forEach(function(h) {
+        var displaySpeed = h.speed_mps ? formatSpeed(h.speed_mps, 2) : mphToDisplaySpeed(h.speed_mph);
+        var displayScale = h.speed_mps ? formatSpeed(h.speed_mps * currentScaleFactor, 1) : mphToDisplaySpeed(h.scale_mph);
+        var rawMps = h.speed_mps || (h.speed_mph / MPS_TO_MPH);
+        csv += h.run + ',' + new Date(h.timestamp).toISOString() + ',' + h.car + ',' + h.weight + ',' + h.time + ',' + displaySpeed + ',' + displayScale + ',' + rawMps.toFixed(3) + ',' + h.momentum + ',' + h.ke + '\n';
+      });
+      var blob = new Blob([csv], { type: 'text/csv' });
+      var url = window.URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'masstrap_data_' + Date.now() + '.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+
+    function uploadToSheets(data, url) {
+      var status = document.getElementById('sheetsStatus');
+      status.textContent = 'Uploading...';
+      status.style.color = 'var(--secondary)';
+      fetch(url, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timestamp: new Date().toISOString(), car: data.car, weight: data.weight,
+          time: data.time, speed_mph: data.speed_mph, scale_mph: data.scale_mph, momentum: data.momentum, ke: data.ke })
+      }).then(function() {
+        status.textContent = 'Sent!'; status.style.color = 'var(--success)';
+        setTimeout(function() { status.textContent = ''; }, 3000);
+      }).catch(function(err) { status.textContent = 'Failed'; status.style.color = 'var(--danger)'; });
+    }
+
+    function saveSheetsUrl() {
+      var url = document.getElementById('sheetsUrl').value.trim();
+      configSheetsUrl = url;
+      wsSend({ cmd: 'setSheetsUrl', url: url });
+      var status = document.getElementById('sheetsStatus');
+      status.textContent = 'URL saved'; status.style.color = 'var(--success)';
+      setTimeout(function() { status.textContent = ''; }, 2000);
+    }
+
+    function testSheetsUpload() {
+      var url = document.getElementById('sheetsUrl').value.trim() || configSheetsUrl;
+      if (!url) { alert('Enter a Google Sheets URL first!'); return; }
+      uploadToSheets({ car: 'TEST', weight: 35, time: 1.234, speed_mph: 1.62, scale_mph: 103.7, momentum: 0.057, ke: 0.023 }, url);
+    }
+
+    // ========================================================================
+    // GHOST CAR COMPARISON
+    // ========================================================================
+    function showGhostComparison(raceData) {
+      var section = document.getElementById('ghostSection');
+      var deltaEl = document.getElementById('ghostDelta');
+      var labelEl = document.getElementById('ghostLabel');
+      if (!activeCar) { section.style.display = 'none'; return; }
+      var carIndex = garage.findIndex(function(c) { return c.id === activeCar.id; });
+      if (carIndex === -1 || !garage[carIndex].stats) { section.style.display = 'none'; return; }
+      var prevBest = garage[carIndex].stats.bestTime;
+      if (prevBest == null || !isFinite(prevBest)) {
+        section.style.display = 'block';
+        section.className = 'section new-record';
+        deltaEl.textContent = 'FIRST RUN!';
+        deltaEl.style.color = 'var(--success)';
+        labelEl.textContent = raceData.time.toFixed(3) + 's is the benchmark for ' + activeCar.name;
+        return;
+      }
+      var delta = raceData.time - prevBest;
+      section.style.display = 'block';
+      if (delta < 0) {
+        section.className = 'section new-record';
+        deltaEl.textContent = delta.toFixed(3) + 's';
+        deltaEl.style.color = 'var(--success)';
+        labelEl.textContent = 'NEW RECORD! Previous: ' + prevBest.toFixed(3) + 's';
+      } else if (delta === 0) {
+        section.className = 'section new-record';
+        deltaEl.textContent = 'TIED!';
+        deltaEl.style.color = 'var(--accent)';
+        labelEl.textContent = 'Matched record: ' + prevBest.toFixed(3) + 's';
+      } else {
+        section.className = 'section slower';
+        deltaEl.textContent = '+' + delta.toFixed(3) + 's';
+        deltaEl.style.color = 'var(--danger)';
+        labelEl.textContent = 'Record: ' + prevBest.toFixed(3) + 's';
+      }
+    }
+
+    // ========================================================================
+    // CHART.JS
+    // ========================================================================
+    var speedChart = null;
+    var keChart = null;
+
+    function initCharts() {
+      if (typeof Chart === 'undefined') return;
+      Chart.defaults.color = '#8888aa';
+      Chart.defaults.borderColor = '#2a2a4a';
+
+      var su = speedUnit();
+      speedChart = new Chart(document.getElementById('speedChart').getContext('2d'), {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'Speed (' + su + ')', data: [],
+          borderColor: '#4a90d9', backgroundColor: 'rgba(74,144,217,0.1)',
+          borderWidth: 2, pointBackgroundColor: '#d4af37', pointRadius: 4, tension: 0.1, fill: true }] },
+        options: { responsive: true,
+          plugins: { title: { display: true, text: 'Speed vs Run', font: { size: 14, weight: 'bold' }, color: '#d4af37' }, legend: { display: false } },
+          scales: { x: { title: { display: true, text: 'Run #' } }, y: { title: { display: true, text: 'Speed (' + su + ')' }, beginAtZero: true } } }
+      });
+
+      keChart = new Chart(document.getElementById('keChart').getContext('2d'), {
+        type: 'scatter',
+        data: { datasets: [{ label: 'KE vs Mass', data: [],
+          backgroundColor: '#d4af37', pointRadius: 6, pointHoverRadius: 8 }] },
+        options: { responsive: true,
+          plugins: { title: { display: true, text: 'Kinetic Energy vs Mass', font: { size: 14, weight: 'bold' }, color: '#d4af37' }, legend: { display: false },
+            tooltip: { callbacks: { label: function(ctx) { return ctx.raw.car + ': ' + ctx.raw.y.toFixed(4) + 'J @ ' + ctx.raw.x + 'g'; } } } },
+          scales: { x: { title: { display: true, text: 'Mass (g)' } }, y: { title: { display: true, text: 'Kinetic Energy (J)' }, beginAtZero: true } } }
+      });
+
+      updateChartsFromHistory();
+    }
+
+    function updateChartsFromHistory() {
+      if (!speedChart || !keChart) return;
+      var c = history.slice().reverse();
+      speedChart.data.labels = c.map(function(h, i) { return '#' + (h.run || i + 1); });
+      speedChart.data.datasets[0].data = c.map(function(h) {
+        return h.speed_mps ? parseFloat(formatSpeed(h.speed_mps, 2)) : parseFloat(mphToDisplaySpeed(h.speed_mph));
+      });
+      speedChart.update();
+      keChart.data.datasets[0].data = c.map(function(h) { return { x: h.weight, y: h.ke, car: h.car }; });
+      keChart.update();
+    }
+
+    function addRaceToCharts(raceData) {
+      if (!speedChart || !keChart) return;
+      speedChart.data.labels.push('#' + (raceData.totalRuns || speedChart.data.labels.length + 1));
+      var chartSpeed = raceData.speed_mps ? parseFloat(formatSpeed(raceData.speed_mps, 2)) : parseFloat(mphToDisplaySpeed(raceData.speed_mph));
+      speedChart.data.datasets[0].data.push(chartSpeed);
+      speedChart.update();
+      keChart.data.datasets[0].data.push({ x: raceData.weight, y: raceData.ke, car: raceData.car });
+      keChart.update();
+    }
+
+    // ========================================================================
+    // PHYSICS EXPLAINER
+    // ========================================================================
+    var explainerOpen = false;
+    function toggleExplainer() {
+      explainerOpen = !explainerOpen;
+      document.getElementById('explainerContent').style.display = explainerOpen ? 'block' : 'none';
+      document.getElementById('explainerToggle').innerHTML = (explainerOpen ? 'Hide Formulas &#x25B2;' : 'Show Formulas &#x25BC;');
+    }
+
+    function updateExplainerValues(data) {
+      if (!data.time || data.time <= 0) return;
+      var d = parseFloat(document.getElementById('trackLength').value) || 2.0;
+      var t = data.time;
+      var v_ms = d / t;
+      var m_kg = (data.weight || 35) / 1000.0;
+      var gForce = (v_ms / t) / 9.8;
+      document.getElementById('formulaSpeed').innerHTML =
+        'v = ' + d.toFixed(2) + 'm &divide; ' + t.toFixed(3) + 's = <strong>' + v_ms.toFixed(2) + ' m/s</strong> (' + formatSpeed(v_ms, 1) + ' ' + speedUnit() + ')';
+      document.getElementById('formulaMomentum').innerHTML =
+        'p = ' + m_kg.toFixed(3) + 'kg &times; ' + v_ms.toFixed(2) + 'm/s = <strong>' + (m_kg * v_ms).toFixed(4) + ' kg&middot;m/s</strong>';
+      document.getElementById('formulaKE').innerHTML =
+        'KE = 0.5 &times; ' + m_kg.toFixed(3) + 'kg &times; ' + v_ms.toFixed(2) + '&sup2; = <strong>' + (0.5 * m_kg * v_ms * v_ms).toFixed(4) + ' J</strong>';
+      document.getElementById('formulaGForce').innerHTML =
+        'a = ' + v_ms.toFixed(2) + 'm/s &divide; ' + t.toFixed(3) + 's &divide; 9.8 = <strong>' + gForce.toFixed(2) + ' G</strong>';
+    }
+
+    // ========================================================================
+    // KIOSK MODE — Display-only for presentations
+    // Activate: ?kiosk in URL  or  Ctrl+K toggle
+    // ========================================================================
+    var kioskMode = false;
+    function enterKiosk() {
+      kioskMode = true;
+      document.body.classList.add('kiosk');
+      if (!document.getElementById('kioskExit')) {
+        var hint = document.createElement('div');
+        hint.id = 'kioskExit';
+        hint.className = 'kiosk-exit';
+        hint.textContent = 'Ctrl+K to exit';
+        hint.onclick = function() { exitKiosk(); };
+        document.body.appendChild(hint);
+      }
+    }
+    function exitKiosk() {
+      kioskMode = false;
+      document.body.classList.remove('kiosk');
+      var hint = document.getElementById('kioskExit');
+      if (hint) hint.remove();
+      if (window.history.replaceState) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+    document.addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        if (kioskMode) exitKiosk(); else enterKiosk();
+      }
+    });
+
+    // ========================================================================
+    // INITIALIZATION
+    // ========================================================================
+    window.onload = async function() {
+      // Fetch config first to set units and track length before WS connects
+      try {
+        var cfgResp = await fetch('/api/config');
+        var cfgData = await cfgResp.json();
+        if (cfgData.track) {
+          document.getElementById('trackLength').value = cfgData.track.length_m || 2.0;
+        }
+        if (cfgData.regional) {
+          setUnits(cfgData.regional.units || 'imperial');
+        }
+      } catch (e) {}
+      updateUnitLabels();
+      await loadGarageFromESP();
+      await loadHistoryFromESP();
+      initCharts();
+      if (activeCar) { setCurrentCarDisplay(activeCar); }
+      renderMostWanted();
+      onWsMessage(handleStateUpdate);
+      massInit();
+      // Auto-enter kiosk if ?kiosk in URL
+      if (window.location.search.indexOf('kiosk') !== -1) enterKiosk();
+    };
+
+    window.addEventListener('beforeunload', function() {
+      localStorage.setItem('hw_garage', JSON.stringify(garage));
+      localStorage.setItem('hw_history', JSON.stringify(history));
+      try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/garage', false);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify(garage));
+      } catch (e) {}
+    });
+  </script>
+</body>
+</html>

@@ -179,10 +179,6 @@ void lidarLoop() {
 // ============================================================================
 // PUBLIC ACCESSORS
 // ============================================================================
-bool isCarPresent() {
-  return currentLidarState == LIDAR_CAR_STAGED;
-}
-
 uint16_t getDistanceMM() {
   return lastDistance;
 }
@@ -203,19 +199,4 @@ bool lidarAutoArmReady() {
     return true;
   }
   return false;
-}
-
-String getLidarJson() {
-  String json = "{\"present\":";
-  json += (currentLidarState == LIDAR_CAR_STAGED) ? "true" : "false";
-  json += ",\"distance_mm\":";
-  json += String(lastDistance);
-  json += ",\"state\":\"";
-  switch (currentLidarState) {
-    case LIDAR_NO_CAR:      json += "no_car"; break;
-    case LIDAR_CAR_STAGED:  json += "staged"; break;
-    case LIDAR_CAR_LAUNCHED: json += "launched"; break;
-  }
-  json += "\"}";
-  return json;
 }

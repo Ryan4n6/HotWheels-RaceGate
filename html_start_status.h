@@ -498,11 +498,12 @@ const char START_STATUS_HTML[] PROGMEM = R"rawliteral(
           var role = p.role || 'unknown';
           var name = p.hostname || p.mac || '--';
           var pairedBadge = p.paired ? ' ★' : '';
+          var nameHtml = p.hostname ? '<a href=\"http://' + p.hostname + '.local/\" target=\"_blank\" style=\"color:var(--mass-gold);text-decoration:underline;\">' + name + '</a>' : name;
 
           html += '<div class="info-row">' +
             '<span class="info-label">' +
               '<span class="peer-dot ' + dotClass + '"></span>' +
-              name + pairedBadge +
+              nameHtml + pairedBadge +
               '<span class="peer-role ' + role + '">' + role + '</span>' +
             '</span>' +
             '<span class="info-value ' + statusClass + '">' + statusText + '</span>' +
