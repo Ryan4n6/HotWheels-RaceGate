@@ -231,16 +231,16 @@ function applyVersionBadge(badge, currentFw, releaseInfo) {
   if (releaseInfo && releaseInfo.tag_name) {
     var latest = releaseInfo.tag_name.replace(/^v/i, '');
     if (compareSemver(latest, currentFw) > 0) {
-      // Update available — breathing red badge with link
+      // Update available — breathing red badge links to firmware update page
       badge.classList.add('update-available');
-      badge.innerHTML = '<a href="' + GITHUB_RELEASES_URL + '" target="_blank" rel="noopener" title="Update available! Click to view release.">' +
+      badge.innerHTML = '<a href="/config#firmware-update" title="Update available! Click to install.">' +
         'v' + currentFw + ' → v' + latest + ' ⬆</a>';
       return;
     }
   }
-  // Current or check failed — simple link to releases
+  // Current or check failed — link to firmware update page
   badge.classList.remove('update-available');
-  badge.innerHTML = '<a href="' + GITHUB_RELEASES_URL + '" target="_blank" rel="noopener" title="View releases on GitHub">' +
+  badge.innerHTML = '<a href="/config#firmware-update" title="Firmware info">' +
     'FW v' + currentFw + '</a>';
 }
 

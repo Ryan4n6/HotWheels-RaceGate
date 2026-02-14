@@ -369,7 +369,7 @@
       <hr class="divider">
 
       <!-- Firmware Update Section -->
-      <div class="card-label">Firmware Update</div>
+      <div class="card-label" id="firmware-update">Firmware Update</div>
       <div id="fwVersionCompare" class="fw-version-compare">
         <div>
           <div class="fw-ver-label">Installed</div>
@@ -1254,6 +1254,14 @@
       scanWifi();
       // Internal Affairs gate — admin password check
       checkAuthGate('admin');
+      // Deep-link: #firmware-update switches to System tab and scrolls
+      if (window.location.hash === '#firmware-update') {
+        showTab('maintenance', document.getElementById('tabBtn-maintenance'));
+        setTimeout(function() {
+          var el = document.getElementById('firmware-update');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 300);
+      }
     };
   </script>
 </body>
