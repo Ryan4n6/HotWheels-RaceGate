@@ -368,6 +368,60 @@
 
       <hr class="divider">
 
+      <!-- Firmware Update Section -->
+      <div class="card-label">Firmware Update</div>
+      <div id="fwVersionCompare" class="fw-version-compare">
+        <div>
+          <div class="fw-ver-label">Installed</div>
+          <div id="fwInstalled" class="fw-ver-value">v--</div>
+        </div>
+        <div>
+          <div class="fw-ver-label">Latest</div>
+          <div id="fwLatest" class="fw-ver-value">—</div>
+        </div>
+      </div>
+      <button class="btn btn-outline" id="fwCheckBtn" onclick="checkForUpdates()">Check for Updates</button>
+
+      <div id="fwReleasePanel" style="display:none;">
+        <div class="fw-release-info">
+          <strong id="fwReleaseName"></strong>
+          <div id="fwReleaseNotes" class="fw-release-notes"></div>
+          <div id="fwAssetInfo" class="fw-asset-info"></div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn btn-accent" id="fwInstallBtn" onclick="installGitHubUpdate()">Install Update</button>
+          <a id="fwGitHubLink" class="btn btn-outline" href="#" target="_blank" rel="noopener" style="text-decoration:none;">View on GitHub ↗</a>
+        </div>
+      </div>
+
+      <div id="fwUpToDate" style="display:none; margin-top:8px;">
+        <span style="color:var(--success, #28a745);">✓ Firmware is up to date</span>
+      </div>
+      <div id="fwCheckFailed" style="display:none; margin-top:8px;">
+        <span style="color:var(--text-muted);">Could not check for updates. Check your internet connection.</span>
+      </div>
+
+      <!-- Manual upload fallback (collapsed) -->
+      <details class="fw-manual-section">
+        <summary>Advanced: Manual Firmware Upload</summary>
+        <div class="hint" style="margin-top:8px; color:var(--danger, #dc3545);">
+          ⚠️ Only use official builds from <a href="https://github.com/Ryan4n6/MASS-Trap/releases" target="_blank" rel="noopener" style="color:var(--accent);">GitHub Releases</a>.
+          Uploading untrusted firmware can brick or compromise your device.
+        </div>
+        <div id="fwDropZone" class="fw-drop-zone">
+          Drop .bin file here or click to select
+          <input type="file" id="fwFileInput" accept=".bin" style="display:none;" onchange="handleFwFileSelect(this)">
+        </div>
+        <div id="fwFileInfo" style="display:none; margin-top:6px; font-size:0.8rem; color:var(--text-muted);"></div>
+        <button class="btn btn-outline" id="fwUploadBtn" style="display:none; margin-top:8px;" onclick="uploadFirmware()">Upload &amp; Install</button>
+        <div class="fw-upload-progress" id="fwUploadProgress">
+          <div class="fw-upload-progress-bar" id="fwUploadProgressBar"></div>
+        </div>
+      </details>
+      <div class="hint" style="margin-top:8px;">⚡ Device will reboot after update. <a href="https://github.com/Ryan4n6/MASS-Trap/issues" target="_blank" rel="noopener" style="color:var(--accent);">Report issues</a></div>
+
+      <hr class="divider">
+
       <div class="card-label">System Snapshot</div>
       <div class="hint" style="margin-top:0; margin-bottom:10px;">Full backup of config + car garage + race history. Restore to same device or clone to a new one.</div>
       <div class="grid-3">
@@ -891,6 +945,303 @@
         console.log('Could not load config (may be first boot):', e);
       });
     }
+
+    // ====================================================================
+    // FIRMWARE UPDATE
+    // ====================================================================
+    var _fwReleaseCache = null;  // Cached release data for install flow
+
+    function checkForUpdates() {
+      var btn = document.getElementById('fwCheckBtn');
+      btn.textContent = 'Checking...';
+      btn.disabled = true;
+
+      // Hide previous results
+      document.getElementById('fwReleasePanel').style.display = 'none';
+      document.getElementById('fwUpToDate').style.display = 'none';
+      document.getElementById('fwCheckFailed').style.display = 'none';
+
+      // Get current firmware version from device
+      fetch('/api/version').then(function(r) { return r.json(); }).then(function(v) {
+        var currentFw = v.firmware || '0.0.0';
+        document.getElementById('fwInstalled').textContent = 'v' + currentFw;
+
+        // Force-refresh GitHub check (bypass 24hr cache)
+        return checkGitHubRelease(true).then(function(release) {
+          btn.textContent = 'Check for Updates';
+          btn.disabled = false;
+
+          if (!release || !release.tag_name) {
+            document.getElementById('fwLatest').textContent = '—';
+            document.getElementById('fwCheckFailed').style.display = 'block';
+            return;
+          }
+
+          var latest = release.tag_name.replace(/^v/i, '');
+          document.getElementById('fwLatest').textContent = 'v' + latest;
+
+          if (compareSemver(latest, currentFw) > 0) {
+            // Update available!
+            document.getElementById('fwLatest').classList.add('fw-outdated');
+            document.getElementById('fwLatest').classList.remove('fw-current');
+            document.getElementById('fwReleaseName').textContent = release.name || release.tag_name;
+
+            // Truncate release notes to first 500 chars
+            var body = release.body || 'No release notes available.';
+            if (body.length > 500) body = body.substring(0, 500) + '...';
+            document.getElementById('fwReleaseNotes').textContent = body;
+
+            // Find .bin asset
+            var asset = null;
+            if (release.assets) {
+              for (var i = 0; i < release.assets.length; i++) {
+                if (release.assets[i].name.match(/\.bin$/i)) {
+                  asset = release.assets[i];
+                  break;
+                }
+              }
+            }
+
+            if (asset) {
+              var sizeMB = (asset.size / 1024 / 1024).toFixed(2);
+              document.getElementById('fwAssetInfo').textContent = asset.name + ' (' + sizeMB + ' MB)';
+              document.getElementById('fwInstallBtn').style.display = '';
+              _fwReleaseCache = { release: release, asset: asset };
+            } else {
+              document.getElementById('fwAssetInfo').textContent = 'No .bin asset found in this release. Use manual upload.';
+              document.getElementById('fwInstallBtn').style.display = 'none';
+              _fwReleaseCache = null;
+            }
+
+            document.getElementById('fwGitHubLink').href = release.html_url || GITHUB_RELEASES_URL;
+            document.getElementById('fwReleasePanel').style.display = 'block';
+          } else {
+            // Up to date
+            document.getElementById('fwLatest').classList.remove('fw-outdated');
+            document.getElementById('fwLatest').classList.add('fw-current');
+            document.getElementById('fwUpToDate').style.display = 'block';
+          }
+        });
+      }).catch(function(err) {
+        btn.textContent = 'Check for Updates';
+        btn.disabled = false;
+        document.getElementById('fwCheckFailed').style.display = 'block';
+      });
+    }
+
+    function installGitHubUpdate() {
+      if (!_fwReleaseCache || !_fwReleaseCache.asset) return;
+      var asset = _fwReleaseCache.asset;
+      var release = _fwReleaseCache.release;
+      var ver = release.tag_name || 'unknown';
+
+      if (!confirm('Install firmware ' + ver + '?\n\nThe device will download from GitHub and reboot.\nThis takes 30-60 seconds.')) {
+        return;
+      }
+
+      // Parse MD5 from release body (looks for **MD5:** <hash>)
+      var md5 = '';
+      if (release.body) {
+        var md5Match = release.body.match(/\*\*MD5:\*\*\s*([a-fA-F0-9]{32})/);
+        if (md5Match) md5 = md5Match[1].toLowerCase();
+      }
+
+      // Show overlay
+      showFwUpdateOverlay('Downloading firmware ' + ver + '...');
+
+      // Tell ESP to download from GitHub
+      var payload = JSON.stringify({ url: asset.browser_download_url, md5: md5 });
+      fetch('/api/firmware/update-from-url', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: payload
+      }).then(function(r) {
+        if (!r.ok) return r.json().then(function(e) { throw new Error(e.error || 'Request failed'); });
+        return r.json();
+      }).then(function(data) {
+        updateOverlayMessage('Device is downloading and installing firmware...\nDo not power off.');
+        if (!md5) {
+          updateOverlaySub('⚠️ No MD5 checksum found in release — integrity check skipped');
+        }
+        // Wait for device to reboot
+        waitForReboot(release);
+      }).catch(function(err) {
+        removeFwUpdateOverlay();
+        alert('Firmware update failed: ' + err.message);
+      });
+    }
+
+    function waitForReboot(release) {
+      var attempts = 0;
+      var maxAttempts = 60; // 2 minutes at 2s intervals
+      var checkInterval = setInterval(function() {
+        attempts++;
+        if (attempts > maxAttempts) {
+          clearInterval(checkInterval);
+          removeFwUpdateOverlay();
+          alert('Device did not come back online after 2 minutes.\nIt may need manual attention.');
+          return;
+        }
+        updateOverlaySub('Waiting for device to reboot... (' + attempts + 's)');
+
+        fetch('/api/version', { cache: 'no-store' }).then(function(r) {
+          return r.json();
+        }).then(function(v) {
+          // Device is back! Clear the overlay and show release notes
+          clearInterval(checkInterval);
+          removeFwUpdateOverlay();
+          showReleaseNotesPopup(v.firmware, release);
+          // Refresh the version badge
+          loadVersion();
+        }).catch(function() {
+          // Device still rebooting — keep waiting
+        });
+      }, 2000);
+    }
+
+    function showFwUpdateOverlay(msg) {
+      var overlay = document.createElement('div');
+      overlay.id = 'fwOverlay';
+      overlay.className = 'fw-update-overlay';
+      overlay.innerHTML = '<div class="fw-spinner"></div>' +
+        '<div class="fw-overlay-msg" id="fwOverlayMsg">' + msg + '</div>' +
+        '<div class="fw-overlay-sub" id="fwOverlaySub">Please do not close this page or power off the device.</div>';
+      document.body.appendChild(overlay);
+    }
+
+    function updateOverlayMessage(msg) {
+      var el = document.getElementById('fwOverlayMsg');
+      if (el) el.textContent = msg;
+    }
+
+    function updateOverlaySub(msg) {
+      var el = document.getElementById('fwOverlaySub');
+      if (el) el.textContent = msg;
+    }
+
+    function removeFwUpdateOverlay() {
+      var el = document.getElementById('fwOverlay');
+      if (el) el.parentNode.removeChild(el);
+    }
+
+    function showReleaseNotesPopup(newVersion, release) {
+      // Create backdrop
+      var backdrop = document.createElement('div');
+      backdrop.className = 'fw-release-popup-backdrop';
+      backdrop.onclick = function() { closeReleasePopup(); };
+
+      // Create popup
+      var popup = document.createElement('div');
+      popup.className = 'fw-release-popup';
+      popup.id = 'fwReleasePopup';
+
+      var title = release ? (release.name || release.tag_name) : ('v' + newVersion);
+      var body = release && release.body ? release.body : 'No release notes available.';
+      if (body.length > 800) body = body.substring(0, 800) + '...';
+      var url = release && release.html_url ? release.html_url : GITHUB_RELEASES_URL;
+
+      popup.innerHTML = '<h3>🎉 Updated to ' + title + '</h3>' +
+        '<div class="fw-release-body">' + body.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>' +
+        '<div style="display:flex; gap:8px; margin-top:12px;">' +
+        '<button class="btn btn-accent" onclick="closeReleasePopup()">Got it!</button>' +
+        '<a class="btn btn-outline" href="' + url + '" target="_blank" rel="noopener" style="text-decoration:none;">Full Release Notes ↗</a>' +
+        '</div>';
+
+      document.body.appendChild(backdrop);
+      document.body.appendChild(popup);
+    }
+
+    function closeReleasePopup() {
+      var popup = document.getElementById('fwReleasePopup');
+      if (popup) popup.parentNode.removeChild(popup);
+      var backdrops = document.querySelectorAll('.fw-release-popup-backdrop');
+      for (var i = 0; i < backdrops.length; i++) backdrops[i].parentNode.removeChild(backdrops[i]);
+    }
+
+    // Manual upload — file select handler
+    function handleFwFileSelect(input) {
+      var file = input.files[0];
+      if (!file) return;
+      if (!file.name.match(/\.bin$/i)) {
+        alert('Please select a .bin firmware file.');
+        input.value = '';
+        return;
+      }
+      var sizeMB = (file.size / 1024 / 1024).toFixed(2);
+      document.getElementById('fwFileInfo').textContent = file.name + ' (' + sizeMB + ' MB)';
+      document.getElementById('fwFileInfo').style.display = 'block';
+      document.getElementById('fwUploadBtn').style.display = 'inline-block';
+    }
+
+    // Manual upload — send file to ESP
+    function uploadFirmware() {
+      var input = document.getElementById('fwFileInput');
+      if (!input.files[0]) return;
+
+      if (!confirm('Upload and install ' + input.files[0].name + '?\n\nThe device will reboot after upload.')) {
+        return;
+      }
+
+      var formData = new FormData();
+      formData.append('firmware', input.files[0]);
+
+      var progressContainer = document.getElementById('fwUploadProgress');
+      var progressBar = document.getElementById('fwUploadProgressBar');
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/firmware/upload');
+      xhr.setRequestHeader('X-API-Key', getApiKey());
+
+      xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+          var pct = Math.round(e.loaded / e.total * 100);
+          progressBar.style.width = pct + '%';
+        }
+      };
+
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          showFwUpdateOverlay('Upload complete — device is rebooting...');
+          waitForReboot(null);
+        } else {
+          progressContainer.style.display = 'none';
+          try {
+            var resp = JSON.parse(xhr.responseText);
+            alert('Upload failed: ' + (resp.error || 'Unknown error'));
+          } catch (e) {
+            alert('Upload failed: ' + xhr.statusText);
+          }
+        }
+      };
+
+      xhr.onerror = function() {
+        progressContainer.style.display = 'none';
+        alert('Upload failed: network error');
+      };
+
+      xhr.send(formData);
+    }
+
+    // Drop zone handlers
+    (function() {
+      var dz = document.getElementById('fwDropZone');
+      var fi = document.getElementById('fwFileInput');
+      if (!dz || !fi) return;
+
+      dz.onclick = function() { fi.click(); };
+      dz.ondragover = function(e) { e.preventDefault(); dz.classList.add('dragover'); };
+      dz.ondragleave = function() { dz.classList.remove('dragover'); };
+      dz.ondrop = function(e) {
+        e.preventDefault();
+        dz.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+          fi.files = e.dataTransfer.files;
+          handleFwFileSelect(fi);
+        }
+      };
+    })();
 
     // ====================================================================
     // INIT

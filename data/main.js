@@ -205,12 +205,90 @@ function authHeaders(extra) {
 }
 
 // ====================================================================
-// VERSION BADGE
+// VERSION BADGE — with GitHub update check (24hr cache)
 // ====================================================================
+var GITHUB_API_LATEST = 'https://api.github.com/repos/Ryan4n6/MASS-Trap/releases/latest';
+var GITHUB_RELEASES_URL = 'https://github.com/Ryan4n6/MASS-Trap/releases';
+var UPDATE_CACHE_KEY = 'mass_update_cache';
+var UPDATE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
+
+function compareSemver(a, b) {
+  // Returns: 1 if a > b, -1 if a < b, 0 if equal
+  var pa = String(a).replace(/^v/i, '').split('.').map(Number);
+  var pb = String(b).replace(/^v/i, '').split('.').map(Number);
+  for (var i = 0; i < 3; i++) {
+    var va = pa[i] || 0;
+    var vb = pb[i] || 0;
+    if (va > vb) return 1;
+    if (va < vb) return -1;
+  }
+  return 0;
+}
+
+function applyVersionBadge(badge, currentFw, releaseInfo) {
+  if (!badge) return;
+  if (releaseInfo && releaseInfo.tag_name) {
+    var latest = releaseInfo.tag_name.replace(/^v/i, '');
+    if (compareSemver(latest, currentFw) > 0) {
+      // Update available — breathing red badge with link
+      badge.classList.add('update-available');
+      badge.innerHTML = '<a href="' + GITHUB_RELEASES_URL + '" target="_blank" rel="noopener" title="Update available! Click to view release.">' +
+        'v' + currentFw + ' → v' + latest + ' ⬆</a>';
+      return;
+    }
+  }
+  // Current or check failed — simple link to releases
+  badge.classList.remove('update-available');
+  badge.innerHTML = '<a href="' + GITHUB_RELEASES_URL + '" target="_blank" rel="noopener" title="View releases on GitHub">' +
+    'FW v' + currentFw + '</a>';
+}
+
+function checkGitHubRelease(forceRefresh) {
+  // Check localStorage cache first (unless forced)
+  if (!forceRefresh) {
+    try {
+      var cached = JSON.parse(localStorage.getItem(UPDATE_CACHE_KEY));
+      if (cached && cached.ts && (Date.now() - cached.ts) < UPDATE_CACHE_TTL) {
+        return Promise.resolve(cached.data);
+      }
+    } catch (e) { /* ignore parse errors */ }
+  }
+
+  // Fetch fresh from GitHub API
+  return fetch(GITHUB_API_LATEST).then(function(r) {
+    if (!r.ok) throw new Error('GitHub API ' + r.status);
+    return r.json();
+  }).then(function(data) {
+    // Cache the result with timestamp
+    try {
+      localStorage.setItem(UPDATE_CACHE_KEY, JSON.stringify({ data: data, ts: Date.now() }));
+    } catch (e) { /* localStorage full — ignore */ }
+    return data;
+  }).catch(function(err) {
+    // Network error or rate limit — return cached data if available, else null
+    try {
+      var cached = JSON.parse(localStorage.getItem(UPDATE_CACHE_KEY));
+      if (cached && cached.data) return cached.data;
+    } catch (e) { /* ignore */ }
+    return null;
+  });
+}
+
 function loadVersion() {
   fetch('/api/version').then(function(r) { return r.json(); }).then(function(v) {
     var badge = document.getElementById('versionBadge');
-    if (badge) badge.textContent = 'FW v' + v.firmware + ' | UI v' + v.web_ui;
+    var currentFw = v.firmware || '0.0.0';
+
+    // Start with basic version display immediately
+    if (badge) {
+      badge.innerHTML = '<a href="' + GITHUB_RELEASES_URL + '" target="_blank" rel="noopener">' +
+        'FW v' + currentFw + '</a>';
+    }
+
+    // Then check GitHub for updates (uses 24hr cache)
+    checkGitHubRelease(false).then(function(releaseInfo) {
+      applyVersionBadge(badge, currentFw, releaseInfo);
+    });
   }).catch(function() {
     var meta = document.querySelector('meta[name="fw-version"]');
     var badge = document.getElementById('versionBadge');

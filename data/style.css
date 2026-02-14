@@ -1494,6 +1494,143 @@ body.kiosk .kiosk-unlock {
 .skip-link:focus { top: 0; outline: 2px solid var(--bg); }
 
 /* =================================================================
+   VERSION BADGE — Update indicator
+   ================================================================= */
+.version-badge a {
+  color: inherit; text-decoration: none;
+}
+.version-badge a:hover { text-decoration: underline; }
+.version-badge.update-available {
+  animation: fw-breathe 2s ease-in-out infinite;
+  background: rgba(220,53,69,0.15);
+}
+.version-badge.update-available a {
+  color: var(--danger, #dc3545); font-weight: 700;
+}
+@keyframes fw-breathe {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* =================================================================
+   FIRMWARE UPDATE — System page UI
+   ================================================================= */
+.fw-version-compare {
+  display: flex; gap: 16px; align-items: center;
+  flex-wrap: wrap; margin: 10px 0;
+}
+.fw-version-compare .fw-ver-label {
+  font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.fw-version-compare .fw-ver-value {
+  font-family: var(--font-data); font-size: 1rem; font-weight: 700;
+}
+.fw-version-compare .fw-ver-value.fw-outdated { color: var(--danger, #dc3545); }
+.fw-version-compare .fw-ver-value.fw-current { color: var(--success, #28a745); }
+
+.fw-release-info {
+  margin: 10px 0; padding: 10px;
+  background: var(--card-bg, rgba(255,255,255,0.05));
+  border-radius: 6px; border-left: 3px solid var(--accent);
+}
+.fw-release-notes {
+  max-height: 120px; overflow-y: auto;
+  font-size: 0.8rem; color: var(--text-muted);
+  margin-top: 6px; white-space: pre-wrap;
+  font-family: var(--font-data);
+}
+.fw-asset-info {
+  font-size: 0.75rem; color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* Full-screen overlay during firmware download */
+.fw-update-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85); z-index: 10001;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: #fff; font-family: var(--font-data);
+}
+.fw-spinner {
+  width: 48px; height: 48px;
+  border: 4px solid rgba(255,255,255,0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: fw-spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+@keyframes fw-spin {
+  to { transform: rotate(360deg); }
+}
+.fw-overlay-msg {
+  font-size: 1.1rem; margin-bottom: 8px;
+}
+.fw-overlay-sub {
+  font-size: 0.8rem; color: var(--text-muted);
+}
+
+/* Upload progress bar (manual upload fallback) */
+.fw-upload-progress {
+  width: 100%; height: 4px;
+  background: var(--card-bg, rgba(255,255,255,0.1));
+  border-radius: 2px; margin-top: 8px; overflow: hidden;
+  display: none;
+}
+.fw-upload-progress-bar {
+  height: 100%; width: 0%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+/* Drop zone for manual upload */
+.fw-drop-zone {
+  border: 2px dashed var(--text-muted);
+  border-radius: 8px; padding: 20px;
+  text-align: center; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-top: 8px; font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.fw-drop-zone:hover,
+.fw-drop-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb, 255,165,0), 0.05);
+}
+
+.fw-manual-section {
+  border-top: 1px solid var(--border, rgba(255,255,255,0.1));
+  margin-top: 8px; padding-top: 8px;
+}
+.fw-manual-section summary {
+  cursor: pointer; font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Release notes popup after update */
+.fw-release-popup {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--card-bg, #1a1a2e);
+  border: 1px solid var(--accent);
+  border-radius: 10px; padding: 24px;
+  max-width: 420px; width: 90%; z-index: 10002;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.fw-release-popup h3 { margin: 0 0 8px 0; color: var(--accent); }
+.fw-release-popup .fw-release-body {
+  max-height: 200px; overflow-y: auto;
+  font-size: 0.85rem; color: var(--text-muted);
+  margin: 10px 0; white-space: pre-wrap;
+}
+.fw-release-popup-backdrop {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6); z-index: 10001;
+}
+
+/* =================================================================
    REDUCED MOTION — Respect OS accessibility setting
    ================================================================= */
 @media (prefers-reduced-motion: reduce) {

@@ -373,6 +373,7 @@ void loop() {
   ArduinoOTA.handle();
   server.handleClient();
   webSocket.loop();
+  processFirmwareUpdate();  // Check for scheduled firmware download (non-blocking when idle)
 
   // Discovery broadcasts
   discoveryLoop();
