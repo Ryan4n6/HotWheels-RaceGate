@@ -555,7 +555,7 @@ function checkAuthGate(tier, opts) {
     // Build overlay
     var overlay = document.createElement('div');
     overlay.id = 'authGate';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:10000;display:flex;align-items:center;justify-content:center;';
 
     var isAdmin = tier === 'admin';
     var title = isAdmin ? 'INTERNAL AFFAIRS' : 'BADGE READER';
