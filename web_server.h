@@ -18,6 +18,9 @@ void startWebServer();
 // Broadcast current race state to all WebSocket clients
 void broadcastState();
 
+// Process scheduled firmware update (call from loop(), non-blocking when idle)
+void processFirmwareUpdate();
+
 // Setup mode: minimal server with config endpoints only
 void initSetupServer();
 

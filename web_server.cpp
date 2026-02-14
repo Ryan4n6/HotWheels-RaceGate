@@ -15,11 +15,86 @@
 #include <LittleFS.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <HTTPUpdate.h>
+#include <NetworkClientSecure.h>
+#include <Update.h>
 #include <esp_mac.h>
 
 WebServer server(80);
 WebSocketsServer webSocket(81);
 SerialTee serialTee;
+
+// ============================================================================
+// FIRMWARE UPDATE — Root CA certs for GitHub TLS verification
+// ============================================================================
+// Two root CAs covering GitHub's TLS chains (extracted Feb 2026):
+// 1. Sectigo Public Server Authentication Root E46 (cross-signed by USERTrust ECC)
+//    Covers: api.github.com, github.com — Expires: Jan 18 2038
+// 2. USERTrust RSA Certification Authority (cross-signed by AAA Certificate Services)
+//    Covers: objects.githubusercontent.com — Expires: Dec 31 2028
+// If these expire or GitHub rotates CAs, the firmware falls back to setInsecure()
+// and logs a warning. The next firmware update then delivers fresh certs.
+static const char github_root_ca_pem[] PROGMEM = R"CERT(
+-----BEGIN CERTIFICATE-----
+MIIDRjCCAsugAwIBAgIQGp6v7G3o4ZtcGTFBto2Q3TAKBggqhkjOPQQDAzCBiDEL
+MAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNl
+eSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNVBAMT
+JVVTRVJUcnVzdCBFQ0MgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMjEwMzIy
+MDAwMDAwWhcNMzgwMTE4MjM1OTU5WjBfMQswCQYDVQQGEwJHQjEYMBYGA1UEChMP
+U2VjdGlnbyBMaW1pdGVkMTYwNAYDVQQDEy1TZWN0aWdvIFB1YmxpYyBTZXJ2ZXIg
+QXV0aGVudGljYXRpb24gUm9vdCBFNDYwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAAR2
++pmpbiDt+dd34wc7qNs9Xzjoq1WmVk/WSOrsfy2qw7LFeeyZYX8QeccCWvkEN/U0
+NSt3zn8gj1KjAIns1aeibVvjS5KToID1AZTc8GgHHs3u/iVStSBDHBv+6xnOQ6Oj
+ggEgMIIBHDAfBgNVHSMEGDAWgBQ64QmG1M8ZwpZ2dEl23OA1xmNjmjAdBgNVHQ4E
+FgQU0SLaTFnxS18mOKqd1u7rDcP7qWEwDgYDVR0PAQH/BAQDAgGGMA8GA1UdEwEB
+/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMBEGA1UdIAQK
+MAgwBgYEVR0gADBQBgNVHR8ESTBHMEWgQ6BBhj9odHRwOi8vY3JsLnVzZXJ0cnVz
+dC5jb20vVVNFUlRydXN0RUNDQ2VydGlmaWNhdGlvbkF1dGhvcml0eS5jcmwwNQYI
+KwYBBQUHAQEEKTAnMCUGCCsGAQUFBzABhhlodHRwOi8vb2NzcC51c2VydHJ1c3Qu
+Y29tMAoGCCqGSM49BAMDA2kAMGYCMQCMCyBit99vX2ba6xEkDe+YO7vC0twjbkv9
+PKpqGGuZ61JZryjFsp+DFpEclCVy4noCMQCwvZDXD/m2Ko1HA5Bkmz7YQOFAiNDD
+49IWa2wdT7R3DtODaSXH/BiXv8fwB9su4tU=
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIFgTCCBGmgAwIBAgIQOXJEOvkit1HX02wQ3TE1lTANBgkqhkiG9w0BAQwFADB7
+MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYD
+VQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEhMB8GA1UE
+AwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTE5MDMxMjAwMDAwMFoXDTI4
+MTIzMTIzNTk1OVowgYgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpOZXcgSmVyc2V5
+MRQwEgYDVQQHEwtKZXJzZXkgQ2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBO
+ZXR3b3JrMS4wLAYDVQQDEyVVU0VSVHJ1c3QgUlNBIENlcnRpZmljYXRpb24gQXV0
+aG9yaXR5MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAgBJlFzYOw9sI
+s9CsVw127c0n00ytUINh4qogTQktZAnczomfzD2p7PbPwdzx07HWezcoEStH2jnG
+vDoZtF+mvX2do2NCtnbyqTsrkfjib9DsFiCQCT7i6HTJGLSR1GJk23+jBvGIGGqQ
+Ijy8/hPwhxR79uQfjtTkUcYRZ0YIUcuGFFQ/vDP+fmyc/xadGL1RjjWmp2bIcmfb
+IWax1Jt4A8BQOujM8Ny8nkz+rwWWNR9XWrf/zvk9tyy29lTdyOcSOk2uTIq3XJq0
+tyA9yn8iNK5+O2hmAUTnAU5GU5szYPeUvlM3kHND8zLDU+/bqv50TmnHa4xgk97E
+xwzf4TKuzJM7UXiVZ4vuPVb+DNBpDxsP8yUmazNt925H+nND5X4OpWaxKXwyhGNV
+icQNwZNUMBkTrNN9N6frXTpsNVzbQdcS2qlJC9/YgIoJk2KOtWbPJYjNhLixP6Q5
+D9kCnusSTJV882sFqV4Wg8y4Z+LoE53MW4LTTLPtW//e5XOsIzstAL81VXQJSdhJ
+WBp/kjbmUZIO8yZ9HE0XvMnsQybQv0FfQKlERPSZ51eHnlAfV1SoPv10Yy+xUGUJ
+5lhCLkMaTLTwJUdZ+gQek9QmRkpQgbLevni3/GcV4clXhB4PY9bpYrrWX1Uu6lzG
+KAgEJTm4Diup8kyXHAc/DVL17e8vgg8CAwEAAaOB8jCB7zAfBgNVHSMEGDAWgBSg
+EQojPpbxB+zirynvgqV/0DCktDAdBgNVHQ4EFgQUU3m/WqorSs9UgOHYm8Cd8rID
+ZsswDgYDVR0PAQH/BAQDAgGGMA8GA1UdEwEB/wQFMAMBAf8wEQYDVR0gBAowCDAG
+BgRVHSAAMEMGA1UdHwQ8MDowOKA2oDSGMmh0dHA6Ly9jcmwuY29tb2RvY2EuY29t
+L0FBQUNlcnRpZmljYXRlU2VydmljZXMuY3JsMDQGCCsGAQUFBwEBBCgwJjAkBggr
+BgEFBQcwAYYYaHR0cDovL29jc3AuY29tb2RvY2EuY29tMA0GCSqGSIb3DQEBDAUA
+A4IBAQAYh1HcdCE9nIrgJ7cz0C7M7PDmy14R3iJvm3WOnnL+5Nb+qh+cli3vA0p+
+rvSNb3I8QzvAP+u431yqqcau8vzY7qN7Q/aGNnwU4M309z/+3ri0ivCRlv79Q2R+
+/czSAaF9ffgZGclCKxO/WIu6pKJmBHaIkU4MiRTOok3JMrO66BQavHHxW/BBC5gA
+CiIDEOUMsfnNkjcZ7Tvx5Dq2+UUTJnWvu6rvP3t3O9LEApE9GQDTF1w52z97GA1F
+zZOFli9d31kWTz9RvdVFGD/tSo7oBmF0Ixa1DVBzJ0RHfxBdiSprhTEUxOipakyA
+vGp4z7h/jnZymQyd/teRCBaho1+V
+-----END CERTIFICATE-----
+)CERT";
+
+// Firmware update scheduling state (set by HTTP handler, consumed by loop)
+static volatile bool firmwareUpdateScheduled = false;
+static volatile bool firmwareUpdateInProgress = false;
+static char firmwareUpdateUrl[384] = "";
+static char firmwareExpectedMd5[33] = "";   // 32 hex chars + null
+static char firmwareUpdateStatus[128] = ""; // Human-readable status message
 
 // ============================================================================
 // FILE SERVING HELPERS
@@ -976,6 +1051,222 @@ static void handleApiAuthCheck() {
 }
 
 // ============================================================================
+// FIRMWARE UPDATE ENDPOINTS
+// ============================================================================
+
+// GET /api/firmware/status — Current update status
+static void handleFirmwareStatus() {
+  StaticJsonDocument<256> doc;
+  doc["updating"] = (bool)firmwareUpdateInProgress;
+  doc["scheduled"] = (bool)firmwareUpdateScheduled;
+  doc["message"] = firmwareUpdateStatus;
+  String json;
+  serializeJson(doc, json);
+  server.send(200, "application/json", json);
+}
+
+// POST /api/firmware/update-from-url — Schedule GitHub download (primary flow)
+static void handleFirmwareUpdateFromUrl() {
+  if (!requireAuth()) return;
+
+  if (firmwareUpdateScheduled || firmwareUpdateInProgress) {
+    server.send(409, "application/json", "{\"error\":\"Firmware update already in progress\"}");
+    return;
+  }
+
+  String body = server.arg("plain");
+  if (body.length() == 0) {
+    server.send(400, "application/json", "{\"error\":\"Empty body\"}");
+    return;
+  }
+
+  StaticJsonDocument<512> doc;
+  DeserializationError err = deserializeJson(doc, body);
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+
+  const char* url = doc["url"] | "";
+  const char* md5 = doc["md5"] | "";
+
+  if (strlen(url) == 0) {
+    server.send(400, "application/json", "{\"error\":\"Missing url field\"}");
+    return;
+  }
+
+  // URL allowlist — closed circuit: only GitHub domains allowed
+  if (strncmp(url, GITHUB_ASSET_PREFIX_1, strlen(GITHUB_ASSET_PREFIX_1)) != 0 &&
+      strncmp(url, GITHUB_ASSET_PREFIX_2, strlen(GITHUB_ASSET_PREFIX_2)) != 0) {
+    LOG.printf("[FW-UPDATE] Rejected non-GitHub URL: %.40s...\n", url);
+    server.send(403, "application/json", "{\"error\":\"URL not allowed. Only GitHub release assets accepted.\"}");
+    return;
+  }
+
+  // Validate MD5 format if provided (must be exactly 32 hex chars)
+  if (strlen(md5) > 0 && strlen(md5) != 32) {
+    server.send(400, "application/json", "{\"error\":\"Invalid MD5 format (expected 32 hex chars)\"}");
+    return;
+  }
+
+  // Store for deferred processing in loop()
+  strncpy(firmwareUpdateUrl, url, sizeof(firmwareUpdateUrl) - 1);
+  firmwareUpdateUrl[sizeof(firmwareUpdateUrl) - 1] = '\0';
+  strncpy(firmwareExpectedMd5, md5, sizeof(firmwareExpectedMd5) - 1);
+  firmwareExpectedMd5[sizeof(firmwareExpectedMd5) - 1] = '\0';
+  snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Scheduled — download will begin shortly");
+  firmwareUpdateScheduled = true;
+
+  LOG.printf("[FW-UPDATE] Scheduled download from GitHub\n");
+  if (strlen(md5) > 0) {
+    LOG.printf("[FW-UPDATE] Expected MD5: %s\n", firmwareExpectedMd5);
+  }
+
+  // Respond BEFORE the download starts (download happens in loop via processFirmwareUpdate)
+  server.send(200, "application/json", "{\"ok\":true,\"message\":\"Firmware download scheduled. Device will reboot when complete.\"}");
+}
+
+// POST /api/firmware/upload — Manual .bin upload (fallback)
+static bool _fwUploadStarted = false;
+static bool _fwUploadError = false;
+
+static void handleFirmwareUpload() {
+  HTTPUpload& upload = server.upload();
+
+  if (upload.status == UPLOAD_FILE_START) {
+    LOG.printf("[FW-UPDATE] Manual upload started: %s\n", upload.filename.c_str());
+    _fwUploadStarted = true;
+    _fwUploadError = false;
+    firmwareUpdateInProgress = true;
+    snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Receiving upload: %s", upload.filename.c_str());
+
+    if (!Update.begin(MAX_FIRMWARE_SIZE)) {
+      LOG.printf("[FW-UPDATE] Update.begin() failed: %s\n", Update.errorString());
+      _fwUploadError = true;
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    if (!_fwUploadError) {
+      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        LOG.printf("[FW-UPDATE] Update.write() failed: %s\n", Update.errorString());
+        _fwUploadError = true;
+      }
+    }
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (!_fwUploadError && Update.end(true)) {
+      LOG.printf("[FW-UPDATE] Upload complete, %u bytes written\n", upload.totalSize);
+      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Upload complete — rebooting");
+    } else {
+      LOG.printf("[FW-UPDATE] Upload failed: %s\n", Update.errorString());
+      _fwUploadError = true;
+      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Upload failed: %s", Update.errorString());
+    }
+  }
+}
+
+static void handleFirmwareUploadComplete() {
+  if (!requireAuth()) return;
+
+  firmwareUpdateInProgress = false;
+
+  if (_fwUploadError || Update.hasError()) {
+    _fwUploadStarted = false;
+    server.send(500, "application/json", "{\"error\":\"Firmware upload failed. See serial console for details.\"}");
+    return;
+  }
+
+  server.send(200, "application/json", "{\"ok\":true,\"message\":\"Firmware uploaded successfully. Rebooting...\"}");
+  delay(500);
+  ESP.restart();
+}
+
+// Called from loop() — executes the scheduled firmware download
+void processFirmwareUpdate() {
+  if (!firmwareUpdateScheduled) return;
+  firmwareUpdateScheduled = false;
+  firmwareUpdateInProgress = true;
+
+  LOG.printf("[FW-UPDATE] Starting download from: %s\n", firmwareUpdateUrl);
+  snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Downloading firmware...");
+
+  NetworkClientSecure secClient;
+  secClient.setCACert(github_root_ca_pem);
+  secClient.setTimeout(30);  // 30 second TLS handshake timeout
+
+  // Configure HTTPUpdate
+  httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+  httpUpdate.rebootOnUpdate(true);
+
+  // Set MD5 verification if provided
+  if (strlen(firmwareExpectedMd5) > 0) {
+    LOG.printf("[FW-UPDATE] MD5 verification enabled: %s\n", firmwareExpectedMd5);
+  }
+
+  // Progress callbacks
+  httpUpdate.onStart([]() {
+    LOG.println("[FW-UPDATE] Download started — writing to inactive partition");
+  });
+  httpUpdate.onProgress([](int cur, int total) {
+    static int lastPct = -1;
+    int pct = (total > 0) ? (cur * 100 / total) : 0;
+    if (pct != lastPct && pct % 10 == 0) {
+      LOG.printf("[FW-UPDATE] Progress: %d%% (%d / %d bytes)\n", pct, cur, total);
+      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Downloading: %d%%", pct);
+      lastPct = pct;
+    }
+  });
+  httpUpdate.onEnd([]() {
+    LOG.println("[FW-UPDATE] Download complete — verifying and rebooting");
+    snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Download complete — rebooting");
+  });
+  httpUpdate.onError([](int err) {
+    LOG.printf("[FW-UPDATE] Error (%d): %s\n", err, httpUpdate.getLastErrorString().c_str());
+    snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Error: %s", httpUpdate.getLastErrorString().c_str());
+  });
+
+  // Attempt #1: with proper TLS cert verification
+  t_httpUpdate_return ret;
+  if (strlen(firmwareExpectedMd5) > 0) {
+    httpUpdate.setMD5sum(firmwareExpectedMd5);
+  }
+  ret = httpUpdate.update(secClient, firmwareUpdateUrl);
+
+  // If update() returns, it failed (success = reboot, never returns)
+  if (ret == HTTP_UPDATE_FAILED) {
+    int errCode = httpUpdate.getLastError();
+    String errStr = httpUpdate.getLastErrorString();
+    LOG.printf("[FW-UPDATE] Attempt 1 failed (code %d): %s\n", errCode, errStr.c_str());
+
+    // Check if it's a TLS/connection error — retry with insecure fallback
+    // Error codes: -1 = connection failed, -11 = SSL error
+    if (errCode == -1 || errCode == -11 || errCode == HTTP_UPDATE_FAILED) {
+      LOG.println("[FW-UPDATE] TLS verification may have failed — retrying with insecure fallback");
+      LOG.println("[FW-UPDATE] WARNING: Certificate verification disabled for this attempt");
+      snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Retrying without cert verification...");
+
+      secClient.setInsecure();
+      if (strlen(firmwareExpectedMd5) > 0) {
+        httpUpdate.setMD5sum(firmwareExpectedMd5);
+      }
+      ret = httpUpdate.update(secClient, firmwareUpdateUrl);
+
+      if (ret == HTTP_UPDATE_FAILED) {
+        LOG.printf("[FW-UPDATE] Attempt 2 also failed: %s\n", httpUpdate.getLastErrorString().c_str());
+      }
+    }
+  }
+
+  // If we're still here, both attempts failed
+  firmwareUpdateInProgress = false;
+  snprintf(firmwareUpdateStatus, sizeof(firmwareUpdateStatus), "Update failed: %s",
+           httpUpdate.getLastErrorString().c_str());
+  LOG.printf("[FW-UPDATE] All attempts failed. Device stays on current firmware.\n");
+
+  // Clear stored URL for safety
+  firmwareUpdateUrl[0] = '\0';
+  firmwareExpectedMd5[0] = '\0';
+}
+
+// ============================================================================
 void initWebServer() {
   // Collect X-API-Key header for authentication on protected endpoints
   const char* headerKeys[] = {"X-API-Key"};
@@ -1076,6 +1367,11 @@ void initWebServer() {
   server.on("/api/files", HTTP_GET, handleApiFiles);
   server.on("/api/files", HTTP_POST, handleApiFiles);
   server.on("/api/files", HTTP_DELETE, handleApiFiles);
+
+  // Firmware update endpoints
+  server.on("/api/firmware/status", HTTP_GET, handleFirmwareStatus);
+  server.on("/api/firmware/update-from-url", HTTP_POST, handleFirmwareUpdateFromUrl);
+  server.on("/api/firmware/upload", HTTP_POST, handleFirmwareUploadComplete, handleFirmwareUpload);
 
   // Console page: prefer LittleFS, fall back to PROGMEM
   server.on("/console", HTTP_GET, []() {

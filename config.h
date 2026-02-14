@@ -12,6 +12,14 @@
 #define PROJECT_NAME    "M.A.S.S. Trap"
 #define PROJECT_FULL    "Motion Analysis & Speed System"
 
+// GitHub firmware update — closed-circuit download from official releases only
+#define GITHUB_REPO           "Ryan4n6/MASS-Trap"
+#define GITHUB_RELEASES_URL   "https://github.com/Ryan4n6/MASS-Trap/releases"
+#define GITHUB_API_LATEST     "https://api.github.com/repos/Ryan4n6/MASS-Trap/releases/latest"
+#define GITHUB_ASSET_PREFIX_1 "https://github.com/"
+#define GITHUB_ASSET_PREFIX_2 "https://objects.githubusercontent.com/"
+#define MAX_FIRMWARE_SIZE     0x300000  // 3MB, matches app0/app1 partition size
+
 // ============================================================================
 // NAMED CONSTANTS — Replaces magic numbers scattered across the codebase
 // ============================================================================
