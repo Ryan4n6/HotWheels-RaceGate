@@ -214,8 +214,9 @@ var UPDATE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
 
 function compareSemver(a, b) {
   // Returns: 1 if a > b, -1 if a < b, 0 if equal
-  var pa = String(a).replace(/^v/i, '').split('.').map(Number);
-  var pb = String(b).replace(/^v/i, '').split('.').map(Number);
+  // Strips pre-release suffixes (-rc1, -beta2, etc.) before comparing
+  var pa = String(a).replace(/^v/i, '').replace(/-.*$/, '').split('.').map(Number);
+  var pb = String(b).replace(/^v/i, '').replace(/-.*$/, '').split('.').map(Number);
   for (var i = 0; i < 3; i++) {
     var va = pa[i] || 0;
     var vb = pb[i] || 0;
