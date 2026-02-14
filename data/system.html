@@ -8,15 +8,16 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <a href="#configTablist" class="skip-link">Skip to configuration</a>
   <div id="navContainer"></div>
   <div class="container">
     <div class="page-header">
-      <div class="page-header-shield"></div>
+      <div class="page-header-shield" aria-hidden="true"></div>
       <h1>M.A.S.S. TRAP</h1>
       <div class="subtitle">Motion Analysis &amp; Speed System</div>
       <div class="tagline">SYSTEM CONFIG</div>
       <div class="theme-selector">
-        Theme: <select id="themePicker" onchange="setTheme(this.value)">
+        <label for="themePicker">Theme:</label> <select id="themePicker" onchange="setTheme(this.value)">
           <option value="interceptor">Interceptor</option>
           <option value="classic">Classic</option>
           <option value="daytona">Daytona</option>
@@ -27,41 +28,42 @@
     </div>
 
     <!-- Config Tabs -->
-    <div class="config-tabs">
-      <button class="config-tab active" onclick="showTab('network')">Network</button>
-      <button class="config-tab" onclick="showTab('device')">Device</button>
-      <button class="config-tab" onclick="showTab('pins')">Pins</button>
-      <button class="config-tab" onclick="showTab('peer')">Peer</button>
-      <button class="config-tab" onclick="showTab('track')">Track</button>
-      <button class="config-tab" onclick="showTab('audio')">Audio</button>
-      <button class="config-tab" onclick="showTab('lidar')">LiDAR</button>
-      <button class="config-tab" onclick="showTab('integrations')">WLED</button>
-      <button class="config-tab" onclick="showTab('regional')">Regional</button>
-      <button class="config-tab" onclick="showTab('maintenance')">System</button>
+    <div id="configTablist" class="config-tabs">
+      <button id="tabBtn-network" class="config-tab active" data-tab="network" onclick="showTab('network', this)">Network</button>
+      <button id="tabBtn-device" class="config-tab" data-tab="device" onclick="showTab('device', this)">Device</button>
+      <button id="tabBtn-pins" class="config-tab" data-tab="pins" onclick="showTab('pins', this)">Pins</button>
+      <button id="tabBtn-peer" class="config-tab" data-tab="peer" onclick="showTab('peer', this)">Peer</button>
+      <button id="tabBtn-track" class="config-tab" data-tab="track" onclick="showTab('track', this)">Track</button>
+      <button id="tabBtn-audio" class="config-tab" data-tab="audio" onclick="showTab('audio', this)">Audio</button>
+      <button id="tabBtn-lidar" class="config-tab" data-tab="lidar" onclick="showTab('lidar', this)">LiDAR</button>
+      <button id="tabBtn-integrations" class="config-tab" data-tab="integrations" onclick="showTab('integrations', this)">WLED</button>
+      <button id="tabBtn-regional" class="config-tab" data-tab="regional" onclick="showTab('regional', this)">Regional</button>
+      <button id="tabBtn-maintenance" class="config-tab" data-tab="maintenance" onclick="showTab('maintenance', this)">System</button>
     </div>
 
     <!-- Tab: Network -->
     <div id="tab-network" class="config-tab-content active">
-      <div class="card-label">WiFi Network</div>
+      <label for="wifiScan" class="card-label">WiFi Network</label>
       <div style="display:flex; gap:8px;">
         <select id="wifiScan" style="flex:1;" onchange="document.getElementById('wifiSSID').value=this.value; if(this.value) document.getElementById('networkMode').value='wifi';">
           <option value="">-- Scan for networks --</option>
         </select>
         <button class="btn btn-primary btn-sm" onclick="scanWifi()">Scan</button>
       </div>
+      <label for="wifiSSID" class="sr-only">WiFi SSID</label>
       <input type="text" id="wifiSSID" placeholder="WiFi SSID (or type manually)">
 
-      <div class="card-label">WiFi Password</div>
+      <label for="wifiPass" class="card-label">WiFi Password</label>
       <div style="display:flex; gap:8px;">
         <input type="password" id="wifiPass" placeholder="WiFi Password" style="flex:1;">
-        <button class="btn btn-outline btn-sm" onclick="togglePass('wifiPass')">Show</button>
+        <button class="btn btn-outline btn-sm" onclick="togglePass('wifiPass')" aria-label="Toggle password visibility">Show</button>
       </div>
 
-      <div class="card-label">Hostname</div>
+      <label for="hostname" class="card-label">Hostname</label>
       <input type="text" id="hostname" placeholder="masstrap" value="masstrap">
       <div class="hint">Access device at http://[hostname].local</div>
 
-      <div class="card-label">Network Mode</div>
+      <label for="networkMode" class="card-label">Network Mode</label>
       <select id="networkMode">
         <option value="wifi" selected>Connect to WiFi (recommended)</option>
         <option value="standalone">Standalone AP (no router needed)</option>
@@ -71,27 +73,27 @@
 
     <!-- Tab: Device -->
     <div id="tab-device" class="config-tab-content">
-      <div class="card-label">Device Role</div>
-      <div class="role-cards">
-        <div class="role-card" id="role-start" onclick="selectRole('start')">
-          <div class="role-icon">&#x1F7E2;</div>
+      <div class="card-label" id="roleGroupLabel">Device Role</div>
+      <div class="role-cards" role="radiogroup" aria-labelledby="roleGroupLabel">
+        <button type="button" class="role-card" id="role-start" role="radio" aria-checked="false" onclick="selectRole('start')">
+          <div class="role-icon" aria-hidden="true">&#x1F7E2;</div>
           <h3>START GATE</h3>
           <p>Detects car release, sends start signal</p>
-        </div>
-        <div class="role-card selected" id="role-finish" onclick="selectRole('finish')">
-          <div class="role-icon">&#x1F3C1;</div>
+        </button>
+        <button type="button" class="role-card selected" id="role-finish" role="radio" aria-checked="true" onclick="selectRole('finish')">
+          <div class="role-icon" aria-hidden="true">&#x1F3C1;</div>
           <h3>FINISH GATE</h3>
           <p>Logs time, calculates speed &amp; physics</p>
-        </div>
-        <div class="role-card" id="role-speedtrap" onclick="selectRole('speedtrap')">
-          <div class="role-icon">&#x1F6A8;</div>
+        </button>
+        <button type="button" class="role-card" id="role-speedtrap" role="radio" aria-checked="false" onclick="selectRole('speedtrap')">
+          <div class="role-icon" aria-hidden="true">&#x1F6A8;</div>
           <h3>SPEED TRAP</h3>
           <p>Mid-track velocity via dual IR sensors</p>
-        </div>
+        </button>
       </div>
       <input type="hidden" id="role" value="finish">
 
-      <div class="card-label">Device ID</div>
+      <label for="deviceId" class="card-label">Device ID</label>
       <input type="number" id="deviceId" value="1" min="1" max="254">
       <div class="hint">Unique number for this device (1-254). Use different IDs for each device.</div>
     </div>
@@ -103,7 +105,7 @@
         <strong>Avoid:</strong> GPIO 0 (boot), 6-11 (flash SPI)
       </div>
 
-      <div class="card-label" id="sensorLabel">IR Sensor Pin (Finish Line)</div>
+      <label for="sensorPin" class="card-label" id="sensorLabel">IR Sensor Pin (Finish Line)</label>
       <select id="sensorPin">
         <option value="4" selected>GPIO 4 (default)</option>
         <option value="1">GPIO 1</option>
@@ -124,7 +126,7 @@
       <div class="hint">Connect your IR break-beam sensor signal wire to this pin</div>
 
       <div id="sensorPin2Group" style="display:none;">
-        <div class="card-label">Second IR Sensor Pin (Speed Trap)</div>
+        <label for="sensorPin2" class="card-label">Second IR Sensor Pin (Speed Trap)</label>
         <select id="sensorPin2">
           <option value="5" selected>GPIO 5 (default)</option>
           <option value="1">GPIO 1</option>
@@ -145,7 +147,7 @@
         <div class="hint">Second sensor ~10cm apart from first for velocity measurement</div>
       </div>
 
-      <div class="card-label">Status LED Pin</div>
+      <label for="ledPin" class="card-label">Status LED Pin</label>
       <select id="ledPin">
         <option value="2" selected>GPIO 2 (default / built-in LED)</option>
         <option value="1">GPIO 1</option>
@@ -164,11 +166,11 @@
 
     <!-- Tab: Peer -->
     <div id="tab-peer" class="config-tab-content">
-      <div class="card-label">This Device's MAC Address</div>
+      <label for="myMac" class="card-label">This Device's MAC Address</label>
       <input type="text" id="myMac" readonly style="background:var(--bg-dark); font-family:var(--font-data); color:var(--accent);">
       <div class="hint">Give this MAC address to your partner device</div>
 
-      <div class="card-label">Partner Device MAC Address</div>
+      <label for="peerMac" class="card-label">Partner Device MAC Address</label>
       <input type="text" id="peerMac" placeholder="XX:XX:XX:XX:XX:XX" style="font-family:var(--font-data);">
       <div class="hint">Enter the MAC of the other gate, or use discovery below</div>
 
@@ -180,16 +182,16 @@
 
     <!-- Tab: Track -->
     <div id="tab-track" class="config-tab-content">
-      <div class="card-label">Track Length (meters)</div>
+      <label for="trackLength" class="card-label">Track Length (meters)</label>
       <input type="number" id="trackLength" value="2.0" step="0.01" min="0.1" max="100">
       <div class="hint">Distance from start gate sensor to finish gate sensor</div>
 
-      <div class="card-label">Scale Factor</div>
+      <label for="scaleFactor" class="card-label">Scale Factor</label>
       <input type="number" id="scaleFactor" value="64" min="1" max="1000">
       <div class="hint">1:64 for standard Hot Wheels. Scale speed = actual speed x this factor.</div>
 
       <div id="speedTrapSpacing" style="display:none;">
-        <div class="card-label">Speed Trap Sensor Spacing (meters)</div>
+        <label for="sensorSpacing" class="card-label">Speed Trap Sensor Spacing (meters)</label>
         <input type="number" id="sensorSpacing" value="0.10" step="0.01" min="0.01" max="1.0">
         <div class="hint">Distance between the two IR sensors on the speed trap (~10cm recommended)</div>
       </div>
@@ -200,7 +202,7 @@
       <div class="card-label">Audio System (MAX98357A I2S)</div>
 
       <div class="toggle-row">
-        <span>Enable Audio</span>
+        <label for="audioEnabled">Enable Audio</label>
         <label class="toggle-switch" style="margin:0;">
           <input type="checkbox" id="audioEnabled">
           <span class="toggle-slider"></span>
@@ -211,20 +213,20 @@
       <div id="audioSettings">
         <div class="grid-3" style="margin-top:14px;">
           <div>
-            <div class="card-label">BCLK Pin</div>
+            <label for="audioBclk" class="card-label">BCLK Pin</label>
             <input type="number" id="audioBclk" value="15" min="0" max="48">
           </div>
           <div>
-            <div class="card-label">LRC Pin</div>
+            <label for="audioLrc" class="card-label">LRC Pin</label>
             <input type="number" id="audioLrc" value="16" min="0" max="48">
           </div>
           <div>
-            <div class="card-label">DOUT Pin</div>
+            <label for="audioDout" class="card-label">DOUT Pin</label>
             <input type="number" id="audioDout" value="17" min="0" max="48">
           </div>
         </div>
 
-        <div class="card-label">Volume (0-21)</div>
+        <label for="audioVolume" class="card-label">Volume (0-21)</label>
         <input type="range" id="audioVolume" min="0" max="21" value="10" style="padding:0; border:none; background:transparent;"
                oninput="document.getElementById('volLabel').textContent=this.value">
         <div class="hint">Current: <span id="volLabel">10</span></div>
@@ -236,7 +238,7 @@
       <div class="card-label">LiDAR Staging (Benewake TF-Luna)</div>
 
       <div class="toggle-row">
-        <span>Enable LiDAR</span>
+        <label for="lidarEnabled">Enable LiDAR</label>
         <label class="toggle-switch" style="margin:0;">
           <input type="checkbox" id="lidarEnabled">
           <span class="toggle-slider"></span>
@@ -247,16 +249,16 @@
       <div id="lidarSettings">
         <div class="grid-2" style="margin-top:14px;">
           <div>
-            <div class="card-label">RX Pin (from Luna TX)</div>
+            <label for="lidarRx" class="card-label">RX Pin (from Luna TX)</label>
             <input type="number" id="lidarRx" value="39" min="0" max="48">
           </div>
           <div>
-            <div class="card-label">TX Pin (to Luna RX)</div>
+            <label for="lidarTx" class="card-label">TX Pin (to Luna RX)</label>
             <input type="number" id="lidarTx" value="38" min="0" max="48">
           </div>
         </div>
 
-        <div class="card-label">Detection Threshold (mm)</div>
+        <label for="lidarThreshold" class="card-label">Detection Threshold (mm)</label>
         <input type="number" id="lidarThreshold" value="50" min="10" max="500">
         <div class="hint">Objects closer than this distance are detected as a car. Default 50mm.</div>
 
@@ -270,39 +272,39 @@
     <!-- Tab: Integrations (WLED) -->
     <div id="tab-integrations" class="config-tab-content">
       <div class="card-label">Google Sheets</div>
-      <div class="card-label">Webhook URL</div>
+      <label for="sheetsUrl" class="card-label">Webhook URL</label>
       <input type="text" id="sheetsUrl" placeholder="https://script.google.com/macros/s/.../exec">
       <div class="hint">Race data auto-uploads after each run. Leave blank to disable.</div>
 
       <hr class="divider">
 
       <div class="card-label">WLED Integration</div>
-      <div class="card-label">WLED Controller Host</div>
+      <label for="wledHost" class="card-label">WLED Controller Host</label>
       <div style="display:flex; gap:8px;">
         <input type="text" id="wledHost" placeholder="wled-1.local or 192.168.x.x" style="flex:1;">
         <button class="btn btn-primary btn-sm" onclick="testWled()">Test</button>
       </div>
       <div class="hint">Hostname or IP of your WLED controller for LED race effects</div>
 
-      <div id="wledStatus" class="info-box" style="display:none;"></div>
+      <div id="wledStatus" class="info-box" style="display:none;" role="status" aria-live="polite"></div>
 
       <button class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="loadWledEffects()">Load Effects from WLED</button>
 
       <div class="grid-2" style="margin-top:10px;">
         <div>
-          <div class="card-label">Idle Effect</div>
+          <label for="wledIdle" class="card-label">Idle Effect</label>
           <select id="wledIdle" class="wled-effect"><option value="0">0 - Solid</option></select>
         </div>
         <div>
-          <div class="card-label">Armed Effect</div>
+          <label for="wledArmed" class="card-label">Armed Effect</label>
           <select id="wledArmed" class="wled-effect"><option value="28">28 - Breathe</option></select>
         </div>
         <div>
-          <div class="card-label">Racing Effect</div>
+          <label for="wledRacing" class="card-label">Racing Effect</label>
           <select id="wledRacing" class="wled-effect"><option value="49">49 - Chase Rainbow</option></select>
         </div>
         <div>
-          <div class="card-label">Finished Effect</div>
+          <label for="wledFinished" class="card-label">Finished Effect</label>
           <select id="wledFinished" class="wled-effect"><option value="11">11 - Rainbow</option></select>
         </div>
       </div>
@@ -310,14 +312,14 @@
 
     <!-- Tab: Regional / Display Preferences -->
     <div id="tab-regional" class="config-tab-content">
-      <div class="card-label">Unit System</div>
+      <label for="unitSystem" class="card-label">Unit System</label>
       <select id="unitSystem">
         <option value="imperial">Imperial (mph, feet)</option>
         <option value="metric">Metric (km/h, meters)</option>
       </select>
       <div class="hint">Controls speed and distance display across dashboard, history, CSV exports, and speed trap.</div>
 
-      <div class="card-label" style="margin-top:18px;">Timezone</div>
+      <label for="timezone" class="card-label" style="margin-top:18px;">Timezone</label>
       <select id="timezone">
         <option value="EST5EDT,M3.2.0,M11.1.0">US Eastern (EST/EDT)</option>
         <option value="CST6CDT,M3.2.0,M11.1.0">US Central (CST/CDT)</option>
@@ -337,7 +339,7 @@
       <div class="hint">Sets the local time used for log timestamps (NTP). Requires reboot to take effect.</div>
 
       <div id="tzCustomGroup" style="margin-top:10px;">
-        <div class="card-label">Custom POSIX TZ String (advanced)</div>
+        <label for="tzCustom" class="card-label">Custom POSIX TZ String (advanced)</label>
         <input type="text" id="tzCustom" placeholder="e.g. EST5EDT,M3.2.0,M11.1.0">
         <div class="hint">Override the dropdown with a custom <a href="https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html" target="_blank" style="color:var(--accent);">POSIX TZ string</a>. Leave blank to use dropdown selection.</div>
       </div>
@@ -350,12 +352,19 @@
 
       <hr class="divider">
 
-      <div class="card-label">OTA Update Password</div>
+      <label for="viewerPassword" class="card-label">Viewer Password (Badge Reader)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="password" id="viewerPassword" placeholder="Leave blank for open access" style="flex:1;">
+        <button class="btn btn-outline btn-sm" onclick="togglePass('viewerPassword')" aria-label="Toggle password visibility">Show</button>
+      </div>
+      <div class="hint">Viewers must enter this password to access the dashboard and evidence log. Leave blank for open access.</div>
+
+      <label for="otaPassword" class="card-label">Admin Password (Internal Affairs)</label>
       <div style="display:flex; gap:8px;">
         <input type="password" id="otaPassword" placeholder="Default: admin" style="flex:1;">
-        <button class="btn btn-outline btn-sm" onclick="togglePass('otaPassword')">Show</button>
+        <button class="btn btn-outline btn-sm" onclick="togglePass('otaPassword')" aria-label="Toggle password visibility">Show</button>
       </div>
-      <div class="hint">Used for over-the-air firmware updates and API authentication on protected endpoints.</div>
+      <div class="hint">Used for system configuration, console access, OTA firmware updates, and API authentication.</div>
 
       <hr class="divider">
 
@@ -395,7 +404,7 @@
   </div>
 
   <!-- Status bar -->
-  <div id="statusBar" class="status-bar"></div>
+  <div id="statusBar" class="status-bar" role="status" aria-live="polite"></div>
   <div id="versionBadge" class="version-badge">v--</div>
 
   <script src="/main.js"></script>
@@ -405,13 +414,18 @@
     // ====================================================================
     var selectedRole = 'finish';
 
-    function showTab(name) {
+    function showTab(name, clickedBtn) {
       var tabs = document.querySelectorAll('.config-tab-content');
       for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
       var btns = document.querySelectorAll('.config-tab');
       for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
       document.getElementById('tab-' + name).classList.add('active');
-      if (event && event.target) event.target.classList.add('active');
+      // Resolve clicked button: explicit param, event target, or fallback to id
+      var activeBtn = clickedBtn || (typeof event !== 'undefined' && event && event.target) || document.getElementById('tabBtn-' + name);
+      if (activeBtn) {
+        activeBtn.classList.add('active');
+        updateAriaTabState(activeBtn, '.config-tab');
+      }
     }
 
     // ====================================================================
@@ -421,8 +435,13 @@
       selectedRole = role;
       document.getElementById('role').value = role;
       var cards = document.querySelectorAll('.role-card');
-      for (var i = 0; i < cards.length; i++) cards[i].classList.remove('selected');
-      document.getElementById('role-' + role).classList.add('selected');
+      for (var i = 0; i < cards.length; i++) {
+        cards[i].classList.remove('selected');
+        cards[i].setAttribute('aria-checked', 'false');
+      }
+      var activeCard = document.getElementById('role-' + role);
+      activeCard.classList.add('selected');
+      activeCard.setAttribute('aria-checked', 'true');
 
       // Update pin labels
       var sLabel = document.getElementById('sensorLabel');
@@ -434,6 +453,28 @@
       document.getElementById('sensorPin2Group').style.display = role === 'speedtrap' ? 'block' : 'none';
       document.getElementById('speedTrapSpacing').style.display = role === 'speedtrap' ? 'block' : 'none';
     }
+
+    // Arrow key navigation for role radiogroup
+    (function() {
+      var roleNames = ['start', 'finish', 'speedtrap'];
+      document.addEventListener('keydown', function(e) {
+        var active = document.activeElement;
+        if (!active || !active.classList.contains('role-card')) return;
+        var idx = roleNames.indexOf(active.id.replace('role-', ''));
+        if (idx < 0) return;
+        var newIdx = -1;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          newIdx = (idx + 1) % roleNames.length;
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          newIdx = (idx - 1 + roleNames.length) % roleNames.length;
+        }
+        if (newIdx >= 0) {
+          e.preventDefault();
+          selectRole(roleNames[newIdx]);
+          document.getElementById('role-' + roleNames[newIdx]).focus();
+        }
+      });
+    })();
 
     // ====================================================================
     // WIFI SCAN
@@ -627,6 +668,9 @@
         },
         ota: {
           password: document.getElementById('otaPassword').value || 'admin'
+        },
+        auth: {
+          viewer_password: document.getElementById('viewerPassword').value || ''
         }
       };
 
@@ -840,6 +884,9 @@
         if (cfg.ota) {
           document.getElementById('otaPassword').value = cfg.ota.password || 'admin';
         }
+        if (cfg.auth) {
+          document.getElementById('viewerPassword').value = cfg.auth.viewer_password || '';
+        }
       }).catch(function(e) {
         console.log('Could not load config (may be first boot):', e);
       });
@@ -851,8 +898,11 @@
     window.onload = function() {
       document.getElementById('navContainer').innerHTML = getNavHTML();
       massInit({ws: false});
+      initAriaTabs('#configTablist', '.config-tab', 'tab-');
       loadExistingConfig();
       scanWifi();
+      // Internal Affairs gate — admin password check
+      checkAuthGate('admin');
     };
   </script>
 </body>

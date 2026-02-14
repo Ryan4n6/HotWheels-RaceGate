@@ -1,7 +1,11 @@
 #include "config.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include <Preferences.h>
 #include <esp_mac.h>
+
+// NVS namespace for config backup (survives LittleFS wipes)
+#define NVS_NAMESPACE "masstrap"
 
 DeviceConfig cfg;
 
@@ -59,13 +63,52 @@ void setDefaults(DeviceConfig& c) {
   strncpy(c.timezone, "EST5EDT,M3.2.0,M11.1.0", sizeof(c.timezone) - 1);  // Default: US Eastern
 
   strncpy(c.ota_password, "admin", sizeof(c.ota_password) - 1);
+
+  // Viewer password — blank = open access (backwards compatible)
+  memset(c.viewer_password, 0, sizeof(c.viewer_password));
+}
+
+// Attempt to restore config from NVS backup (survives LittleFS wipes)
+static bool loadConfigFromNVS() {
+  Preferences prefs;
+  if (!prefs.begin(NVS_NAMESPACE, true)) return false;  // read-only
+
+  bool wasConfigured = prefs.getBool("configured", false);
+  String ssid = prefs.getString("wifi_ssid", "");
+  String pass = prefs.getString("wifi_pass", "");
+  String host = prefs.getString("hostname",  "");
+  String role = prefs.getString("role",      "");
+  prefs.end();
+
+  if (!wasConfigured || ssid.length() == 0) return false;
+
+  LOG.println("[CONFIG] Recovering from NVS backup!");
+  LOG.printf("[CONFIG]   NVS: role=%s, ssid=%s, hostname=%s\n",
+             role.c_str(), ssid.c_str(), host.c_str());
+
+  // Populate cfg struct with NVS values
+  strncpy(cfg.wifi_ssid, ssid.c_str(), sizeof(cfg.wifi_ssid) - 1);
+  strncpy(cfg.wifi_pass, pass.c_str(), sizeof(cfg.wifi_pass) - 1);
+  strncpy(cfg.hostname,  host.c_str(), sizeof(cfg.hostname)  - 1);
+  strncpy(cfg.role,      role.c_str(), sizeof(cfg.role)       - 1);
+  cfg.configured = true;
+
+  // Persist recovered config back to LittleFS so next boot is clean
+  saveConfig();
+  LOG.println("[CONFIG] NVS recovery complete — config.json restored to LittleFS");
+  return true;
 }
 
 bool loadConfig() {
   setDefaults(cfg);
 
   if (!LittleFS.exists(CONFIG_FILE)) {
-    LOG.println("[CONFIG] No config file found, using defaults");
+    LOG.println("[CONFIG] No config file found on LittleFS");
+    // Try NVS backup before giving up
+    if (loadConfigFromNVS()) {
+      return true;
+    }
+    LOG.println("[CONFIG] No NVS backup either — genuinely unconfigured");
     return false;
   }
 
@@ -78,22 +121,58 @@ bool loadConfig() {
   String json = file.readString();
   file.close();
 
-  if (!configFromJson(json)) {
-    // configFromJson returns cfg.configured, but after an OTA update the
-    // config file survives on LittleFS even though the "configured" flag
-    // may be missing or false (e.g. older firmware versions, manual edits).
-    // If the file parsed successfully AND has a non-empty role, treat it
-    // as a valid config so the device doesn't drop into setup mode.
-    if (strlen(cfg.role) > 0 && strlen(cfg.hostname) > 0) {
-      LOG.println("[CONFIG] Config file valid but 'configured' flag was false — auto-recovering");
-      cfg.configured = true;
-      saveConfig();  // Persist the fix so next boot is clean
-      return true;
-    }
+  if (json.length() == 0) {
+    LOG.println("[CONFIG] Config file is empty (0 bytes)");
     return false;
   }
 
-  return true;
+  LOG.printf("[CONFIG] Read %d bytes from %s\n", json.length(), CONFIG_FILE);
+
+  // Try parsing — configFromJson populates cfg and returns cfg.configured
+  bool parseResult = configFromJson(json);
+
+  if (parseResult) {
+    // Parsed OK and configured=true — normal case
+    return true;
+  }
+
+  // configFromJson returned false. Two possible reasons:
+  //   1. JSON parse failed entirely (malformed file)
+  //   2. JSON parsed OK but "configured" flag was false/missing
+  //
+  // After uploadfs, OTA, or firmware upgrades, the config file may survive
+  // but lack the "configured":true flag (older firmware versions, manual
+  // edits, or the system.html save format changed). If we got valid
+  // fields out of the parse, recover automatically instead of dropping
+  // the user into setup mode.
+  //
+  // Recovery criteria: role is a known valid value AND wifi_ssid is non-empty.
+  // This is stronger than just checking hostname (which defaults to "masstrap")
+  // and prevents recovering a truly blank/default config.
+  bool hasValidRole = (strcmp(cfg.role, "start") == 0 ||
+                       strcmp(cfg.role, "finish") == 0 ||
+                       strcmp(cfg.role, "speedtrap") == 0);
+  bool hasWifiCreds = strlen(cfg.wifi_ssid) > 0;
+  bool hasHostname  = strlen(cfg.hostname) > 0 && strcmp(cfg.hostname, "masstrap") != 0;
+
+  if (hasValidRole && (hasWifiCreds || hasHostname)) {
+    LOG.println("[CONFIG] Config file valid but 'configured' flag was false — auto-recovering");
+    LOG.printf("[CONFIG]   role=%s, ssid=%s, hostname=%s\n", cfg.role, cfg.wifi_ssid, cfg.hostname);
+    cfg.configured = true;
+    saveConfig();  // Persist the fix so next boot is clean
+    return true;
+  }
+
+  LOG.println("[CONFIG] Config file parsed but insufficient data to auto-recover");
+  LOG.printf("[CONFIG]   role='%s', ssid='%s', hostname='%s', configured=%d\n",
+             cfg.role, cfg.wifi_ssid, cfg.hostname, cfg.configured);
+
+  // Last resort: try NVS backup
+  setDefaults(cfg);  // Reset to clean state before NVS attempt
+  if (loadConfigFromNVS()) {
+    return true;
+  }
+  return false;
 }
 
 bool saveConfig() {
@@ -107,7 +186,20 @@ bool saveConfig() {
 
   file.print(json);
   file.close();
-  LOG.println("[CONFIG] Config saved successfully");
+  LOG.println("[CONFIG] Config saved to LittleFS");
+
+  // Backup critical boot fields to NVS (survives LittleFS wipes from uploadfs)
+  Preferences prefs;
+  if (prefs.begin(NVS_NAMESPACE, false)) {
+    prefs.putString("wifi_ssid", cfg.wifi_ssid);
+    prefs.putString("wifi_pass", cfg.wifi_pass);
+    prefs.putString("hostname",  cfg.hostname);
+    prefs.putString("role",      cfg.role);
+    prefs.putBool("configured",  cfg.configured);
+    prefs.end();
+    LOG.println("[CONFIG] NVS backup saved (wifi/role/hostname)");
+  }
+
   return true;
 }
 
@@ -158,7 +250,7 @@ bool validateConfig(const DeviceConfig& c) {
 }
 
 String configToJson() {
-  StaticJsonDocument<2048> doc;
+  StaticJsonDocument<2560> doc;
 
   doc["configured"] = cfg.configured;
   doc["version"] = cfg.version;
@@ -215,13 +307,16 @@ String configToJson() {
   JsonObject ota = doc.createNestedObject("ota");
   ota["password"] = cfg.ota_password;
 
+  JsonObject auth = doc.createNestedObject("auth");
+  auth["viewer_password"] = cfg.viewer_password;
+
   String output;
   serializeJsonPretty(doc, output);
   return output;
 }
 
 bool configFromJson(const String& json) {
-  StaticJsonDocument<2048> doc;
+  StaticJsonDocument<2560> doc;
   DeserializationError err = deserializeJson(doc, json);
   if (err) {
     LOG.printf("[CONFIG] JSON parse error: %s\n", err.c_str());
@@ -307,6 +402,11 @@ bool configFromJson(const String& json) {
     strncpy(cfg.ota_password, ota["password"] | "admin", sizeof(cfg.ota_password) - 1);
   }
 
+  JsonObject auth = doc["auth"];
+  if (auth) {
+    strncpy(cfg.viewer_password, auth["viewer_password"] | "", sizeof(cfg.viewer_password) - 1);
+  }
+
   if (cfg.configured) {
     LOG.printf("[CONFIG] Loaded: role=%s, hostname=%s, wifi=%s\n",
                   cfg.role, cfg.hostname, cfg.wifi_ssid);
@@ -319,6 +419,13 @@ void resetConfig() {
   LOG.println("[CONFIG] Factory reset - deleting config and rebooting");
   LittleFS.remove(CONFIG_FILE);
   LittleFS.remove("/runs.csv");
+  // Clear NVS backup too — full factory reset
+  Preferences prefs;
+  if (prefs.begin(NVS_NAMESPACE, false)) {
+    prefs.clear();
+    prefs.end();
+    LOG.println("[CONFIG] NVS backup cleared");
+  }
   delay(1500);  // Allow TCP stack to flush response before reboot
   ESP.restart();
 }

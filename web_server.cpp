@@ -105,6 +105,11 @@ static void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t 
       else if (strcmp(cmd, "syncClock") == 0) {
         sendToPeer(MSG_SYNC_REQ, nowUs(), 0);
       }
+      else if (strcmp(cmd, "setDryRun") == 0) {
+        dryRunMode = doc["enabled"] | false;
+        LOG.printf("[WEB] Dry-run mode %s\n", dryRunMode ? "ENABLED" : "DISABLED");
+        broadcastState();
+      }
       else if (strcmp(cmd, "setSheetsUrl") == 0) {
         // Update Google Sheets URL in config and save (no reboot needed)
         const char* url = doc["url"];
@@ -147,6 +152,7 @@ void broadcastState() {
   doc["role"] = cfg.role;
   doc["units"] = cfg.units;
   doc["google_sheets_url"] = cfg.google_sheets_url;
+  doc["dryRun"] = dryRunMode;
 
   // Speed trap mid-track velocity (if available)
   if (midTrackSpeed_mps > 0) {
@@ -583,10 +589,10 @@ static void handleApiPeersForget() {
 
 // ============================================================================
 // GARAGE API - Persistent car storage on ESP32 filesystem
+// POST validation: must be JSON array of car objects with valid types
 // ============================================================================
 static void handleApiGarage() {
   if (server.method() == HTTP_GET) {
-    // Return garage.json contents (or empty array if doesn't exist)
     if (LittleFS.exists("/garage.json")) {
       File f = LittleFS.open("/garage.json", "r");
       String content = f.readString();
@@ -597,18 +603,72 @@ static void handleApiGarage() {
     }
   }
   else if (server.method() == HTTP_POST) {
-    // Save garage array to filesystem
+    if (!requireAuth()) return;
     String body = server.arg("plain");
     if (body.length() == 0) {
       server.send(400, "application/json", "{\"error\":\"Empty body\"}");
       return;
     }
+
+    // Validate JSON structure
+    DynamicJsonDocument doc(8192);
+    DeserializationError err = deserializeJson(doc, body);
+    if (err) {
+      server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      return;
+    }
+    if (!doc.is<JsonArray>()) {
+      server.send(400, "application/json", "{\"error\":\"Must be array\"}");
+      return;
+    }
+    JsonArray arr = doc.as<JsonArray>();
+    if (arr.size() > 50) {
+      server.send(400, "application/json", "{\"error\":\"Max 50 cars\"}");
+      return;
+    }
+
+    // Validate each car object
+    for (JsonVariant item : arr) {
+      if (!item.is<JsonObject>()) {
+        server.send(400, "application/json", "{\"error\":\"Array items must be objects\"}");
+        return;
+      }
+      JsonObject car = item.as<JsonObject>();
+      // name must be string
+      if (car.containsKey("name") && !car["name"].is<const char*>()) {
+        server.send(400, "application/json", "{\"error\":\"name must be string\"}");
+        return;
+      }
+      // weight must be numeric if present
+      if (car.containsKey("weight") && !car["weight"].is<float>() && !car["weight"].is<int>()) {
+        server.send(400, "application/json", "{\"error\":\"weight must be numeric\"}");
+        return;
+      }
+      // Validate stats sub-object if present
+      if (car.containsKey("stats") && car["stats"].is<JsonObject>()) {
+        JsonObject stats = car["stats"].as<JsonObject>();
+        // bestTime: must be null or numeric
+        if (stats.containsKey("bestTime") && !stats["bestTime"].isNull()
+            && !stats["bestTime"].is<float>() && !stats["bestTime"].is<int>()) {
+          server.send(400, "application/json", "{\"error\":\"bestTime must be numeric or null\"}");
+          return;
+        }
+        // bestSpeed: must be numeric if present
+        if (stats.containsKey("bestSpeed") && !stats["bestSpeed"].isNull()
+            && !stats["bestSpeed"].is<float>() && !stats["bestSpeed"].is<int>()) {
+          server.send(400, "application/json", "{\"error\":\"bestSpeed must be numeric\"}");
+          return;
+        }
+      }
+    }
+
+    // Valid — write to filesystem
     File f = LittleFS.open("/garage.json", "w");
     if (!f) {
       server.send(500, "application/json", "{\"error\":\"Failed to write garage\"}");
       return;
     }
-    f.print(body);
+    serializeJson(doc, f);
     f.close();
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   }
@@ -616,6 +676,7 @@ static void handleApiGarage() {
 
 // ============================================================================
 // HISTORY API - Persistent race history on ESP32 filesystem
+// POST validation: must be JSON array with valid numeric timing fields
 // ============================================================================
 static void handleApiHistory() {
   if (server.method() == HTTP_GET) {
@@ -629,17 +690,73 @@ static void handleApiHistory() {
     }
   }
   else if (server.method() == HTTP_POST) {
+    if (!requireAuth()) return;
     String body = server.arg("plain");
     if (body.length() == 0) {
       server.send(400, "application/json", "{\"error\":\"Empty body\"}");
       return;
     }
+
+    // Validate JSON structure
+    DynamicJsonDocument doc(8192);
+    DeserializationError err = deserializeJson(doc, body);
+    if (err) {
+      server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      return;
+    }
+    if (!doc.is<JsonArray>()) {
+      server.send(400, "application/json", "{\"error\":\"Must be array\"}");
+      return;
+    }
+    JsonArray arr = doc.as<JsonArray>();
+    if (arr.size() > 100) {
+      server.send(400, "application/json", "{\"error\":\"Max 100 entries\"}");
+      return;
+    }
+
+    // Validate each history entry
+    for (JsonVariant item : arr) {
+      if (!item.is<JsonObject>()) {
+        server.send(400, "application/json", "{\"error\":\"Array items must be objects\"}");
+        return;
+      }
+      JsonObject entry = item.as<JsonObject>();
+      // time must be numeric and sane
+      if (entry.containsKey("time")) {
+        if (!entry["time"].is<float>() && !entry["time"].is<int>()) {
+          server.send(400, "application/json", "{\"error\":\"time must be numeric\"}");
+          return;
+        }
+        float t = entry["time"].as<float>();
+        if (t <= 0 || t > 60.0) {
+          server.send(400, "application/json", "{\"error\":\"time out of range (0-60s)\"}");
+          return;
+        }
+      }
+      // car must be string
+      if (entry.containsKey("car") && !entry["car"].is<const char*>()) {
+        server.send(400, "application/json", "{\"error\":\"car must be string\"}");
+        return;
+      }
+      // Numeric fields: reject strings
+      const char* numFields[] = {"speed_mph", "speed_mps", "scale_mph", "momentum", "ke", "weight"};
+      for (int i = 0; i < 6; i++) {
+        if (entry.containsKey(numFields[i]) && !entry[numFields[i]].isNull()
+            && !entry[numFields[i]].is<float>() && !entry[numFields[i]].is<int>()) {
+          String errMsg = "{\"error\":\"" + String(numFields[i]) + " must be numeric\"}";
+          server.send(400, "application/json", errMsg);
+          return;
+        }
+      }
+    }
+
+    // Valid — write to filesystem
     File f = LittleFS.open("/history.json", "w");
     if (!f) {
       server.send(500, "application/json", "{\"error\":\"Failed to write history\"}");
       return;
     }
-    f.print(body);
+    serializeJson(doc, f);
     f.close();
     server.send(200, "application/json", "{\"status\":\"ok\"}");
   }
@@ -812,6 +929,53 @@ static void handleApiFiles() {
 // ============================================================================
 // NORMAL MODE ROUTES
 // ============================================================================
+// AUTH API — Two-tier authentication (Badge Reader / Internal Affairs)
+// ============================================================================
+static void handleApiAuthInfo() {
+  // No auth required — client uses this to decide which gates to show
+  String json = "{\"hasViewerPassword\":";
+  json += (strlen(cfg.viewer_password) > 0) ? "true" : "false";
+  json += ",\"hasAdminPassword\":";
+  json += (strlen(cfg.ota_password) > 0) ? "true" : "false";
+  json += "}";
+  server.send(200, "application/json", json);
+}
+
+static void handleApiAuthCheck() {
+  String body = server.arg("plain");
+  if (body.length() == 0) {
+    server.send(400, "application/json", "{\"error\":\"Empty body\"}");
+    return;
+  }
+
+  StaticJsonDocument<256> doc;
+  DeserializationError err = deserializeJson(doc, body);
+  if (err) {
+    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+    return;
+  }
+
+  const char* password = doc["password"] | "";
+  const char* tier = doc["tier"] | "viewer";
+
+  if (strcmp(tier, "admin") == 0) {
+    // Admin tier: check OTA password
+    if (strlen(cfg.ota_password) == 0 || strcmp(password, cfg.ota_password) == 0) {
+      server.send(200, "application/json", "{\"ok\":true,\"tier\":\"admin\"}");
+    } else {
+      server.send(200, "application/json", "{\"ok\":false}");
+    }
+  } else {
+    // Viewer tier: check viewer password (blank = always ok)
+    if (strlen(cfg.viewer_password) == 0 || strcmp(password, cfg.viewer_password) == 0) {
+      server.send(200, "application/json", "{\"ok\":true,\"tier\":\"viewer\"}");
+    } else {
+      server.send(200, "application/json", "{\"ok\":false}");
+    }
+  }
+}
+
+// ============================================================================
 void initWebServer() {
   // Collect X-API-Key header for authentication on protected endpoints
   const char* headerKeys[] = {"X-API-Key"};
@@ -873,6 +1037,10 @@ void initWebServer() {
       server.send_P(200, "text/html", CONFIG_HTML);
     }
   });
+
+  // Auth API
+  server.on("/api/auth/info", HTTP_GET, handleApiAuthInfo);
+  server.on("/api/auth/check", HTTP_POST, handleApiAuthCheck);
 
   // Config API
   server.on("/api/config", handleApiConfig);

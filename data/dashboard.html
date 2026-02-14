@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <a href="#stateBanner" class="skip-link">Skip to race status</a>
   <!-- Navigation (populated by main.js getNavHTML + initNav) -->
   <nav class="mass-nav" id="mainNav">
     <ul class="mass-nav-list">
@@ -19,12 +20,12 @@
   </nav>
 
   <!-- Connection Badge (fixed, top-right) -->
-  <div id="connBadge" class="conn-badge disconnected">OFFLINE</div>
+  <div id="connBadge" class="conn-badge disconnected" role="status" aria-live="assertive">OFFLINE</div>
 
   <div class="container">
     <!-- Page Header -->
     <div class="page-header">
-      <div class="page-header-shield"></div>
+      <div class="page-header-shield" aria-hidden="true"></div>
       <h1>M.A.S.S. TRAP</h1>
       <div class="subtitle">MOTION ANALYSIS &amp; SPEED SYSTEM</div>
       <div class="tagline">COMMAND CENTER</div>
@@ -40,14 +41,19 @@
       </div>
     </div>
 
-    <!-- State Banner -->
-    <div id="stateBanner" class="state-banner">INITIALIZING...</div>
+    <!-- State Banner (Dispatcher: aria-live announces state changes) -->
+    <div id="stateBanner" class="state-banner" aria-live="assertive" aria-atomic="true">INITIALIZING...</div>
 
-    <!-- LED Visualizer Bar -->
-    <div id="ledBar" class="led-bar"></div>
+    <!-- LED Visualizer Bar (decorative — hidden from AT) -->
+    <div id="ledBar" class="led-bar" aria-hidden="true"></div>
 
     <!-- LiDAR Sensor Indicator -->
     <div id="lidarIndicator" class="lidar-indicator"></div>
+
+    <!-- Dry-Run Banner (hidden until active) -->
+    <div id="dryRunBanner" class="dry-run-banner" style="display:none;" role="status" aria-live="polite">
+      &#x1F6A7; DRY RUN — No data will be logged or saved
+    </div>
 
     <!-- Quick Actions (hidden in kiosk mode) -->
     <div class="grid grid-3 kiosk-hide" id="quickActions">
@@ -56,9 +62,27 @@
       <button id="btnSync" class="btn btn-primary" onclick="syncClock()">SYNC CLOCK</button>
     </div>
 
+    <!-- Dry-Run Controls (hidden in kiosk mode) -->
+    <div class="kiosk-hide" style="margin-top:8px;">
+      <button id="btnDryRun" class="btn btn-outline btn-sm" onclick="toggleDryRun()" style="width:100%;">&#x1F9EA; ENABLE DRY RUN</button>
+    </div>
+
+    <!-- System Status Panel (shown in dry-run, collapsible otherwise) -->
+    <div id="systemStatusPanel" class="section" style="display:none;">
+      <h2 class="section-title">SYSTEM STATUS</h2>
+      <div class="grid grid-2" id="systemStatusGrid">
+        <div class="card"><div class="card-label">WebSocket</div><div class="card-value" id="sysWs">--</div></div>
+        <div class="card"><div class="card-label">Peer Link</div><div class="card-value" id="sysPeer">--</div></div>
+        <div class="card"><div class="card-label">Peers Online</div><div class="card-value" id="sysPeerCount">--</div></div>
+        <div class="card"><div class="card-label">LiDAR</div><div class="card-value" id="sysLidar">--</div></div>
+        <div class="card"><div class="card-label">Dry Run</div><div class="card-value" id="sysDryRun">OFF</div></div>
+        <div class="card"><div class="card-label">Race State</div><div class="card-value" id="sysRaceState">--</div></div>
+      </div>
+    </div>
+
     <!-- Live Stats -->
     <div class="grid">
-      <div class="card">
+      <div class="card" id="timeCard">
         <div class="card-label">Time</div>
         <div><span id="statTime" class="card-value">--</span><span class="card-unit">s</span></div>
       </div>
@@ -90,7 +114,7 @@
 
     <!-- Most Wanted -- Criminal Leaderboard -->
     <div class="section most-wanted" id="mostWantedSection">
-      <div class="section-title">MOST WANTED</div>
+      <h2 class="section-title">MOST WANTED</h2>
       <div class="mw-header">
         <div class="mw-sort-controls">
           <button class="mw-sort-btn active" onclick="sortMostWanted('time')" id="mwSortTime">Fastest</button>
@@ -98,7 +122,8 @@
           <button class="mw-sort-btn" onclick="sortMostWanted('runs')" id="mwSortRuns">Most Offenses</button>
           <button class="mw-sort-btn" onclick="sortMostWanted('ke')" id="mwSortKe">Most Dangerous</button>
         </div>
-        <span class="mw-toggle" onclick="toggleMostWanted()" id="mwToggle">Collapse &#x25B2;</span>
+        <button class="mw-toggle" onclick="toggleMostWanted()" id="mwToggle"
+          aria-expanded="true" aria-controls="mwBoard">Collapse</button>
       </div>
       <div id="mwBoard" class="mw-board">
         <div class="mw-empty">No suspects in the system. Add cars to the garage and run races to populate the Most Wanted list.</div>
@@ -107,7 +132,7 @@
 
     <!-- Speed Profile (mid-track data from speed trap) -->
     <div id="speedProfileSection" class="section speed-profile">
-      <div class="section-title">SPEED PROFILE</div>
+      <h2 class="section-title">SPEED PROFILE</h2>
       <div class="pt-8">
         <div class="speed-bar">
           <div class="speed-bar-label">Finish</div>
@@ -124,7 +149,7 @@
 
     <!-- Ghost Car Comparison -->
     <div id="ghostSection" class="section">
-      <div class="section-title">VS PERSONAL BEST</div>
+      <h2 class="section-title">VS PERSONAL BEST</h2>
       <div class="text-center" style="padding:15px;">
         <div id="ghostDelta" style="font-size:3rem; font-weight:900; line-height:1.2;"></div>
         <div id="ghostLabel" class="text-muted" style="font-size:1rem; margin-top:8px;"></div>
@@ -133,19 +158,18 @@
 
     <!-- Evidence Lab (Charts) -->
     <div class="section" id="chartsSection">
-      <div class="section-title">EVIDENCE LAB</div>
+      <h2 class="section-title">EVIDENCE LAB</h2>
       <div class="grid grid-2 mt-8">
-        <div class="chart-container"><canvas id="speedChart" height="250"></canvas></div>
-        <div class="chart-container"><canvas id="keChart" height="250"></canvas></div>
+        <div class="chart-container"><canvas id="speedChart" height="250" role="img" aria-label="Speed versus run number chart"></canvas></div>
+        <div class="chart-container"><canvas id="keChart" height="250" role="img" aria-label="Kinetic energy versus mass chart"></canvas></div>
       </div>
     </div>
 
     <!-- Forensic Analysis (Physics Explainer) -->
     <div class="section" id="physicsExplainer">
-      <div class="section-title">FORENSIC ANALYSIS</div>
-      <div id="explainerToggle" onclick="toggleExplainer()" class="text-center text-accent" style="cursor:pointer; padding:8px; font-weight:bold;">
-        Show Formulas &#x25BC;
-      </div>
+      <h2 class="section-title">FORENSIC ANALYSIS</h2>
+      <button id="explainerToggle" onclick="toggleExplainer()" class="btn btn-outline" style="width:100%;"
+        aria-expanded="false" aria-controls="explainerContent">Show Formulas</button>
       <div id="explainerContent" style="display:none;">
         <div class="formula-grid">
           <div class="formula-card">
@@ -178,11 +202,14 @@
 
     <!-- The Garage (hidden in kiosk mode) -->
     <div class="section kiosk-hide">
-      <div class="section-title">THE GARAGE</div>
+      <h2 class="section-title">THE GARAGE</h2>
       <div class="grid grid-3">
-        <input type="text" id="carName" placeholder="Suspect Vehicle (e.g. Twin Mill)">
-        <input type="text" id="carColor" placeholder="Color">
-        <input type="number" id="carWeight" placeholder="Mass (g)" min="0" step="0.1">
+        <div><label for="carName" class="card-label">Suspect Vehicle</label>
+        <input type="text" id="carName" placeholder="e.g. Twin Mill"></div>
+        <div><label for="carColor" class="card-label">Color</label>
+        <input type="text" id="carColor" placeholder="e.g. Red"></div>
+        <div><label for="carWeight" class="card-label">Mass (grams)</label>
+        <input type="number" id="carWeight" placeholder="e.g. 35" min="0" step="0.1"></div>
       </div>
       <button id="addCarBtn" class="btn btn-accent" onclick="addCar()">ADD TO GARAGE</button>
       <div id="currentCar" class="text-center text-muted" style="margin:15px 0; font-size:1.2rem; font-weight:bold;">
@@ -203,14 +230,14 @@
 
     <!-- Operations (hidden in kiosk mode) -->
     <div class="section kiosk-hide">
-      <div class="section-title">OPERATIONS</div>
+      <h2 class="section-title">OPERATIONS</h2>
       <div class="grid">
         <div>
-          <div class="card-label" id="trackLengthLabel">Track Length (meters)</div>
+          <label for="trackLength" class="card-label" id="trackLengthLabel">Track Length (meters)</label>
           <input type="number" id="trackLength" value="2.0" min="0" step="0.01" onchange="updateTrackLength()">
         </div>
         <div>
-          <div class="card-label">Google Sheets URL (optional)</div>
+          <label for="sheetsUrl" class="card-label">Google Sheets URL (optional)</label>
           <input type="text" id="sheetsUrl" placeholder="https://script.google.com/..." onchange="saveSheetsUrl()">
           <div id="sheetsStatus" class="text-muted" style="font-size:0.8rem; margin-top:4px;"></div>
         </div>
@@ -224,13 +251,13 @@
 
     <!-- Case File (History) -->
     <div class="section">
-      <div class="section-title">CASE FILE</div>
+      <h2 class="section-title">CASE FILE</h2>
       <div style="overflow-x: auto;">
         <table>
           <thead>
             <tr>
-              <th>Run</th><th>Suspect</th><th>Mass</th><th>Time</th>
-              <th id="thRealSpeed">Real MPH</th><th id="thScaleSpeed">Scale MPH</th><th>Momentum</th><th>KE</th>
+              <th scope="col">Run</th><th scope="col">Suspect</th><th scope="col">Mass</th><th scope="col">Time</th>
+              <th scope="col" id="thRealSpeed">Real MPH</th><th scope="col" id="thScaleSpeed">Scale MPH</th><th scope="col">Momentum</th><th scope="col">KE</th>
             </tr>
           </thead>
           <tbody id="historyTable">
@@ -242,7 +269,8 @@
   </div>
 
   <!-- Leaderboard Overlay (Criminal Verdict) -->
-  <div id="leaderboardOverlay" class="leaderboard-overlay" onclick="this.classList.remove('show');">
+  <div id="leaderboardOverlay" class="leaderboard-overlay" onclick="closeLeaderboard();"
+       role="dialog" aria-modal="true" aria-labelledby="lbVerdict" aria-describedby="lbText">
     <div class="leaderboard-card" onclick="event.stopPropagation();">
       <div id="lbVerdict" style="font-size:0.85rem; font-weight:900; letter-spacing:2px; color:var(--danger); text-transform:uppercase; margin-bottom:4px;"></div>
       <div id="lbRank" class="leaderboard-rank">#1</div>
@@ -263,6 +291,8 @@
     // ========================================================================
     var currentScaleFactor = 64;
     var configSheetsUrl = '';
+    var _lastAnnouncedState = '';
+    var _lastRaceTime = '';
 
     // Update all unit labels on the page when units change
     function updateUnitLabels() {
@@ -317,14 +347,30 @@
       var bannerText = { IDLE: 'AWAITING SUSPECTS', ARMED: 'TRAP SET', RACING: 'IN PURSUIT', FINISHED: 'SUSPECT CLOCKED' };
       banner.textContent = bannerText[data.state] || data.state;
 
+      // Dispatcher: announce state changes (once per transition)
+      if (data.state !== _lastAnnouncedState) {
+        _lastAnnouncedState = data.state;
+        if (data.state === 'ARMED') announce('System armed. Awaiting target.');
+        else if (data.state === 'RACING') announce('Target acquired. Pursuit active.');
+        // FINISHED announced below with full race data
+      }
+
       // LED visualizer
       document.getElementById('ledBar').className = 'led-bar ' + data.state.toLowerCase();
 
       // Hide ghost when not finished
       if (data.state !== 'FINISHED') { document.getElementById('ghostSection').style.display = 'none'; }
 
+      // Timer silencing: hide running timer from screen readers during RACING
+      var timeCard = document.getElementById('timeCard');
+      if (data.state === 'RACING') {
+        timeCard.setAttribute('aria-hidden', 'true');
+      } else {
+        timeCard.removeAttribute('aria-hidden');
+      }
+
       // Stats — unit-aware speed display
-      document.getElementById('statTime').textContent = data.time ? data.time.toFixed(3) : '--';
+      document.getElementById('statTime').textContent = data.time ? safeFixed(data.time, 3) : '--';
       if (data.speed_mps) {
         document.getElementById('statSpeed').textContent = formatSpeed(data.speed_mps, 1);
         document.getElementById('statScale').textContent = formatSpeed(data.speed_mps * currentScaleFactor, 0);
@@ -332,8 +378,8 @@
         document.getElementById('statSpeed').textContent = data.speed_mph ? mphToDisplaySpeed(data.speed_mph) : '--';
         document.getElementById('statScale').textContent = data.scale_mph ? mphToDisplaySpeed(data.scale_mph).split('.')[0] : '--';
       }
-      document.getElementById('statMomentum').textContent = data.momentum ? data.momentum.toFixed(4) : '--';
-      document.getElementById('statKE').textContent = data.ke ? data.ke.toFixed(4) : '--';
+      document.getElementById('statMomentum').textContent = data.momentum ? safeFixed(data.momentum, 4) : '--';
+      document.getElementById('statKE').textContent = data.ke ? safeFixed(data.ke, 4) : '--';
       document.getElementById('statRuns').textContent = data.totalRuns || 0;
 
       // Speed profile (mid-track from speed trap node) — unit-aware
@@ -344,17 +390,33 @@
         updateSpeedProfile(data.speed_mph / MPS_TO_MPH, data.midTrack_mph / MPS_TO_MPH);
       }
 
+      // Update dry-run state from firmware
+      updateDryRunUI(data.dryRun);
+
+      // Update system status panel
+      updateSystemStatus(data);
+
       // Race finished
       if (data.state === 'FINISHED' && data.time !== undefined) {
         showGhostComparison(data);
-        updateGarageStats(data);
-        addToHistory(data);
+
+        // Dry-run guard: skip data persistence when dry-run is active
+        if (!data.dryRun) {
+          updateGarageStats(data);
+          addToHistory(data);
+        }
         addRaceToCharts(data);
         updateExplainerValues(data);
         showLeaderboardOverlay(data);
 
+        // Dispatcher: announce race result
+        var carName = data.car || (activeCar ? activeCar.name : 'Unknown vehicle');
+        _lastRaceTime = safeFixed(data.time, 3) + ' seconds';
+        var dryLabel = data.dryRun ? ' (dry run)' : '';
+        announce('Suspect clocked. ' + carName + '. ' + _lastRaceTime + '.' + dryLabel);
+
         var sheetsUrl = document.getElementById('sheetsUrl').value || configSheetsUrl;
-        if (sheetsUrl && data.time > 0) { uploadToSheets(data, sheetsUrl); }
+        if (sheetsUrl && data.time > 0 && !data.dryRun) { uploadToSheets(data, sheetsUrl); }
       }
 
       // Button states
@@ -435,10 +497,10 @@
 
       verdictEl.textContent = verdict;
       document.getElementById('lbText').textContent = msg;
-      var scaleDisplay = data.speed_mps ? formatSpeed(data.speed_mps * currentScaleFactor, 0) : (data.scale_mph || 0).toFixed(0);
+      var scaleDisplay = data.speed_mps ? formatSpeed(data.speed_mps * currentScaleFactor, 0) : safeFixed(data.scale_mph || 0, 0);
       document.getElementById('lbDetail').textContent =
         (activeCar ? activeCar.name : 'Unknown') + ' | ' +
-        data.time.toFixed(3) + 's | ' + scaleDisplay + ' scale ' + speedUnit();
+        safeFixed(data.time, 3) + 's | ' + scaleDisplay + ' scale ' + speedUnit();
 
       threatEl.textContent = threatText;
       threatEl.className = '';
@@ -451,10 +513,24 @@
                               threatClass === 'known-offender' ? 'var(--accent)' : 'var(--text-muted)';
 
       overlay.classList.add('show');
-      setTimeout(function() { overlay.classList.remove('show'); }, 5000);
+      // Focus management: save current focus, move to overlay
+      overlay._prevFocus = document.activeElement;
+      overlay.setAttribute('tabindex', '-1');
+      overlay.focus();
+      setTimeout(function() { closeLeaderboard(); }, 5000);
 
       // Refresh the Most Wanted board
       renderMostWanted();
+    }
+
+    function closeLeaderboard() {
+      var overlay = document.getElementById('leaderboardOverlay');
+      overlay.classList.remove('show');
+      // Restore focus to element that was active before overlay opened
+      if (overlay._prevFocus && typeof overlay._prevFocus.focus === 'function') {
+        overlay._prevFocus.focus();
+        overlay._prevFocus = null;
+      }
     }
 
     // ========================================================================
@@ -467,7 +543,9 @@
       mwCollapsed = !mwCollapsed;
       document.getElementById('mwBoard').style.display = mwCollapsed ? 'none' : 'grid';
       document.querySelector('.mw-sort-controls').style.display = mwCollapsed ? 'none' : 'flex';
-      document.getElementById('mwToggle').innerHTML = mwCollapsed ? 'Expand &#x25BC;' : 'Collapse &#x25B2;';
+      var toggle = document.getElementById('mwToggle');
+      toggle.textContent = mwCollapsed ? 'Expand' : 'Collapse';
+      toggle.setAttribute('aria-expanded', mwCollapsed ? 'false' : 'true');
     }
 
     function sortMostWanted(mode) {
@@ -532,10 +610,10 @@
 
     function getSortValue(item) {
       switch (mwSortMode) {
-        case 'time': return item.bestTime != null ? item.bestTime.toFixed(3) + 's' : '--';
+        case 'time': return item.bestTime != null ? safeFixed(item.bestTime, 3) + 's' : '--';
         case 'speed': return mphToDisplaySpeed(item.bestSpeed) + ' ' + speedUnit();
         case 'runs': return item.runs + ' offense' + (item.runs !== 1 ? 's' : '');
-        case 'ke': return item.bestKE.toFixed(4) + ' J';
+        case 'ke': return safeFixed(item.bestKE, 4) + ' J';
         default: return '';
       }
     }
@@ -563,12 +641,12 @@
           '<div class="mw-rank">' + rankTitle + '</div>' +
           '<div class="mw-name">' + item.name + '</div>' +
           '<div class="mw-stats">' +
-            '<div>Time: <strong>' + (item.bestTime != null ? item.bestTime.toFixed(3) + 's' : '--') + '</strong></div>' +
+            '<div>Time: <strong>' + (item.bestTime != null ? safeFixed(item.bestTime, 3) + 's' : '--') + '</strong></div>' +
             '<div>Speed: <strong>' + mphToDisplaySpeed(item.bestSpeed) + ' ' + speedUnit() + '</strong></div>' +
             '<div>Scale: <strong>' + mphToDisplaySpeed(item.bestScaleMph).split('.')[0] + ' ' + speedUnit() + '</strong></div>' +
             '<div>Mass: <strong>' + item.weight + 'g</strong></div>' +
             '<div>Offenses: <strong>' + item.runs + '</strong></div>' +
-            '<div>KE: <strong>' + item.bestKE.toFixed(4) + ' J</strong></div>' +
+            '<div>KE: <strong>' + safeFixed(item.bestKE, 4) + ' J</strong></div>' +
           '</div>' +
           '<div class="mw-threat ' + threat.cls + '">' + threat.text + '</div>' +
         '</div>';
@@ -760,6 +838,8 @@
       wsSend({ cmd: 'setCar', name: activeCar.name, weight: activeCar.weight });
       setCurrentCarDisplay(activeCar);
       renderGarage();
+      // Dispatcher: announce car selection
+      announce(activeCar.name + ' loaded. ' + activeCar.weight + ' grams.');
     }
 
     async function deleteCar(index, event) {
@@ -797,24 +877,33 @@
       grid.innerHTML = garage.map(function(car, i) {
         if (!car.stats) car.stats = { runs: 0, bestTime: null, bestSpeed: 0 };
         var hasBest = car.stats.bestTime != null && car.stats.bestTime !== Infinity && isFinite(car.stats.bestTime);
+        var isActive = activeCar && activeCar.id === car.id;
+        var bestStr = hasBest ? safeFixed(car.stats.bestTime, 3) + ' seconds' : 'no runs';
+        var label = escHtml(car.name) + ', ' + car.weight + ' grams, ' + bestStr + (isActive ? ', selected' : '');
         var notes = car.notes || [];
         var notesHtml = notes.slice(-3).map(function(n) {
           return '<div class="mech-note">' + new Date(n.ts).toLocaleDateString() + ': ' + n.text + '</div>';
         }).join('');
-        return '<div class="garage-car ' + (activeCar && activeCar.id === car.id ? 'active' : '') + '" onclick="selectCar(' + i + ')">' +
-          '<button class="delete-btn" onclick="deleteCar(' + i + ', event)" title="Delete">x</button>' +
-          '<button class="edit-btn" onclick="editCar(' + i + ', event)" title="Edit">&#9998;</button>' +
+        return '<div class="garage-car ' + (isActive ? 'active' : '') + '" ' +
+          'role="button" tabindex="0" ' +
+          'onclick="selectCar(' + i + ')" ' +
+          'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();selectCar(' + i + ')}" ' +
+          'aria-pressed="' + (isActive ? 'true' : 'false') + '" ' +
+          'aria-label="' + label + '">' +
+          '<button class="delete-btn" onclick="deleteCar(' + i + ', event)" aria-label="Delete ' + escHtml(car.name) + '">x</button>' +
+          '<button class="edit-btn" onclick="editCar(' + i + ', event)" aria-label="Edit ' + escHtml(car.name) + '">&#9998;</button>' +
           '<h3>' + car.name + '</h3>' +
           '<p>' + (car.color || '') + '</p>' +
           '<p>' + car.weight + 'g</p>' +
           '<div class="garage-stats">' +
             '<span>Runs: ' + (car.stats.runs || 0) + '</span>' +
-            '<span>Best: ' + (hasBest ? car.stats.bestTime.toFixed(3) : '--') + 's</span>' +
+            '<span>Best: ' + (hasBest ? safeFixed(car.stats.bestTime, 3) : '--') + 's</span>' +
           '</div>' +
           '<div class="mech-notes">' +
             notesHtml +
+            '<label for="noteInput_' + i + '" class="sr-only">Add note for ' + escHtml(car.name) + '</label>' +
             '<input type="text" id="noteInput_' + i + '" class="mech-note-input" placeholder="Add note..." onclick="event.stopPropagation();" onkeydown="if(event.key===\'Enter\')addNote(' + i + ')">' +
-            '<button class="btn btn-primary mech-add-btn" onclick="event.stopPropagation(); addNote(' + i + ');">+</button>' +
+            '<button class="btn btn-primary mech-add-btn" onclick="event.stopPropagation(); addNote(' + i + ');" aria-label="Save note for ' + escHtml(car.name) + '">+</button>' +
           '</div>' +
         '</div>';
       }).join('');
@@ -893,11 +982,11 @@
           '<td>#' + h.run + '</td>' +
           '<td><strong class="text-accent">' + h.car + '</strong></td>' +
           '<td>' + h.weight + 'g</td>' +
-          '<td class="font-data">' + h.time.toFixed(3) + 's</td>' +
+          '<td class="font-data">' + safeFixed(h.time, 3) + 's</td>' +
           '<td>' + displaySpeed + '</td>' +
           '<td><strong class="text-accent">' + displayScale + '</strong></td>' +
-          '<td>' + h.momentum.toFixed(3) + '</td>' +
-          '<td>' + (h.ke != null ? h.ke.toFixed(4) : '--') + '</td>' +
+          '<td>' + safeFixed(h.momentum, 3) + '</td>' +
+          '<td>' + safeFixed(h.ke, 4) + '</td>' +
         '</tr>';
       }).join('');
     }
@@ -918,7 +1007,7 @@
         var displaySpeed = h.speed_mps ? formatSpeed(h.speed_mps, 2) : mphToDisplaySpeed(h.speed_mph);
         var displayScale = h.speed_mps ? formatSpeed(h.speed_mps * currentScaleFactor, 1) : mphToDisplaySpeed(h.scale_mph);
         var rawMps = h.speed_mps || (h.speed_mph / MPS_TO_MPH);
-        csv += h.run + ',' + new Date(h.timestamp).toISOString() + ',' + h.car + ',' + h.weight + ',' + h.time + ',' + displaySpeed + ',' + displayScale + ',' + rawMps.toFixed(3) + ',' + h.momentum + ',' + h.ke + '\n';
+        csv += h.run + ',' + new Date(h.timestamp).toISOString() + ',' + h.car + ',' + h.weight + ',' + h.time + ',' + displaySpeed + ',' + displayScale + ',' + safeFixed(rawMps, 3) + ',' + h.momentum + ',' + h.ke + '\n';
       });
       var blob = new Blob([csv], { type: 'text/csv' });
       var url = window.URL.createObjectURL(blob);
@@ -975,26 +1064,26 @@
         section.className = 'section new-record';
         deltaEl.textContent = 'FIRST RUN!';
         deltaEl.style.color = 'var(--success)';
-        labelEl.textContent = raceData.time.toFixed(3) + 's is the benchmark for ' + activeCar.name;
+        labelEl.textContent = safeFixed(raceData.time, 3) + 's is the benchmark for ' + activeCar.name;
         return;
       }
       var delta = raceData.time - prevBest;
       section.style.display = 'block';
       if (delta < 0) {
         section.className = 'section new-record';
-        deltaEl.textContent = delta.toFixed(3) + 's';
+        deltaEl.textContent = safeFixed(delta, 3) + 's';
         deltaEl.style.color = 'var(--success)';
-        labelEl.textContent = 'NEW RECORD! Previous: ' + prevBest.toFixed(3) + 's';
+        labelEl.textContent = 'NEW RECORD! Previous: ' + safeFixed(prevBest, 3) + 's';
       } else if (delta === 0) {
         section.className = 'section new-record';
         deltaEl.textContent = 'TIED!';
         deltaEl.style.color = 'var(--accent)';
-        labelEl.textContent = 'Matched record: ' + prevBest.toFixed(3) + 's';
+        labelEl.textContent = 'Matched record: ' + safeFixed(prevBest, 3) + 's';
       } else {
         section.className = 'section slower';
-        deltaEl.textContent = '+' + delta.toFixed(3) + 's';
+        deltaEl.textContent = '+' + safeFixed(delta, 3) + 's';
         deltaEl.style.color = 'var(--danger)';
-        labelEl.textContent = 'Record: ' + prevBest.toFixed(3) + 's';
+        labelEl.textContent = 'Record: ' + safeFixed(prevBest, 3) + 's';
       }
     }
 
@@ -1026,7 +1115,7 @@
           backgroundColor: '#d4af37', pointRadius: 6, pointHoverRadius: 8 }] },
         options: { responsive: true,
           plugins: { title: { display: true, text: 'Kinetic Energy vs Mass', font: { size: 14, weight: 'bold' }, color: '#d4af37' }, legend: { display: false },
-            tooltip: { callbacks: { label: function(ctx) { return ctx.raw.car + ': ' + ctx.raw.y.toFixed(4) + 'J @ ' + ctx.raw.x + 'g'; } } } },
+            tooltip: { callbacks: { label: function(ctx) { return ctx.raw.car + ': ' + safeFixed(ctx.raw.y, 4) + 'J @ ' + ctx.raw.x + 'g'; } } } },
           scales: { x: { title: { display: true, text: 'Mass (g)' } }, y: { title: { display: true, text: 'Kinetic Energy (J)' }, beginAtZero: true } } }
       });
 
@@ -1062,7 +1151,9 @@
     function toggleExplainer() {
       explainerOpen = !explainerOpen;
       document.getElementById('explainerContent').style.display = explainerOpen ? 'block' : 'none';
-      document.getElementById('explainerToggle').innerHTML = (explainerOpen ? 'Hide Formulas &#x25B2;' : 'Show Formulas &#x25BC;');
+      var toggle = document.getElementById('explainerToggle');
+      toggle.textContent = explainerOpen ? 'Hide Formulas' : 'Show Formulas';
+      toggle.setAttribute('aria-expanded', explainerOpen ? 'true' : 'false');
     }
 
     function updateExplainerValues(data) {
@@ -1083,10 +1174,68 @@
     }
 
     // ========================================================================
+    // DRY-RUN MODE — Race without logging/saving data
+    // ========================================================================
+    var _dryRunActive = false;
+
+    function toggleDryRun() {
+      _dryRunActive = !_dryRunActive;
+      wsSend({ cmd: 'setDryRun', enabled: _dryRunActive });
+    }
+
+    function updateDryRunUI(isDryRun) {
+      _dryRunActive = !!isDryRun;
+      var banner = document.getElementById('dryRunBanner');
+      var btn = document.getElementById('btnDryRun');
+      var panel = document.getElementById('systemStatusPanel');
+
+      if (banner) banner.style.display = _dryRunActive ? 'block' : 'none';
+      if (btn) {
+        btn.textContent = _dryRunActive ? '\uD83E\uDDEA DISABLE DRY RUN' : '\uD83E\uDDEA ENABLE DRY RUN';
+        btn.className = _dryRunActive ? 'btn btn-danger btn-sm' : 'btn btn-outline btn-sm';
+        btn.style.width = '100%';
+      }
+      if (panel) panel.style.display = _dryRunActive ? 'block' : 'none';
+    }
+
+    function updateSystemStatus(data) {
+      var wsEl = document.getElementById('sysWs');
+      var peerEl = document.getElementById('sysPeer');
+      var countEl = document.getElementById('sysPeerCount');
+      var lidarEl = document.getElementById('sysLidar');
+      var dryEl = document.getElementById('sysDryRun');
+      var stateEl = document.getElementById('sysRaceState');
+      if (!wsEl) return;
+
+      wsEl.textContent = wsConnected ? 'LINKED' : 'OFFLINE';
+      wsEl.style.color = wsConnected ? '#28a745' : '#dc3545';
+
+      peerEl.textContent = data.connected ? 'ONLINE' : 'OFFLINE';
+      peerEl.style.color = data.connected ? '#28a745' : '#dc3545';
+
+      countEl.textContent = (data.onlinePeers || 0) + ' / ' + (data.peerCount || 0);
+
+      if (data.lidar) {
+        lidarEl.textContent = data.lidar.state.toUpperCase() + ' (' + data.lidar.distance_mm + 'mm)';
+        lidarEl.style.color = '#28a745';
+      } else {
+        lidarEl.textContent = 'N/A';
+        lidarEl.style.color = 'var(--text-muted)';
+      }
+
+      dryEl.textContent = data.dryRun ? 'ACTIVE' : 'OFF';
+      dryEl.style.color = data.dryRun ? '#ff6600' : '#28a745';
+
+      stateEl.textContent = data.state || '--';
+    }
+
+    // ========================================================================
     // KIOSK MODE — Display-only for presentations
     // Activate: ?kiosk in URL  or  Ctrl+K toggle
     // ========================================================================
     var kioskMode = false;
+    var _kioskViewerLocked = false; // true when viewer password protects kiosk exit
+
     function enterKiosk() {
       kioskMode = true;
       document.body.classList.add('kiosk');
@@ -1094,13 +1243,38 @@
         var hint = document.createElement('div');
         hint.id = 'kioskExit';
         hint.className = 'kiosk-exit';
-        hint.textContent = 'Ctrl+K to exit';
-        hint.onclick = function() { exitKiosk(); };
         document.body.appendChild(hint);
       }
+      // Check if viewer password is set — if so, require badge to exit
+      fetch('/api/auth/info').then(function(r) { return r.json(); }).then(function(info) {
+        if (info.hasViewerPassword) {
+          _kioskViewerLocked = true;
+          var hint = document.getElementById('kioskExit');
+          if (hint) {
+            hint.textContent = 'Tap to unlock';
+            hint.className = 'kiosk-exit kiosk-unlock';
+          }
+        } else {
+          _kioskViewerLocked = false;
+          var hint = document.getElementById('kioskExit');
+          if (hint) hint.textContent = 'Ctrl+K to exit';
+        }
+      }).catch(function() {
+        var hint = document.getElementById('kioskExit');
+        if (hint) hint.textContent = 'Ctrl+K to exit';
+      });
+      document.getElementById('kioskExit').onclick = function() {
+        if (_kioskViewerLocked && sessionStorage.getItem('mass_viewer_auth') !== 'true') {
+          // Show Badge Reader overlay; on success, exit kiosk
+          checkAuthGate('viewer', { onSuccess: function() { exitKiosk(); } });
+        } else {
+          exitKiosk();
+        }
+      };
     }
     function exitKiosk() {
       kioskMode = false;
+      _kioskViewerLocked = false;
       document.body.classList.remove('kiosk');
       var hint = document.getElementById('kioskExit');
       if (hint) hint.remove();
@@ -1109,9 +1283,28 @@
       }
     }
     document.addEventListener('keydown', function(e) {
+      // Escape: close leaderboard overlay
+      if (e.key === 'Escape') {
+        var overlay = document.getElementById('leaderboardOverlay');
+        if (overlay && overlay.classList.contains('show')) {
+          closeLeaderboard();
+          e.preventDefault();
+          return;
+        }
+      }
+      // Ctrl+K: toggle kiosk mode
       if (e.ctrlKey && e.key === 'k') {
         e.preventDefault();
-        if (kioskMode) exitKiosk(); else enterKiosk();
+        if (kioskMode) {
+          // If viewer password protects kiosk, only exit if already authed
+          if (_kioskViewerLocked && sessionStorage.getItem('mass_viewer_auth') !== 'true') {
+            checkAuthGate('viewer', { onSuccess: function() { exitKiosk(); } });
+          } else {
+            exitKiosk();
+          }
+        } else {
+          enterKiosk();
+        }
       }
     });
 
@@ -1119,7 +1312,14 @@
     // INITIALIZATION
     // ========================================================================
     window.onload = async function() {
-      // Fetch config first to set units and track length before WS connects
+      // CRITICAL: Register WS handler and connect FIRST — nothing can block this
+      onWsMessage(handleStateUpdate);
+      massInit();
+
+      // Badge Reader gate — viewer password check
+      checkAuthGate('viewer');
+
+      // Each init step is isolated — a crash in one cannot kill the others
       try {
         var cfgResp = await fetch('/api/config');
         var cfgData = await cfgResp.json();
@@ -1129,15 +1329,15 @@
         if (cfgData.regional) {
           setUnits(cfgData.regional.units || 'imperial');
         }
-      } catch (e) {}
-      updateUnitLabels();
-      await loadGarageFromESP();
-      await loadHistoryFromESP();
-      initCharts();
-      if (activeCar) { setCurrentCarDisplay(activeCar); }
-      renderMostWanted();
-      onWsMessage(handleStateUpdate);
-      massInit();
+      } catch (e) { console.error('[INIT] Config fetch failed:', e); }
+
+      try { updateUnitLabels(); } catch (e) { console.error('[INIT] Unit labels failed:', e); }
+      try { await loadGarageFromESP(); } catch (e) { console.error('[INIT] Garage load failed:', e); }
+      try { await loadHistoryFromESP(); } catch (e) { console.error('[INIT] History load failed:', e); }
+      try { initCharts(); } catch (e) { console.error('[INIT] Charts failed:', e); }
+      try { if (activeCar) { setCurrentCarDisplay(activeCar); } } catch (e) { console.error('[INIT] Active car display failed:', e); }
+      try { renderMostWanted(); } catch (e) { console.error('[INIT] Most Wanted render failed:', e); }
+
       // Auto-enter kiosk if ?kiosk in URL
       if (window.location.search.indexOf('kiosk') !== -1) enterKiosk();
     };

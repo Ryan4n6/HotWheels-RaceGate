@@ -76,6 +76,7 @@ struct KnownPeer {
 // GLOBAL STATE
 // ============================================================================
 extern volatile RaceState raceState;
+extern bool dryRunMode;              // Dry-run: race works but no data is logged/saved
 extern int64_t clockOffset_us;
 extern bool peerConnected;           // Legacy: true if PRIMARY peer is online
 extern unsigned long lastPeerSeen;   // Legacy: millis() of last primary peer msg

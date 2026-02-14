@@ -20,8 +20,9 @@ build/
 *.code-workspace
 .idea/
 
-# --- Arduino IDE ---
+# --- Arduino IDE / PlatformIO preprocessor ---
 *.ino.globals.h
+*.ino.cpp
 
 # --- OS ---
 .DS_Store

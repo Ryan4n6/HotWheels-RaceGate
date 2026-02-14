@@ -199,6 +199,25 @@ void setup() {
   bool configured = loadConfig();
 
   if (!configured) {
+    // Before entering setup mode, check if we have a config file that
+    // just failed to parse or has configured=false. This protects against
+    // the case where uploadfs wipes LittleFS but the user re-saves config
+    // from the setup page and it comes back with configured=false.
+    // Also log what we found so the user can diagnose via serial.
+    if (LittleFS.exists(CONFIG_FILE)) {
+      LOG.println("[BOOT] Config file EXISTS but loadConfig() returned false — file may be corrupt or missing 'configured' flag");
+      LOG.println("[BOOT] Attempting to read raw config for diagnostics...");
+      File dbgFile = LittleFS.open(CONFIG_FILE, "r");
+      if (dbgFile) {
+        String raw = dbgFile.readString();
+        dbgFile.close();
+        LOG.printf("[BOOT] Config file size: %d bytes\n", raw.length());
+        LOG.printf("[BOOT] First 200 chars: %.200s\n", raw.c_str());
+      }
+    } else {
+      LOG.println("[BOOT] No config file on filesystem — genuinely unconfigured");
+    }
+
     // ====================================================================
     // SETUP MODE - First boot or factory reset
     // ====================================================================

@@ -116,15 +116,21 @@ struct DeviceConfig {
 
   // OTA
   char ota_password[32];
+
+  // Viewer authentication (Badge Reader)
+  char viewer_password[32];  // Blank = open access (no viewer gate)
 };
 
 // Global config instance
 extern DeviceConfig cfg;
 
 // Load config from LittleFS. Returns true if valid config found.
+// Falls back to NVS backup if LittleFS config is missing/corrupt.
 bool loadConfig();
 
 // Save current config to LittleFS. Returns true on success.
+// Also saves critical boot fields (ssid, pass, role, hostname) to NVS
+// as a backup that survives LittleFS wipes (e.g. uploadfs).
 bool saveConfig();
 
 // Validate config values. Returns true if valid.

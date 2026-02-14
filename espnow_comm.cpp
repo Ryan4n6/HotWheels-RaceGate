@@ -40,6 +40,7 @@
 // GLOBAL STATE
 // ============================================================================
 volatile RaceState raceState = IDLE;
+bool dryRunMode = false;
 int64_t clockOffset_us = 0;
 bool peerConnected = false;
 unsigned long lastPeerSeen = 0;

@@ -137,14 +137,18 @@ void finishGateLoop() {
     double momentum = mass_kg * speed_ms;
     double ke = 0.5 * mass_kg * speed_ms * speed_ms;
 
-    File file = LittleFS.open("/runs.csv", "a");
-    if (file) {
-      if (file.size() == 0) file.println("Run,Car,Weight(g),Time(s),Speed(mph),Scale(mph),Momentum,KE(J)");
-      file.printf("%u,%s,%.1f,%.4f,%.2f,%.1f,%.4f,%.4f\n", ++totalRuns, currentCar.c_str(),
-                  currentWeight, elapsed_s, speed_ms * MPS_TO_MPH,
-                  speed_ms * MPS_TO_MPH * (double)cfg.scale_factor,
-                  momentum, ke);
-      file.close();
+    if (!dryRunMode) {
+      File file = LittleFS.open("/runs.csv", "a");
+      if (file) {
+        if (file.size() == 0) file.println("Run,Car,Weight(g),Time(s),Speed(mph),Scale(mph),Momentum,KE(J)");
+        file.printf("%u,%s,%.1f,%.4f,%.2f,%.1f,%.4f,%.4f\n", ++totalRuns, currentCar.c_str(),
+                    currentWeight, elapsed_s, speed_ms * MPS_TO_MPH,
+                    speed_ms * MPS_TO_MPH * (double)cfg.scale_factor,
+                    momentum, ke);
+        file.close();
+      }
+    } else {
+      LOG.println("[FINISH] Dry-run mode — CSV logging skipped");
     }
 
     // Send CONFIRM to start gate

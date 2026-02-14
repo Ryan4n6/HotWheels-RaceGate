@@ -109,24 +109,42 @@ var ws = null;
 var wsReconnectTimer = null;
 var wsConnected = false;
 var wsMessageHandlers = [];
+var wsReconnectAttempts = 0;
 
 function connectWebSocket() {
-  var wsUrl = 'ws://' + window.location.hostname + ':81';
-  ws = new WebSocket(wsUrl);
+  // Protocol-aware: use wss:// when loaded over HTTPS (e.g. Tailscale Funnel)
+  var proto = (location.protocol === 'https:') ? 'wss://' : 'ws://';
+  var wsUrl = proto + window.location.hostname + ':81';
+
+  try {
+    ws = new WebSocket(wsUrl);
+  } catch (e) {
+    console.error('[WS] Constructor failed:', e);
+    wsReconnectAttempts++;
+    updateConnectionBadge(false);
+    wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+    return;
+  }
 
   ws.onopen = function() {
     wsConnected = true;
+    wsReconnectAttempts = 0;
     updateConnectionBadge(true);
     clearTimeout(wsReconnectTimer);
+    console.log('[WS] Connected to ' + wsUrl);
   };
 
-  ws.onclose = function() {
+  ws.onclose = function(evt) {
     wsConnected = false;
+    wsReconnectAttempts++;
     updateConnectionBadge(false);
-    wsReconnectTimer = setTimeout(connectWebSocket, 2000);
+    console.log('[WS] Closed (code=' + evt.code + ', reason=' + (evt.reason || 'none') + '). Reconnect #' + wsReconnectAttempts);
+    wsReconnectTimer = setTimeout(connectWebSocket, Math.min(2000 * wsReconnectAttempts, 10000));
   };
 
-  ws.onerror = function() {};
+  ws.onerror = function(evt) {
+    console.error('[WS] Error on ' + wsUrl, evt);
+  };
 
   ws.onmessage = function(event) {
     try {
@@ -135,7 +153,7 @@ function connectWebSocket() {
         wsMessageHandlers[i](data);
       }
     } catch (e) {
-      console.error('WS parse error:', e);
+      console.error('[WS] Parse error:', e);
     }
   };
 }
@@ -155,8 +173,17 @@ function wsSend(data) {
 function updateConnectionBadge(connected) {
   var el = document.getElementById('connBadge');
   if (!el) return;
+  var wasConnected = el.classList.contains('connected');
   el.className = 'conn-badge ' + (connected ? 'connected' : 'disconnected');
-  el.textContent = connected ? 'LINKED' : 'OFFLINE';
+  if (connected) {
+    el.textContent = 'LINKED';
+  } else {
+    el.textContent = wsReconnectAttempts > 1 ? 'OFFLINE (' + wsReconnectAttempts + ')' : 'OFFLINE';
+  }
+  // Dispatcher: announce connection changes (not initial load)
+  if (wasConnected !== connected && _announceEl) {
+    announce(connected ? 'Dispatch online. Link established.' : 'Signal lost. Reconnecting.');
+  }
 }
 
 // ====================================================================
@@ -194,6 +221,18 @@ function loadVersion() {
 // ====================================================================
 // UTILITY HELPERS
 // ====================================================================
+
+// Safe .toFixed() — crash-proof for non-numeric values (data validation)
+function safeFixed(val, dec) {
+  var n = parseFloat(val);
+  return isNaN(n) ? '--' : n.toFixed(dec || 2);
+}
+
+// Kiosk mode check — used by hotkey guard and auth integration
+function isKioskMode() {
+  return document.body.classList.contains('kiosk');
+}
+
 function formatBytes(b) {
   if (!b) return '--';
   if (b > 1024 * 1024) return (b / 1024 / 1024).toFixed(1) + ' MB';
@@ -237,5 +276,276 @@ function massInit(opts) {
   initTheme();
   initNav();
   loadVersion();
+  initAnnouncer();
+  initHotkeys();
   if (opts.ws !== false) connectWebSocket();
+}
+
+// ====================================================================
+// DISPATCHER — Screen Reader Announcements ("Radio Comms")
+// Tactical Police Dispatcher voice for aria-live announcements
+// ====================================================================
+var _announceEl = null;
+var _lastAnnouncement = '';
+
+function initAnnouncer() {
+  if (_announceEl) return;
+  _announceEl = document.createElement('div');
+  _announceEl.id = 'massAnnouncer';
+  _announceEl.className = 'sr-only';
+  _announceEl.setAttribute('aria-live', 'assertive');
+  _announceEl.setAttribute('aria-atomic', 'true');
+  _announceEl.setAttribute('role', 'status');
+  document.body.appendChild(_announceEl);
+}
+
+function announce(text, priority) {
+  priority = priority || 'assertive';
+  if (!_announceEl) initAnnouncer();
+  _announceEl.setAttribute('aria-live', priority);
+  _lastAnnouncement = text;
+  // Clear then set after tick — forces screen readers to re-announce
+  _announceEl.textContent = '';
+  setTimeout(function() { _announceEl.textContent = text; }, 100);
+}
+
+// ====================================================================
+// TACTICAL HOTKEYS — Keyboard shortcuts for blind users & excited kids
+// Guard: only fire when not typing in a form field
+// ====================================================================
+function initHotkeys() {
+  document.addEventListener('keydown', function(e) {
+    // Skip if user is typing in a form field
+    var tag = (document.activeElement || {}).tagName || '';
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+    // Skip if modifier keys held (allow browser shortcuts)
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+    // Skip all hotkeys in kiosk mode (display-only)
+    if (isKioskMode()) return;
+
+    var key = e.key;
+
+    // SPACE — Arm system (only on dashboard with armRace available)
+    if (key === ' ' && typeof armRace === 'function') {
+      e.preventDefault();
+      armRace();
+      return;
+    }
+
+    // R — Reset
+    if ((key === 'r' || key === 'R') && typeof resetRace === 'function') {
+      e.preventDefault();
+      resetRace();
+      announce('System reset. Standing by.');
+      return;
+    }
+
+    // L — Loop (re-announce last message)
+    if (key === 'l' || key === 'L') {
+      e.preventDefault();
+      if (_lastAnnouncement) {
+        announce(_lastAnnouncement);
+      } else {
+        announce('No recent dispatch.');
+      }
+      return;
+    }
+
+    // G — Announce active car (dashboard-specific)
+    if ((key === 'g' || key === 'G') && typeof activeCar !== 'undefined') {
+      e.preventDefault();
+      if (activeCar) {
+        var stats = activeCar.stats || {};
+        var best = (stats.bestTime != null && isFinite(stats.bestTime)) ? stats.bestTime.toFixed(3) + ' seconds' : 'no runs';
+        announce('Active unit: ' + activeCar.name + '. ' +
+          activeCar.weight + ' grams. ' +
+          (stats.runs || 0) + ' runs. Best: ' + best + '.');
+      } else {
+        announce('No active unit. Select a vehicle from the garage.');
+      }
+      return;
+    }
+
+    // T — Announce last race time (dashboard-specific)
+    if ((key === 't' || key === 'T') && typeof _lastRaceTime !== 'undefined') {
+      e.preventDefault();
+      if (_lastRaceTime) {
+        announce('Last time: ' + _lastRaceTime + '.');
+      } else {
+        announce('No race data. Arm the system and run a vehicle.');
+      }
+      return;
+    }
+
+    // ? — Help (list hotkeys)
+    if (key === '?') {
+      e.preventDefault();
+      announce('Hotkeys. Space to arm. R to reset. L to repeat. G for active car. T for last time. Question mark for help.');
+      return;
+    }
+  });
+}
+
+// ====================================================================
+// ARIA TABS — Reusable tab widget initialization (WAI-ARIA pattern)
+// ====================================================================
+function initAriaTabs(tablistSelector, tabSelector, panelPrefix) {
+  var tablist = document.querySelector(tablistSelector);
+  if (!tablist) return;
+  tablist.setAttribute('role', 'tablist');
+
+  var tabs = tablist.querySelectorAll(tabSelector);
+  for (var i = 0; i < tabs.length; i++) {
+    var tab = tabs[i];
+    var panelId = tab.getAttribute('data-tab');
+    if (!panelId) continue;
+
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-controls', 'tab-' + panelId);
+    if (!tab.id) tab.id = 'tabBtn-' + panelId;
+    tab.setAttribute('aria-selected', tab.classList.contains('active') ? 'true' : 'false');
+    tab.setAttribute('tabindex', tab.classList.contains('active') ? '0' : '-1');
+
+    var panel = document.getElementById('tab-' + panelId);
+    if (panel) {
+      panel.setAttribute('role', 'tabpanel');
+      panel.setAttribute('aria-labelledby', tab.id);
+      panel.setAttribute('tabindex', '0');
+    }
+  }
+
+  // Arrow key navigation within tablist
+  tablist.addEventListener('keydown', function(e) {
+    var current = document.activeElement;
+    if (!current || current.getAttribute('role') !== 'tab') return;
+
+    var allTabs = tablist.querySelectorAll(tabSelector);
+    var idx = -1;
+    for (var j = 0; j < allTabs.length; j++) {
+      if (allTabs[j] === current) { idx = j; break; }
+    }
+    if (idx === -1) return;
+
+    var newIdx = -1;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      newIdx = (idx + 1) % allTabs.length;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      newIdx = (idx - 1 + allTabs.length) % allTabs.length;
+    } else if (e.key === 'Home') {
+      newIdx = 0;
+    } else if (e.key === 'End') {
+      newIdx = allTabs.length - 1;
+    }
+
+    if (newIdx >= 0) {
+      e.preventDefault();
+      allTabs[newIdx].focus();
+      allTabs[newIdx].click();
+    }
+  });
+}
+
+function updateAriaTabState(activeTab, tabSelector) {
+  var tabs = document.querySelectorAll(tabSelector);
+  for (var i = 0; i < tabs.length; i++) {
+    var isActive = tabs[i] === activeTab;
+    tabs[i].setAttribute('aria-selected', isActive ? 'true' : 'false');
+    tabs[i].setAttribute('tabindex', isActive ? '0' : '-1');
+  }
+}
+
+// ====================================================================
+// AUTH GATE — Badge Reader (viewer) & Internal Affairs (admin)
+// Creates full-screen overlay requiring password to dismiss.
+// sessionStorage-based: persists across reloads, expires on tab close.
+// ====================================================================
+function checkAuthGate(tier, opts) {
+  opts = opts || {};
+  var sessionKey = tier === 'admin' ? 'mass_admin_auth' : 'mass_viewer_auth';
+  var apiTier = tier === 'admin' ? 'admin' : 'viewer';
+
+  // Already authenticated this session?
+  if (sessionStorage.getItem(sessionKey) === 'true') return;
+
+  fetch('/api/auth/info').then(function(r) { return r.json(); }).then(function(info) {
+    var needed = tier === 'admin' ? info.hasAdminPassword : info.hasViewerPassword;
+    if (!needed) return; // No password set — open access
+
+    // Build overlay
+    var overlay = document.createElement('div');
+    overlay.id = 'authGate';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+    var isAdmin = tier === 'admin';
+    var title = isAdmin ? 'INTERNAL AFFAIRS' : 'BADGE READER';
+    var subtitle = isAdmin ? 'Administrative access required' : 'Scan your badge to proceed';
+    var btnText = isAdmin ? 'Authenticate' : 'Scan Badge';
+    var accentColor = isAdmin ? '#dc3545' : 'var(--accent, #d4af37)';
+
+    var box = document.createElement('div');
+    box.style.cssText = 'background:var(--bg-card,#16213e);border:2px solid ' + accentColor + ';border-radius:12px;padding:40px;text-align:center;max-width:360px;width:90%;';
+    box.innerHTML =
+      '<div style="font-size:2.5rem;margin-bottom:12px;">' + (isAdmin ? '&#x1F6E1;' : '&#x1F6E1;') + '</div>' +
+      '<h2 style="color:' + accentColor + ';font-family:var(--font-body);letter-spacing:2px;margin:0 0 8px;">' + title + '</h2>' +
+      '<p style="color:var(--text-muted,#888);font-size:0.85rem;margin:0 0 24px;">' + subtitle + '</p>' +
+      '<input type="password" id="authGateInput" placeholder="Password" style="width:100%;padding:12px;border:1px solid var(--border,#2a2a4a);border-radius:6px;background:var(--bg-input,#0f0f1e);color:var(--text,#e0e0e0);font-size:1rem;margin-bottom:12px;text-align:center;font-family:var(--font-data);" autocomplete="current-password">' +
+      '<div id="authGateError" style="color:var(--danger,#dc3545);font-size:0.85rem;margin-bottom:12px;min-height:1.2em;"></div>' +
+      '<button id="authGateBtn" style="width:100%;padding:12px;background:' + accentColor + ';color:#000;border:none;border-radius:6px;font-weight:900;font-size:1rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px;">' + btnText + '</button>';
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    var input = document.getElementById('authGateInput');
+    var errEl = document.getElementById('authGateError');
+    var btn = document.getElementById('authGateBtn');
+
+    function tryAuth() {
+      var pw = input.value;
+      btn.disabled = true;
+      btn.textContent = 'Checking...';
+      fetch('/api/auth/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw, tier: apiTier })
+      }).then(function(r) { return r.json(); }).then(function(result) {
+        if (result.ok) {
+          sessionStorage.setItem(sessionKey, 'true');
+          overlay.remove();
+          if (typeof announce === 'function') {
+            announce(isAdmin ? 'Internal Affairs clearance granted.' : 'Badge accepted. Access granted.');
+          }
+          if (typeof opts.onSuccess === 'function') opts.onSuccess();
+        } else {
+          errEl.textContent = 'ACCESS DENIED';
+          input.value = '';
+          input.focus();
+          box.style.animation = 'none';
+          void box.offsetWidth; // Reflow
+          box.style.animation = 'shake 0.4s ease';
+        }
+        btn.disabled = false;
+        btn.textContent = btnText;
+      }).catch(function() {
+        errEl.textContent = 'Connection error';
+        btn.disabled = false;
+        btn.textContent = btnText;
+      });
+    }
+
+    btn.onclick = tryAuth;
+    input.onkeydown = function(e) { if (e.key === 'Enter') tryAuth(); };
+    setTimeout(function() { input.focus(); }, 100);
+
+    // Add shake animation CSS if not present
+    if (!document.getElementById('authShakeCSS')) {
+      var style = document.createElement('style');
+      style.id = 'authShakeCSS';
+      style.textContent = '@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}';
+      document.head.appendChild(style);
+    }
+  }).catch(function(e) {
+    console.log('[AUTH] Could not fetch auth info, proceeding without gate:', e);
+  });
 }

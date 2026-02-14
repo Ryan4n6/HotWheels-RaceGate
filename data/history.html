@@ -8,17 +8,18 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <a href="#mostWantedSection" class="skip-link">Skip to evidence</a>
   <div id="navContainer"></div>
 
   <div class="container">
     <!-- Page Header -->
     <div class="page-header">
-      <div class="page-header-shield"></div>
+      <div class="page-header-shield" aria-hidden="true"></div>
       <h1>M.A.S.S. TRAP</h1>
       <div class="subtitle">Motion Analysis &amp; Speed System</div>
       <div class="tagline">EVIDENCE LOG</div>
       <div class="theme-selector">
-        Theme: <select id="themePicker" onchange="setTheme(this.value)">
+        <label for="themePicker">Theme:</label> <select id="themePicker" onchange="setTheme(this.value)">
           <option value="interceptor">Interceptor</option>
           <option value="classic">Classic</option>
           <option value="daytona">Daytona</option>
@@ -30,7 +31,7 @@
 
     <!-- Most Wanted Leaderboard -->
     <div class="section most-wanted" id="mostWantedSection">
-      <div class="section-title">MOST WANTED</div>
+      <h2 class="section-title">MOST WANTED</h2>
       <div class="mw-header">
         <div class="mw-sort-controls">
           <button class="mw-sort-btn active" onclick="sortMostWanted('time')" id="mwSortTime">Fastest</button>
@@ -38,7 +39,7 @@
           <button class="mw-sort-btn" onclick="sortMostWanted('runs')" id="mwSortRuns">Most Offenses</button>
           <button class="mw-sort-btn" onclick="sortMostWanted('ke')" id="mwSortKe">Most Dangerous</button>
         </div>
-        <span class="mw-toggle" onclick="toggleMostWanted()" id="mwToggle">Collapse &#x25B2;</span>
+        <button class="mw-toggle" onclick="toggleMostWanted()" id="mwToggle" aria-expanded="true" aria-controls="mwBoard">Collapse &#x25B2;</button>
       </div>
       <div id="mwBoard" class="mw-board">
         <div class="mw-empty">No suspects in the system. Add cars to the garage and run races to populate the Most Wanted list.</div>
@@ -47,21 +48,21 @@
 
     <!-- Evidence Lab Charts -->
     <div class="section" id="chartsSection">
-      <div class="section-title">EVIDENCE LAB</div>
+      <h2 class="section-title">EVIDENCE LAB</h2>
       <div class="grid grid-2 mt-8">
-        <div class="chart-container"><canvas id="speedChart" height="250"></canvas></div>
-        <div class="chart-container"><canvas id="keChart" height="250"></canvas></div>
+        <div class="chart-container"><canvas id="speedChart" height="250" role="img" aria-label="Speed vs Run chart"></canvas></div>
+        <div class="chart-container"><canvas id="keChart" height="250" role="img" aria-label="Kinetic Energy vs Mass chart"></canvas></div>
       </div>
     </div>
 
     <!-- Case File History Table -->
     <div class="section">
-      <div class="section-title">CASE FILE</div>
+      <h2 class="section-title">CASE FILE</h2>
       <div style="overflow-x:auto;">
         <table>
           <thead><tr>
-            <th>Run</th><th>Suspect</th><th>Mass</th><th>Time</th>
-            <th id="thRealSpeed">Real MPH</th><th id="thScaleSpeed">Scale MPH</th><th>Momentum</th><th>KE</th>
+            <th scope="col">Run</th><th scope="col">Suspect</th><th scope="col">Mass</th><th scope="col">Time</th>
+            <th scope="col" id="thRealSpeed">Real MPH</th><th scope="col" id="thScaleSpeed">Scale MPH</th><th scope="col">Momentum</th><th scope="col">KE</th>
           </tr></thead>
           <tbody id="historyTable">
             <tr><td colspan="8" class="text-center text-muted">No evidence recorded yet</td></tr>
@@ -78,16 +79,25 @@
 
     <!-- Garage -->
     <div class="section">
-      <div class="section-title">THE GARAGE</div>
+      <h2 class="section-title">THE GARAGE</h2>
       <!-- car input form -->
       <div class="grid grid-3">
-        <input type="text" id="carName" placeholder="Suspect Vehicle (e.g. Twin Mill)">
-        <input type="text" id="carColor" placeholder="Color">
-        <input type="number" id="carWeight" placeholder="Mass (g)" step="0.1" min="1" max="200">
+        <div>
+          <label for="carName" class="sr-only">Suspect Vehicle</label>
+          <input type="text" id="carName" placeholder="Suspect Vehicle (e.g. Twin Mill)">
+        </div>
+        <div>
+          <label for="carColor" class="sr-only">Color</label>
+          <input type="text" id="carColor" placeholder="Color">
+        </div>
+        <div>
+          <label for="carWeight" class="sr-only">Mass in grams</label>
+          <input type="number" id="carWeight" placeholder="Mass (g)" step="0.1" min="1" max="200">
+        </div>
       </div>
       <button id="addCarBtn" class="btn btn-accent" onclick="addCar()">ADD TO GARAGE</button>
       <div id="garageGrid" class="garage-grid"></div>
-      <div id="garageStatus" class="text-center mb-8" style="font-size:0.85rem; font-weight:bold; min-height:1.2em;"></div>
+      <div id="garageStatus" class="text-center mb-8" role="status" aria-live="polite" style="font-size:0.85rem; font-weight:bold; min-height:1.2em;"></div>
       <div class="grid grid-4">
         <button class="btn btn-success" onclick="manualSaveGarage()">SAVE GARAGE</button>
         <button class="btn btn-primary" onclick="exportGarage()">EXPORT</button>
@@ -267,6 +277,9 @@
       localStorage.setItem('hw_active_car', JSON.stringify(activeCar));
       renderGarage();
       renderMostWanted();
+      if (typeof announce === 'function') {
+        announce(activeCar.name + ' loaded. ' + activeCar.weight + ' grams.');
+      }
     }
 
     async function deleteCar(index, event) {
@@ -304,24 +317,28 @@
       grid.innerHTML = garage.map(function(car, i) {
         if (!car.stats) car.stats = { runs: 0, bestTime: null, bestSpeed: 0 };
         var hasBest = car.stats.bestTime != null && car.stats.bestTime !== Infinity && isFinite(car.stats.bestTime);
+        var isActive = activeCar && activeCar.id === car.id;
+        var bestLabel = hasBest ? safeFixed(car.stats.bestTime, 3) + ' seconds' : 'no runs';
+        var cardLabel = car.name + ', ' + car.weight + ' grams, ' + (car.stats.runs || 0) + ' runs, best ' + bestLabel;
         var notes = car.notes || [];
         var notesHtml = notes.slice(-3).map(function(n) {
           return '<div class="mech-note">' + new Date(n.ts).toLocaleDateString() + ': ' + n.text + '</div>';
         }).join('');
-        return '<div class="garage-car ' + (activeCar && activeCar.id === car.id ? 'active' : '') + '" onclick="selectCar(' + i + ')">' +
-          '<button class="delete-btn" onclick="deleteCar(' + i + ', event)" title="Delete">x</button>' +
-          '<button class="edit-btn" onclick="editCar(' + i + ', event)" title="Edit">&#9998;</button>' +
-          '<h3>' + car.name + '</h3>' +
-          '<p>' + (car.color || '') + '</p>' +
+        return '<div class="garage-car ' + (isActive ? 'active' : '') + '" onclick="selectCar(' + i + ')" role="button" tabindex="0" aria-pressed="' + (isActive ? 'true' : 'false') + '" aria-label="' + escHtml(cardLabel) + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();selectCar(' + i + ');}">' +
+          '<button class="delete-btn" onclick="deleteCar(' + i + ', event)" aria-label="Delete ' + escHtml(car.name) + '">x</button>' +
+          '<button class="edit-btn" onclick="editCar(' + i + ', event)" aria-label="Edit ' + escHtml(car.name) + '">&#9998;</button>' +
+          '<h3>' + escHtml(car.name) + '</h3>' +
+          '<p>' + escHtml(car.color || '') + '</p>' +
           '<p>' + car.weight + 'g</p>' +
           '<div class="garage-stats">' +
             '<span>Runs: ' + (car.stats.runs || 0) + '</span>' +
-            '<span>Best: ' + (hasBest ? car.stats.bestTime.toFixed(3) : '--') + 's</span>' +
+            '<span>Best: ' + (hasBest ? safeFixed(car.stats.bestTime, 3) : '--') + 's</span>' +
           '</div>' +
           '<div class="mech-notes">' +
             notesHtml +
+            '<label for="noteInput_' + i + '" class="sr-only">Add note for ' + escHtml(car.name) + '</label>' +
             '<input type="text" id="noteInput_' + i + '" class="mech-note-input" placeholder="Add note..." onclick="event.stopPropagation();" onkeydown="if(event.key===\'Enter\')addNote(' + i + ')">' +
-            '<button class="btn btn-primary mech-add-btn" onclick="event.stopPropagation(); addNote(' + i + ');">+</button>' +
+            '<button class="btn btn-primary mech-add-btn" onclick="event.stopPropagation(); addNote(' + i + ');" aria-label="Save note for ' + escHtml(car.name) + '">+</button>' +
           '</div>' +
         '</div>';
       }).join('');
@@ -367,11 +384,11 @@
           '<td>#' + h.run + '</td>' +
           '<td><strong class="text-accent">' + h.car + '</strong></td>' +
           '<td>' + h.weight + 'g</td>' +
-          '<td class="font-data">' + h.time.toFixed(3) + 's</td>' +
+          '<td class="font-data">' + safeFixed(h.time, 3) + 's</td>' +
           '<td>' + displaySpeed + '</td>' +
           '<td><strong class="text-accent">' + displayScale + '</strong></td>' +
-          '<td>' + h.momentum.toFixed(3) + '</td>' +
-          '<td>' + (h.ke != null ? h.ke.toFixed(4) : '--') + '</td>' +
+          '<td>' + safeFixed(h.momentum, 3) + '</td>' +
+          '<td>' + safeFixed(h.ke, 4) + '</td>' +
         '</tr>';
       }).join('');
     }
@@ -398,7 +415,7 @@
         var displaySpeed = h.speed_mps ? formatSpeed(h.speed_mps, 2) : mphToDisplaySpeed(h.speed_mph);
         var displayScale = h.speed_mps ? formatSpeed(h.speed_mps * 64, 1) : mphToDisplaySpeed(h.scale_mph);
         var rawMps = h.speed_mps || (h.speed_mph / MPS_TO_MPH);
-        csv += h.run + ',' + new Date(h.timestamp).toISOString() + ',' + h.car + ',' + h.weight + ',' + h.time + ',' + displaySpeed + ',' + displayScale + ',' + rawMps.toFixed(3) + ',' + h.momentum + ',' + h.ke + '\n';
+        csv += h.run + ',' + new Date(h.timestamp).toISOString() + ',' + h.car + ',' + h.weight + ',' + h.time + ',' + displaySpeed + ',' + displayScale + ',' + safeFixed(rawMps, 3) + ',' + h.momentum + ',' + h.ke + '\n';
       });
       var blob = new Blob([csv], { type: 'text/csv' });
       var url = window.URL.createObjectURL(blob);
@@ -419,7 +436,9 @@
       mwCollapsed = !mwCollapsed;
       document.getElementById('mwBoard').style.display = mwCollapsed ? 'none' : 'grid';
       document.querySelector('.mw-sort-controls').style.display = mwCollapsed ? 'none' : 'flex';
-      document.getElementById('mwToggle').innerHTML = mwCollapsed ? 'Expand &#x25BC;' : 'Collapse &#x25B2;';
+      var toggle = document.getElementById('mwToggle');
+      toggle.innerHTML = mwCollapsed ? 'Expand &#x25BC;' : 'Collapse &#x25B2;';
+      toggle.setAttribute('aria-expanded', mwCollapsed ? 'false' : 'true');
     }
 
     function sortMostWanted(mode) {
@@ -484,10 +503,10 @@
 
     function getSortValue(item) {
       switch (mwSortMode) {
-        case 'time': return item.bestTime != null ? item.bestTime.toFixed(3) + 's' : '--';
+        case 'time': return item.bestTime != null ? safeFixed(item.bestTime, 3) + 's' : '--';
         case 'speed': return mphToDisplaySpeed(item.bestSpeed) + ' ' + speedUnit();
         case 'runs': return item.runs + ' offense' + (item.runs !== 1 ? 's' : '');
-        case 'ke': return item.bestKE.toFixed(4) + ' J';
+        case 'ke': return safeFixed(item.bestKE, 4) + ' J';
         default: return '';
       }
     }
@@ -515,12 +534,12 @@
           '<div class="mw-rank">' + rankTitle + '</div>' +
           '<div class="mw-name">' + item.name + '</div>' +
           '<div class="mw-stats">' +
-            '<div>Time: <strong>' + (item.bestTime != null ? item.bestTime.toFixed(3) + 's' : '--') + '</strong></div>' +
+            '<div>Time: <strong>' + (item.bestTime != null ? safeFixed(item.bestTime, 3) + 's' : '--') + '</strong></div>' +
             '<div>Speed: <strong>' + mphToDisplaySpeed(item.bestSpeed) + ' ' + speedUnit() + '</strong></div>' +
             '<div>Scale: <strong>' + mphToDisplaySpeed(item.bestScaleMph).split('.')[0] + ' ' + speedUnit() + '</strong></div>' +
             '<div>Mass: <strong>' + item.weight + 'g</strong></div>' +
             '<div>Offenses: <strong>' + item.runs + '</strong></div>' +
-            '<div>KE: <strong>' + item.bestKE.toFixed(4) + ' J</strong></div>' +
+            '<div>KE: <strong>' + safeFixed(item.bestKE, 4) + ' J</strong></div>' +
           '</div>' +
           '<div class="mw-threat ' + threat.cls + '">' + threat.text + '</div>' +
         '</div>';
@@ -555,7 +574,7 @@
           backgroundColor: '#d4af37', pointRadius: 6, pointHoverRadius: 8 }] },
         options: { responsive: true,
           plugins: { title: { display: true, text: 'Kinetic Energy vs Mass', font: { size: 14, weight: 'bold' }, color: '#d4af37' }, legend: { display: false },
-            tooltip: { callbacks: { label: function(ctx) { return ctx.raw.car + ': ' + ctx.raw.y.toFixed(4) + 'J @ ' + ctx.raw.x + 'g'; } } } },
+            tooltip: { callbacks: { label: function(ctx) { return ctx.raw.car + ': ' + safeFixed(ctx.raw.y, 4) + 'J @ ' + ctx.raw.x + 'g'; } } } },
           scales: { x: { title: { display: true, text: 'Mass (g)' } }, y: { title: { display: true, text: 'Kinetic Energy (J)' }, beginAtZero: true } } }
       });
 
@@ -579,6 +598,8 @@
     // ========================================================================
     window.onload = function() {
       document.getElementById('navContainer').innerHTML = getNavHTML();
+      // Badge Reader gate — viewer password check
+      checkAuthGate('viewer');
       // Fetch units from config before rendering
       fetch('/api/config').then(function(r) { return r.json(); }).then(function(cfg) {
         if (cfg.regional) setUnits(cfg.regional.units || 'imperial');

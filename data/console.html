@@ -308,6 +308,8 @@
     window.onload = function() {
       document.getElementById('navContainer').innerHTML = getNavHTML();
       massInit({ws: false});
+      // Internal Affairs gate — admin password check
+      checkAuthGate('admin');
       loadDeviceInfo();
       loadConsoleVersion();
       fetchLog();

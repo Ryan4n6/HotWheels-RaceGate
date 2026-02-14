@@ -37,9 +37,9 @@
 
 /* THEME 2: "Classic" — Hot Wheels Brand Heritage (Orange/Blue/Yellow) */
 [data-theme="classic"] {
-  --bg:           #ff5500;
+  --bg:           #e85d00;
   --bg-card:      #ffffff;
-  --bg-dark:      #e64d00;
+  --bg-dark:      #cc5200;
   --bg-input:     #ffffff;
   --border:       #007ACC;
   --accent:       #FFCC00;
@@ -48,10 +48,10 @@
   --secondary-rgb:0,122,204;
   --success:      #28a745;
   --success-rgb:  40,167,69;
-  --danger:       #cc0000;
-  --danger-rgb:   204,0,0;
-  --text:         #1a1a1a;
-  --text-muted:   #555555;
+  --danger:       #990000;
+  --danger-rgb:   153,0,0;
+  --text:         #222222;
+  --text-muted:   #444444;
   --font-body:    'Arial Black', Impact, 'Segoe UI', sans-serif;
   --font-data:    'Courier New', 'Consolas', monospace;
   --nav-bg:       #000000;
@@ -61,13 +61,13 @@
   --nav-hover:    #ff8800;
 }
 
-/* THEME 3: "Daytona" — NASCAR / Stock Car Racing */
+/* THEME 3: "Daytona" — NASCAR / Stock Car Racing — World Center of Racing */
 [data-theme="daytona"] {
-  --bg:           #1a1a1a;
+  --bg:           #141414;
   --bg-card:      #2a2a2a;
-  --bg-dark:      #111111;
-  --bg-input:     #111111;
-  --border:       #444444;
+  --bg-dark:      #0e0e0e;
+  --bg-input:     #1a1a1a;
+  --border:       #555555;
   --accent:       #ffcc00;
   --accent-rgb:   255,204,0;
   --secondary:    #ff0000;
@@ -77,10 +77,10 @@
   --danger:       #ff1744;
   --danger-rgb:   255,23,68;
   --text:         #f0f0f0;
-  --text-muted:   #888888;
+  --text-muted:   #999999;
   --font-body:    Impact, 'Arial Narrow', 'Segoe UI', sans-serif;
   --font-data:    'Courier New', 'Consolas', monospace;
-  --nav-bg:       #111111;
+  --nav-bg:       #0e0e0e;
   --nav-border:   #ffcc00;
   --nav-active:   #ffcc00;
   --nav-link:     #cccccc;
@@ -116,10 +116,10 @@
 /* THEME 5: "Cyber" — Terminal / Hacker Aesthetic */
 [data-theme="cyber"] {
   --bg:           #000000;
-  --bg-card:      #0a0a0a;
+  --bg-card:      #111a11;
   --bg-dark:      #000000;
-  --bg-input:     #0a0a0a;
-  --border:       #1a1a1a;
+  --bg-input:     #0d160d;
+  --border:       #003300;
   --accent:       #00ff00;
   --accent-rgb:   0,255,0;
   --secondary:    #00ccff;
@@ -129,13 +129,13 @@
   --danger:       #ff0040;
   --danger-rgb:   255,0,64;
   --text:         #00ff00;
-  --text-muted:   #007700;
+  --text-muted:   #009900;
   --font-body:    'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   --font-data:    'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   --nav-bg:       #000000;
   --nav-border:   #003300;
   --nav-active:   #00ff00;
-  --nav-link:     #007700;
+  --nav-link:     #009900;
   --nav-hover:    #00ff00;
 }
 
@@ -193,13 +193,39 @@ body {
 [data-theme="classic"] .btn-accent { background: var(--accent); color: #000; }
 [data-theme="classic"] .status-bar { background: #000; color: var(--accent); border: 3px solid var(--secondary); }
 
-/* Daytona: Checkered flag + tire skid marks */
+/* Daytona: Asphalt texture with bold tire skid marks */
 [data-theme="daytona"] body {
+  background-color: #141414;
   background-image:
-    repeating-conic-gradient(#1a1a1a 0% 25%, #222222 0% 50%) 0 0 / 30px 30px,
-    linear-gradient(175deg, transparent 44%, rgba(60,60,60,0.15) 45%, rgba(60,60,60,0.15) 46%, transparent 47%),
-    linear-gradient(185deg, transparent 48%, rgba(50,50,50,0.1) 49%, rgba(50,50,50,0.1) 50%, transparent 51%);
-  background-blend-mode: normal;
+    /* Tire marks — two parallel skid lines down each margin */
+    linear-gradient(180deg,
+      transparent 0%, rgba(40,40,40,0.3) 2%, transparent 4%,
+      transparent 20%, rgba(40,40,40,0.25) 21%, transparent 23%,
+      transparent 50%, rgba(40,40,40,0.3) 52%, transparent 54%,
+      transparent 75%, rgba(40,40,40,0.2) 76%, transparent 78%,
+      transparent 100%),
+    repeating-linear-gradient(90deg,
+      transparent 0%, transparent 4%,
+      rgba(30,30,30,0.4) 4%, rgba(30,30,30,0.4) 4.4%,
+      transparent 4.4%, transparent 5.4%,
+      rgba(30,30,30,0.35) 5.4%, rgba(30,30,30,0.35) 5.8%,
+      transparent 5.8%, transparent 94.2%,
+      rgba(30,30,30,0.35) 94.2%, rgba(30,30,30,0.35) 94.6%,
+      transparent 94.6%, transparent 95.6%,
+      rgba(30,30,30,0.4) 95.6%, rgba(30,30,30,0.4) 96%,
+      transparent 96%),
+    /* Asphalt grain texture */
+    repeating-linear-gradient(135deg,
+      transparent 0px, transparent 3px,
+      rgba(255,255,255,0.01) 3px, rgba(255,255,255,0.01) 4px);
+  background-attachment: fixed;
+}
+/* Daytona: Checkered flag border on nav */
+[data-theme="daytona"] .mass-nav {
+  border-bottom: 4px solid;
+  border-image: repeating-linear-gradient(
+    90deg, #ffffff 0, #ffffff 8px, #111111 8px, #111111 16px
+  ) 4;
 }
 
 /* Case File: Aged paper with coffee stain ring + faint ruled lines */
@@ -637,12 +663,27 @@ a:hover { color: var(--accent); }
   border-radius: 2px;
   font-family: Impact, 'Arial Narrow', sans-serif;
   letter-spacing: 3px;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
 }
 [data-theme="daytona"] .page-header h1 {
   text-shadow: 3px 3px 0px rgba(255,0,0,0.3), -1px -1px 0px rgba(255,204,0,0.3);
 }
 [data-theme="daytona"] .state-banner {
   border-width: 4px;
+}
+[data-theme="daytona"] .card {
+  border-left: 3px solid var(--secondary);
+}
+
+/* --- Cyber: Terminal glow on cards --- */
+[data-theme="cyber"] .card {
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.08), inset 0 0 1px rgba(0, 255, 0, 0.05);
+}
+[data-theme="cyber"] .section {
+  box-shadow: 0 0 12px rgba(0, 255, 0, 0.06);
+}
+[data-theme="cyber"] .section-title {
+  text-shadow: 0 0 8px rgba(0, 255, 0, 0.4);
 }
 
 /* =================================================================
@@ -701,10 +742,20 @@ textarea {
   transition: border-color 0.2s;
 }
 input:focus, select:focus, textarea:focus {
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.25);
 }
+input:focus:not(:focus-visible), select:focus:not(:focus-visible), textarea:focus:not(:focus-visible) {
+  outline: none;
+}
+/* Visible focus ring for all interactive elements */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) { outline: none; }
 input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 0.6; }
 select option { background: var(--bg-dark); color: var(--text); }
 
@@ -968,6 +1019,26 @@ tbody tr:hover { background: rgba(var(--secondary-rgb), 0.08); }
 }
 .conn-badge.connected { border-color: var(--success); color: var(--success); }
 .conn-badge.disconnected { border-color: var(--danger); color: var(--danger); }
+
+/* Dry-Run Banner */
+.dry-run-banner {
+  background: rgba(255, 102, 0, 0.15);
+  border: 2px solid #ff6600;
+  color: #ff6600;
+  text-align: center;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 900;
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  animation: dryRunPulse 2s ease-in-out infinite;
+}
+@keyframes dryRunPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
 
 /* =================================================================
    VERSION BADGE
@@ -1359,11 +1430,76 @@ body.kiosk .theme-selector { display: none !important; }
 body.kiosk .conn-badge { display: none !important; }
 body.kiosk { padding-bottom: 0; }
 
+/* Broad suppression: hide ALL interactive controls in kiosk mode */
+body.kiosk button:not(.kiosk-exit):not(.kiosk-unlock),
+body.kiosk input,
+body.kiosk select,
+body.kiosk textarea { display: none !important; }
+
+/* Disable pointer events on data cards, garage cars, tables */
+body.kiosk .card,
+body.kiosk .garage-car,
+body.kiosk .mw-sort-controls,
+body.kiosk table { pointer-events: none; }
+
+/* Kiosk exit/unlock — remain interactive */
+body.kiosk .kiosk-exit,
+body.kiosk .kiosk-unlock {
+  display: inline-block !important;
+  pointer-events: auto !important;
+}
+
 /* Kiosk exit hint — tiny, unobtrusive */
-.kiosk-exit {
+.kiosk-exit, .kiosk-unlock {
   position: fixed; bottom: 6px; right: 6px;
   font-size: 0.6rem; color: rgba(128,128,128,0.3);
   cursor: pointer; z-index: 9999;
   padding: 4px 8px; border-radius: 4px;
 }
-.kiosk-exit:hover { color: var(--text-muted); background: rgba(0,0,0,0.3); }
+.kiosk-exit:hover, .kiosk-unlock:hover { color: var(--text-muted); background: rgba(0,0,0,0.3); }
+
+/* =================================================================
+   ACCESSIBILITY — Born Accessible
+   ================================================================= */
+
+/* Screen-reader only (visually hidden, accessible to AT) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip link — hidden until keyboard focus */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  background: var(--accent);
+  color: var(--bg);
+  padding: 8px 16px;
+  border-radius: 0 0 6px 6px;
+  font-weight: 900;
+  font-size: 0.85rem;
+  z-index: 10000;
+  text-decoration: none;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.skip-link:focus { top: 0; outline: 2px solid var(--bg); }
+
+/* =================================================================
+   REDUCED MOTION — Respect OS accessibility setting
+   ================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
